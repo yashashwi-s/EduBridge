@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign Up - Edubridge</title>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat:400,600|Roboto:300,400,500" rel="stylesheet">
+  <!-- Font Awesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Global reset */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Roboto', sans-serif; background: linear-gradient(135deg, #1e88e5, #ff7043); color: #333; }
+    .container { max-width: 500px; width: 100%; margin: 50px auto; background: #fff; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    h2 { text-align: center; margin-bottom: 1.5rem; font-family: 'Montserrat', sans-serif; color: #1e88e5; }
+    /* Tabs */
+    .tab-buttons { display: flex; justify-content: center; margin-bottom: 1.5rem; }
+    .tab-buttons button { flex: 1; padding: 0.75rem; background: #f1f1f1; border: none; cursor: pointer; font-weight: 600; transition: background 0.3s; }
+    .tab-buttons button.active { background: #1e88e5; color: #fff; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    form { display: flex; flex-direction: column; gap: 1rem; }
+    label { font-weight: 600; margin-bottom: 0.5rem; }
+    input[type="text"], input[type="email"], input[type="password"], input[type="number"] { width: 100%; padding: 0.75rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
+    .verification { display: flex; gap: 0.5rem; }
+    .verification input { flex: 1; }
+    .verification button { flex-shrink: 0; padding: 0.75rem; border: none; background: #1e88e5; color: #fff; border-radius: 4px; cursor: pointer; transition: background 0.3s; }
+    .verification button:hover { background: #1565c0; }
+    button.submit-btn { padding: 0.75rem; border: none; border-radius: 4px; background: #1e88e5; color: #fff; font-size: 1rem; cursor: pointer; transition: background 0.3s; }
+    button.submit-btn:hover { background: #1565c0; }
+    .links { text-align: center; margin-top: 1rem; }
+    .links a { color: #1e88e5; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Sign Up</h2>
+    <div class="tab-buttons">
+      <button id="teacherTab" class="active" onclick="showTab('teacher')">Teacher</button>
+      <button id="studentTab" onclick="showTab('student')">Student</button>
+    </div>
+    
+    <!-- Teacher Signup Form -->
+    <div id="teacher" class="tab-content active">
+      <form action="/signup/teacher" method="POST">
+        <div class="form-group">
+          <label for="teacherName">Full Name</label>
+          <input type="text" id="teacherName" name="name" placeholder="Your full name" required>
+        </div>
+        <div class="form-group">
+          <label for="teacherOrg">Organization</label>
+          <input type="text" id="teacherOrg" name="organization" placeholder="Your organization" required>
+        </div>
+        <div class="form-group">
+          <label for="teacherEmail">Email</label>
+          <input type="email" id="teacherEmail" name="email" placeholder="Your email" required>
+        </div>
+        <div class="form-group">
+          <label for="teacherPassword">Password</label>
+          <input type="password" id="teacherPassword" name="password" placeholder="Choose a password" required>
+        </div>
+        <div class="form-group">
+          <label>Verification Code</label>
+          <div class="verification">
+            <input type="number" name="verificationCode" placeholder="Enter code" required>
+            <button type="button" onclick="sendVerification('teacherEmail')">Send Code</button>
+          </div>
+        </div>
+        <button type="submit" class="submit-btn">Sign Up as Teacher</button>
+      </form>
+    </div>
+    
+    <!-- Student Signup Form -->
+    <div id="student" class="tab-content">
+      <form action="/signup/student" method="POST">
+        <div class="form-group">
+          <label for="studentName">Full Name</label>
+          <input type="text" id="studentName" name="name" placeholder="Your full name" required>
+        </div>
+        <div class="form-group">
+          <label for="studentOrg">Organization/School</label>
+          <input type="text" id="studentOrg" name="organization" placeholder="Your school/organization" required>
+        </div>
+        <div class="form-group">
+          <label for="studentEmail">Email</label>
+          <input type="email" id="studentEmail" name="email" placeholder="Your email" required>
+        </div>
+        <div class="form-group">
+          <label for="studentPassword">Password</label>
+          <input type="password" id="studentPassword" name="password" placeholder="Choose a password" required>
+        </div>
+        <div class="form-group">
+          <label>Verification Code</label>
+          <div class="verification">
+            <input type="number" name="verificationCode" placeholder="Enter code" required>
+            <button type="button" onclick="sendVerification('studentEmail')">Send Code</button>
+          </div>
+        </div>
+        <button type="submit" class="submit-btn">Sign Up as Student</button>
+      </form>
+    </div>
+    
+    <div class="links">
+      <p>Already have an account? <a href="login.html">Login</a></p>
+    </div>
+  </div>
+  
+  <script>
+    function showTab(tab) {
+      document.getElementById('teacher').classList.remove('active');
+      document.getElementById('student').classList.remove('active');
+      document.getElementById(tab).classList.add('active');
+      
+      document.getElementById('teacherTab').classList.remove('active');
+      document.getElementById('studentTab').classList.remove('active');
+      document.getElementById(tab + 'Tab').classList.add('active');
+    }
+    
+    function sendVerification(emailFieldId) {
+      // Trigger an API call to send a verification code.
+      var email = document.getElementById(emailFieldId).value;
+      if(email) {
+        alert("Verification code sent to " + email);
+        // Replace alert with AJAX/fetch to call your backend.
+      } else {
+        alert("Please enter your email address first.");
+      }
+    }
+  </script>
+</body>
+</html>

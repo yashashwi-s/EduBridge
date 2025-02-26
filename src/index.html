@@ -1,12 +1,544 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hello World</title>
-  </head>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Edubridge | AI-Powered Smart Grader</title>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat:400,600|Roboto:300,400,500" rel="stylesheet">
+  <!-- Font Awesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- AOS Animation Library CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
+  <style>
+    /* Global Reset and Base Styles */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Roboto', sans-serif; line-height: 1.6; color: #333; scroll-behavior: smooth; }
+    a { text-decoration: none; color: inherit; }
+    
+    /* Container */
+    .container {
+      width: 90%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1rem 0;
+    }
+    
+    /* Particles.js Background */
+    #particles-js {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      z-index: 0;
+    }
+    
+    /* Header */
+    header {
+      width: 100%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      background: rgba(255,255,255,0.95);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      z-index: 1000;
+    }
+    .header-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .logo {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 600;
+      color: #1e88e5;
+    }
+    /* Hamburger Icon (hidden on desktop) */
+    .hamburger {
+      display: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      margin-left: 1rem;
+    }
+    /* Navigation and CTA */
+    .nav-menu {
+      display: flex;
+      gap: 1.5rem;
+    }
+    .nav-menu a {
+      font-weight: 500;
+      transition: color 0.3s;
+    }
+    .nav-menu a:hover { color: #1e88e5; }
+    .cta-btn {
+      background: #1e88e5;
+      color: #fff;
+      padding: 0.6rem 1.2rem;
+      border-radius: 25px;
+      font-weight: 600;
+      transition: background 0.3s;
+    }
+    .cta-btn:hover { background: #1565c0; }
+    
+    /* Hero Section */
+    .hero {
+      position: relative;
+      height: 100vh;
+      background: url('https://via.placeholder.com/1500x900') center/cover no-repeat;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 0 1rem;
+      overflow: hidden;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: linear-gradient(135deg, rgba(30,136,229,0.6), rgba(255,112,67,0.6));
+      z-index: 1;
+    }
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      color: #fff;
+      max-width: 800px;
+      animation: fadeIn 1.5s ease-in-out;
+    }
+    .hero h1 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 3.5rem;
+      margin-bottom: 1rem;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+    }
+    .hero p {
+      font-size: 1.2rem;
+      margin-bottom: 2rem;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.4);
+    }
+    .hero .hero-btn {
+      background: #ff7043;
+      padding: 0.9rem 1.8rem;
+      border: none;
+      border-radius: 25px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .hero .hero-btn:hover { background: #f4511e; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Features Section */
+    .features {
+      background: #f9f9f9;
+      text-align: center;
+      padding: 4rem 0;
+    }
+    .features h2 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 2.8rem;
+      margin-bottom: 2rem;
+      color: #1e88e5;
+    }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      padding: 0 1rem;
+    }
+    .feature {
+      background: #fff;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .feature:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    }
+    .feature i {
+      font-size: 3rem;
+      color: #1e88e5;
+      margin-bottom: 1rem;
+    }
+    .feature h3 {
+      font-family: 'Montserrat', sans-serif;
+      margin-bottom: 1rem;
+    }
+    .feature p { font-size: 0.95rem; }
+    
+    /* Demo Section */
+    .demo {
+      background: #fff;
+      text-align: center;
+      padding: 4rem 0;
+    }
+    .demo h2 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      color: #1e88e5;
+    }
+    .demo p {
+      max-width: 700px;
+      margin: 0 auto 2rem;
+      font-size: 1.1rem;
+    }
+    .demo video {
+      width: 90%;
+      max-width: 800px;
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+    }
+    
+    /* Testimonials Section */
+    .testimonials {
+      background: #f9f9f9;
+      text-align: center;
+      padding: 4rem 0;
+    }
+    .testimonials h2 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 2.5rem;
+      margin-bottom: 2rem;
+      color: #1e88e5;
+    }
+    .testimonial-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      justify-content: center;
+      padding: 0 1rem;
+    }
+    .testimonial {
+      background: #fff;
+      padding: 2rem;
+      border-radius: 10px;
+      max-width: 350px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .testimonial p {
+      font-style: italic;
+      margin-bottom: 1.5rem;
+    }
+    .testimonial .author {
+      font-weight: 600;
+      color: #1e88e5;
+    }
+    
+    /* Contact Section */
+    .contact {
+      background: #fff;
+      text-align: center;
+      padding: 4rem 0;
+    }
+    .contact h2 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 2.8rem;
+      margin-bottom: 1rem;
+      color: #1e88e5;
+    }
+    .contact form {
+      max-width: 600px;
+      margin: 0 auto;
+      text-align: left;
+    }
+    .contact form .form-group {
+      margin-bottom: 1.5rem;
+    }
+    .contact form label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+    .contact form input,
+    .contact form textarea {
+      width: 100%;
+      padding: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+    .contact form input:focus,
+    .contact form textarea:focus {
+      border-color: #1e88e5;
+    }
+    .contact form button {
+      background: #1e88e5;
+      color: #fff;
+      padding: 0.9rem 1.8rem;
+      border: none;
+      border-radius: 25px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .contact form button:hover { background: #1565c0; }
+    
+    /* Get Started Section (Optional) */
+    .get-started {
+      background: #1e88e5;
+      color: #fff;
+      text-align: center;
+      padding: 4rem 0;
+    }
+    .get-started h2 {
+      font-family: 'Montserrat', sans-serif;
+      font-size: 2.8rem;
+      margin-bottom: 1rem;
+    }
+    .get-started p {
+      max-width: 600px;
+      margin: 1rem auto 2rem;
+      font-size: 1.1rem;
+    }
+    
+    /* Footer */
+    footer {
+      background: #1e88e5;
+      color: #fff;
+      text-align: center;
+      padding: 2rem 0;
+    }
+    .footer-links {
+      margin: 1rem 0;
+    }
+    .footer-links a {
+      margin: 0 1rem;
+      color: #fff;
+      transition: color 0.3s;
+    }
+    .footer-links a:hover { color: #ffca28; }
+    .social-icons a {
+      margin: 0 0.5rem;
+      font-size: 1.2rem;
+      color: #fff;
+      transition: color 0.3s;
+    }
+    .social-icons a:hover { color: #ffca28; }
+    
+    /* Responsive Navigation */
+    @media (max-width: 768px) {
+      .header-container {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+      }
+      /* Show hamburger icon on mobile */
+      .hamburger { display: block; }
+      /* Hide nav-menu by default on mobile */
+      .nav-menu { 
+        display: none; 
+        flex-direction: column; 
+        gap: 1rem;
+        width: 100%;
+        margin-top: 1rem;
+      }
+      .nav-menu.active { display: flex; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Particles Background -->
+  <div id="particles-js"></div>
+  
+  <!-- Header -->
+  <header>
+    <div class="container header-container">
+      <div class="logo">Edubridge</div>
+      <!-- Hamburger icon visible on mobile -->
+      <i class="fas fa-bars hamburger" onclick="toggleMenu()" aria-label="Toggle Navigation"></i>
+      <nav class="nav-menu">
+        <a href="#features">Features</a>
+        <a href="#demo">Demo</a>
+        <a href="#testimonials">Testimonials</a>
+        <a href="#contact">Contact</a>
+      </nav>
+      <a class="cta-btn" href="/get-started">Get Started</a>
+    </div>
+  </header>
+  
+  <!-- Main Content -->
+  <main>
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="hero-content" data-aos="fade-up">
+        <h1>Deliver &amp; Grade Assessments Anywhere</h1>
+        <p>Empower your teaching with our AI-powered grader—seamlessly administer, evaluate, and analyze assessments in real time.</p>
+        <button class="hero-btn" onclick="window.location.href='#get-started'">Start Now</button>
+      </div>
+    </section>
+    
+    <!-- Features Section -->
+    <section id="features" class="features">
+      <div class="container">
+        <h2 data-aos="fade-up">Why Choose Edubridge?</h2>
+        <div class="feature-grid">
+          <div class="feature" data-aos="fade-up" data-aos-delay="100">
+            <i class="fas fa-robot"></i>
+            <h3>Smart Grading</h3>
+            <p>Our Gemini AI aligns every submission with model answers for fair, fast, and accurate grading.</p>
+          </div>
+          <div class="feature" data-aos="fade-up" data-aos-delay="200">
+            <i class="fas fa-layer-group"></i>
+            <h3>Seamless Integration</h3>
+            <p>Create classrooms, assign assessments, and manage submissions effortlessly—all in one place.</p>
+          </div>
+          <div class="feature" data-aos="fade-up" data-aos-delay="300">
+            <i class="fas fa-chart-line"></i>
+            <h3>Real-time Analytics</h3>
+            <p>Gain instant insights into student performance and class progress with comprehensive analytics.</p>
+          </div>
+          <div class="feature" data-aos="fade-up" data-aos-delay="400">
+            <i class="fas fa-tachometer-alt"></i>
+            <h3>Interactive Dashboard</h3>
+            <p>Access detailed reports, rankings, and performance metrics through an intuitive interface.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Demo Section -->
+    <section id="demo" class="demo">
+      <div class="container">
+        <h2 data-aos="fade-up">See Edubridge in Action</h2>
+        <p data-aos="fade-up" data-aos-delay="100">
+          Watch a quick demo that shows how our platform transforms traditional grading into an automated, efficient process.
+        </p>
+        <video data-aos="fade-up" data-aos-delay="200" controls>
+          <source src="demo-video.mp4" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+      </div>
+    </section>
+    
+    <!-- Testimonials Section -->
+    <section id="testimonials" class="testimonials">
+      <div class="container">
+        <h2 data-aos="fade-up">What Our Users Say</h2>
+        <div class="testimonial-container">
+          <div class="testimonial" data-aos="fade-up" data-aos-delay="100">
+            <p>"Edubridge has revolutionized the way I grade assessments. It saves so much time and provides detailed insights."</p>
+            <div class="author">- Sarah, High School Teacher</div>
+          </div>
+          <div class="testimonial" data-aos="fade-up" data-aos-delay="200">
+            <p>"The AI-powered grading is a game changer. My students receive immediate feedback, and I can focus more on teaching."</p>
+            <div class="author">- John, College Professor</div>
+          </div>
+          <div class="testimonial" data-aos="fade-up" data-aos-delay="300">
+            <p>"A seamless experience from classroom management to grading. Edubridge truly empowers educators."</p>
+            <div class="author">- Emily, Educator</div>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Contact Section -->
+    <section id="contact" class="contact">
+      <div class="container">
+        <h2 data-aos="fade-up">Get In Touch</h2>
+        <form data-aos="fade-up" data-aos-delay="100">
+          <div class="form-group">
+            <label for="name">Name</label>
+            <input type="text" id="name" placeholder="Your Name" required>
+          </div>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="Your Email" required>
+          </div>
+          <div class="form-group">
+            <label for="message">Message</label>
+            <textarea id="message" rows="6" placeholder="Your Message" required></textarea>
+          </div>
+          <button type="submit">Send Message</button>
+        </form>
+      </div>
+    </section>
+    
+    <!-- Get Started Section (Optional) -->
+    <section id="get-started" class="get-started">
+      <div class="container">
+        <h2 data-aos="fade-up">Ready to Transform Your Assessments?</h2>
+        <p data-aos="fade-up" data-aos-delay="100">
+          Join Edubridge today and experience the future of assessment grading with our AI-powered platform.
+        </p>
+        <button class="cta-btn" data-aos="fade-up" data-aos-delay="200" style="background: #ff7043;">Get Started Now</button>
+      </div>
+    </section>
+  </main>
+  
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-links">
+        <a href="#features">Features</a>
+        <a href="#demo">Demo</a>
+        <a href="#testimonials">Testimonials</a>
+        <a href="#contact">Contact</a>
+      </div>
+      <div class="social-icons">
+        <a href="#"><i class="fab fa-facebook-f"></i></a>
+        <a href="#"><i class="fab fa-twitter"></i></a>
+        <a href="#"><i class="fab fa-linkedin-in"></i></a>
+        <a href="#"><i class="fab fa-instagram"></i></a>
+      </div>
+      <p>&copy; 2025 Edubridge. All rights reserved.</p>
+    </div>
+  </footer>
+  
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js" defer></script>
+  <script defer>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize AOS animations
+      AOS.init({ duration: 1000, once: true });
+      
+      // Toggle mobile navigation
+      window.toggleMenu = function() {
+        const navMenu = document.querySelector('.nav-menu');
+        navMenu.classList.toggle('active');
+      };
 
-  <body>
-    <h1>Hello World </h1>
-  </body>
+      // Initialize Particles.js for dynamic hero background
+      particlesJS("particles-js", {
+        "particles": {
+          "number": { "value": 80, "density": { "enable": true, "value_area": 800 } },
+          "color": { "value": "#ffffff" },
+          "shape": { "type": "circle", "stroke": { "width": 0, "color": "#000000" } },
+          "opacity": { "value": 0.5, "random": false },
+          "size": { "value": 3, "random": true },
+          "line_linked": { "enable": true, "distance": 150, "color": "#ffffff", "opacity": 0.4, "width": 1 },
+          "move": { "enable": true, "speed": 6, "direction": "none", "random": false, "straight": false, "out_mode": "out" }
+        },
+        "interactivity": {
+          "detect_on": "canvas",
+          "events": {
+            "onhover": { "enable": true, "mode": "grab" },
+            "onclick": { "enable": true, "mode": "push" },
+            "resize": true
+          },
+          "modes": {
+            "grab": { "distance": 140, "line_linked": { "opacity": 1 } },
+            "push": { "particles_nb": 4 }
+          }
+        },
+        "retina_detect": true
+      });
+    });
+  </script>
+</body>
 </html>
