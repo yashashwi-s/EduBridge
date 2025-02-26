@@ -7,6 +7,10 @@ app = Flask(__name__)
 def index():
     return send_file('src/index.html')
 
+@app.route("/login")
+def login():
+    return send_file('src/login.html')
+
 @app.route("/signup")
 def signup():
     return send_file('src/signup.html')
