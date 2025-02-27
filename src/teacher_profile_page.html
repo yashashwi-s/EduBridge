@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EduBridge Profile</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css?family=Google+Sans:400,500,700|Roboto:300,400,500&display=swap"
+        rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap"
+        rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Global Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Montserrat', 'Google Sans', 'Roboto', sans-serif;
+            background-color: #f5f5f5;
+            color: #3c4043;
+        }
+
+        /* Navbar */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #fff;
+            color: #3c4043;
+            padding: 0 16px;
+            height: 64px;
+            box-shadow: 0 1px 2px rgba(60, 64, 67, 0.3), 0 2px 6px 2px rgba(60, 64, 67, 0.15);
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 100;
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .hamburger {
+            background: none;
+            border: none;
+            color: #5f6368;
+            font-size: 24px;
+            cursor: pointer;
+            margin-right: 16px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.2s;
+        }
+
+        .hamburger:hover {
+            background-color: rgba(95, 99, 104, 0.1);
+        }
+
+        .logo {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1a73e8;
+            display: flex;
+            align-items: center;
+        }
+
+        .logo i {
+            color: #1a73e8;
+            font-size: 26px;
+            margin-right: 10px;
+        }
+
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        /* Profile Icon & Dropdown */
+        .profile-wrapper {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .profile-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid #e8eaed;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .profile-icon:hover {
+            transform: scale(1.05);
+            border-color: #1a73e8;
+        }
+
+        .profile-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 50px;
+            background-color: white;
+            box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 2px 6px 2px rgba(60, 64, 67, 0.15);
+            border-radius: 8px;
+            overflow: hidden;
+            z-index: 150;
+            min-width: 200px;
+        }
+
+        .profile-dropdown a {
+            display: block;
+            padding: 12px 16px;
+            text-decoration: none;
+            color: #3c4043;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        .profile-dropdown a:hover {
+            background-color: #f1f3f4;
+        }
+
+        .profile-dropdown.show {
+            display: block;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 64px;
+            left: 0;
+            width: 72px;
+            height: calc(100% - 64px);
+            background-color: white;
+            border-right: 1px solid #e0e0e0;
+            overflow: hidden;
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 90;
+        }
+
+        .sidebar.expanded,
+        .sidebar:hover {
+            width: 256px;
+            box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 2px 6px 2px rgba(60, 64, 67, 0.15);
+        }
+
+        .sidebar ul {
+            list-style: none;
+            padding: 8px 0;
+        }
+
+        .sidebar ul li {
+            margin: 2px 0;
+        }
+
+        .sidebar ul li a {
+            color: #3c4043;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            padding: 12px 24px;
+            height: 48px;
+            border-radius: 0 24px 24px 0;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+            margin-right: 16px;
+        }
+
+        .sidebar ul li a i {
+            font-size: 20px;
+            color: #5f6368;
+            margin-right: 32px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .sidebar ul li a .text {
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .sidebar.expanded ul li a .text,
+        .sidebar:hover ul li a .text {
+            opacity: 1;
+        }
+
+        .sidebar ul li a:hover {
+            background-color: #f1f3f4;
+        }
+
+        .sidebar ul li a.active {
+            background-color: #e8f0fe;
+            color: #1a73e8;
+        }
+
+        .sidebar ul li a.active i {
+            color: #1a73e8;
+        }
+
+        /* Content Area */
+        .content {
+            margin-left: 72px;
+            padding: 24px;
+            transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            padding-top: 88px;
+            min-height: 100vh;
+            background-color: #f5f5f5;
+        }
+
+        .sidebar.expanded~.content {
+            margin-left: 256px;
+        }
+
+        /* Profile Section */
+        .profile-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding: 0 8px;
+        }
+
+        .profile-header h1 {
+            font-size: 28px;
+            color: #202124;
+            font-weight: 400;
+        }
+
+        .edit-profile-btn {
+            background-color: #fff;
+            color: #1a73e8;
+            border: 1px solid #dadce0;
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background-color 0.2s, box-shadow 0.2s, transform 0.2s;
+            box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3);
+        }
+
+        .edit-profile-btn i {
+            font-size: 18px;
+        }
+
+        .edit-profile-btn:hover {
+            background-color: #f8f9fa;
+            box-shadow: 0 1px 3px 0 rgba(60, 64, 67, 0.3), 0 4px 8px 3px rgba(60, 64, 67, 0.15);
+            transform: translateY(-1px);
+        }
+
+        /* Profile Container */
+        .profile-container {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 24px;
+            padding: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .profile-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .profile-sidebar {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        .profile-avatar {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 3px solid #1a73e8;
+            margin-bottom: 16px;
+            object-fit: cover;
+        }
+
+        .profile-name {
+            font-size: 24px;
+            font-weight: 500;
+            color: #202124;
+            margin-bottom: 8px;
+        }
+
+        .profile-title {
+            font-size: 16px;
+            color: #5f6368;
+            margin-bottom: 24px;
+        }
+
+        .profile-contact {
+            width: 100%;
+            text-align: left;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .contact-item i {
+            width: 24px;
+            color: #1a73e8;
+            margin-right: 12px;
+        }
+
+        .contact-item span {
+            font-size: 14px;
+            color: #3c4043;
+        }
+
+        .profile-main {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .info-card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+            padding: 24px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            animation: fadeIn 0.5s ease forwards;
+            opacity: 0;
+            animation-delay: calc(var(--i) * 0.1s);
+        }
+
+        .info-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 1px 3px 0 rgba(60, 64, 67, 0.3), 0 4px 8px 3px rgba(60, 64, 67, 0.15);
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 500;
+            color: #202124;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+        }
+
+        .card-title i {
+            margin-right: 12px;
+            color: #1a73e8;
+        }
+
+        .info-list {
+            list-style: none;
+        }
+
+        .info-item {
+            padding: 12px 0;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            width: 40%;
+            font-weight: 500;
+            color: #5f6368;
+            font-size: 14px;
+        }
+
+        .info-value {
+            width: 60%;
+            color: #3c4043;
+            font-size: 14px;
+        }
+
+        .skill-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .skill-tag {
+            background-color: #e8f0fe;
+            color: #1a73e8;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .badge-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .badge {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100px;
+        }
+
+        .badge-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background-color: #e8f0fe;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 8px;
+        }
+
+        .badge-icon i {
+            font-size: 32px;
+            color: #1a73e8;
+        }
+
+        .badge-title {
+            font-size: 12px;
+            color: #3c4043;
+            text-align: center;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 200;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow-y: auto;
+            background-color: rgba(0, 0, 0, 0.4);
+            /* Add backdrop blur */
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal.show {
+            display: block;
+            opacity: 1;
+        }
+
+        .modal-content {
+            background-color: #fff;
+            margin: 10% auto;
+            padding: 24px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 1px 3px 0 rgba(60, 64, 67, 0.3),
+                0 4px 8px 3px rgba(60, 64, 67, 0.15);
+            transform: translateY(-20px);
+            opacity: 0;
+            transition: transform 0.3s, opacity 0.3s;
+        }
+
+        .modal.show .modal-content {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-content h2 {
+            font-size: 24px;
+            font-weight: 400;
+            color: #202124;
+        }
+
+        .close {
+            color: #5f6368;
+            font-size: 24px;
+            font-weight: 400;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background-color 0.2s;
+        }
+
+        .close:hover {
+            background-color: #f1f3f4;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            color: #5f6368;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            padding: 12px;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            font-size: 16px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #1a73e8;
+            box-shadow: 0 1px 2px rgba(60, 64, 67, 0.3);
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .cancel-btn {
+            background-color: transparent;
+            color: #1a73e8;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .cancel-btn:hover {
+            background-color: rgba(26, 115, 232, 0.1);
+        }
+
+        .submit-btn {
+            background-color: #1a73e8;
+            color: #fff;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.2s;
+        }
+
+        .submit-btn:hover {
+            background-color: #1765cc;
+            transform: translateY(-1px);
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(-20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .info-card {
+            animation: fadeIn 0.5s ease forwards;
+            opacity: 0;
+            animation-delay: calc(var(--i) * 0.1s);
+        }
+
+        .profile-sidebar {
+            animation: fadeIn 0.5s ease forwards;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar -->
+    <div class="navbar">
+        <div class="nav-left">
+            <button id="hamburger" class="hamburger"><i class="fas fa-bars"></i></button>
+            <div class="logo"><i class="fas fa-graduation-cap"></i>EduBridge</div>
+        </div>
+        <div class="nav-right">
+            <div class="profile-wrapper">
+                <img src="https://i.pravatar.cc/40" alt="Profile" class="profile-icon">
+                <div class="profile-dropdown">
+                    <a href="#" class="active"><i class="fas fa-user-circle"></i>Show Profile</a>
+                    <a href="/login"><i class="fas fa-sign-out-alt"></i>Log Out</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <ul>
+            <li><a href="#"><i class="fas fa-home"></i><span class="text">Home</span></a></li>
+            <li><a href="#"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a></li>
+            <li><a href="#"><i class="fas fa-chalkboard-teacher"></i><span class="text">Teaching</span></a></li>
+            <li><a href="#"><i class="fas fa-tasks"></i><span class="text">To Review</span></a></li>
+            <li><a href="#"><i class="fas fa-user-graduate"></i><span class="text">Enrolled</span></a></li>
+            <li><a href="#"><i class="fas fa-check-circle"></i><span class="text">To-do</span></a></li>
+            <li><a href="#"><i class="fas fa-archive"></i><span class="text">Archived Classes</span></a></li>
+            <li><a href="#" class="active"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a></li>
+            <li><a href="#"><i class="fas fa-cog"></i><span class="text">Settings</span></a></li>
+        </ul>
+    </div>
+    <!-- Main Content -->
+    <div class="content">
+        <div class="profile-header">
+            <h1>My Profile</h1>
+            <button id="editProfileBtn" class="edit-profile-btn"><i class="fas fa-edit"></i>Edit Profile</button>
+        </div>
+        <div class="profile-container">
+            <div class="profile-sidebar">
+                <img src="https://i.pravatar.cc/150" alt="Profile Avatar" class="profile-avatar">
+                <h2 class="profile-name">Sarah Johnson</h2>
+                <p class="profile-title">Mathematics & Computer Science Teacher</p>
+                <div class="profile-contact">
+                    <div class="contact-item"><i class="fas fa-envelope"></i><span>sarah.johnson@edubridge.com</span>
+                    </div>
+                    <div class="contact-item"><i class="fas fa-phone"></i><span>(555) 123-4567</span></div>
+                    <div class="contact-item"><i class="fas fa-building"></i><span>Washington High School</span></div>
+                    <div class="contact-item"><i class="fas fa-map-marker-alt"></i><span>Seattle, WA</span></div>
+                </div>
+            </div>
+            <div class="profile-main">
+                <div class="info-card" style="--i:0">
+                    <h3 class="card-title"><i class="fas fa-user"></i>Personal Information</h3>
+                    <ul class="info-list">
+                        <li class="info-item">
+                            <div class="info-label">Full Name</div>
+                            <div class="info-value">Sarah Elizabeth Johnson</div>
+                        </li>
+                        <li class="info-item">
+                            <div class="info-label">Date of Birth</div>
+                            <div class="info-value">May 15, 1985</div>
+                        </li>
+                        <li class="info-item">
+                            <div class="info-label">Employee ID</div>
+                            <div class="info-value">TCH-20210315</div>
+                        </li>
+                        <li class="info-item">
+                            <div class="info-label">Joining Date</div>
+                            <div class="info-value">March 15, 2021</div>
+                        </li>
+                    </ul>
+                </div>
+                <div class="info-card" style="--i:1">
+                    <h3 class="card-title"><i class="fas fa-graduation-cap"></i>Educational Qualifications</h3>
+                    <ul class="info-list">
+                        <li class="info-item">
+                            <div class="info-label">Degree</div>
+                            <div class="info-value">Master of Science in Mathematics</div>
+                        </li>
+                        <li class="info-item">
+                            <div class="info-label">University</div>
+                            <div class="info-value">Stanford University</div>
+                        </li>
+                        <li class="info-item">
+                            <div class="info-label">Bachelor's Degree</div>
+                            <div class="info-value">B.Sc in Computer Science, University of Washington</div>
+                        </li>
+                        <li class="info-item">
+                            <div class="info-label">Certifications</div>
+                            <div class="info-value">National Board Certified Teacher, Math Teaching Specialist</div>
+                        </li>
+                    </ul>
+                </div>
+                <div class="info-card" style="--i:2">
+                    <h3 class="card-title"><i class="fas fa-chalkboard-teacher"></i>Teaching Information</h3>
+                    <ul class="info-list">
+                        <li class="info-item">
+                            <div class="info-label">Department</div>
+                            <div class="info-value">Mathematics & Computer Science</div>
+                        </li>
+                        <li class="info-item">
+                            <div class="info-label">Classes Taught</div>
+                            <div class="info-value">Mathematics 101, Advanced Algebra, Introduction to Computer Science,
+                                Data Structures</div>
+                        </li>
+                        <li class="info-item">
+                            <div class="info-label">Schedule</div>
+                            <div class="info-value">Monday to Friday, 9:00 AM - 3:30 PM</div>
+                        </li>
+                        <li class="info-item">
+                            <div class="info-label">Office Hours</div>
+                            <div class="info-value">Tuesday & Thursday, 3:30 PM - 5:00 PM</div>
+                        </li>
+                    </ul>
+                </div>
+                <div class="info-card" style="--i:3">
+                    <h3 class="card-title"><i class="fas fa-code"></i>Skills & Expertise</h3>
+                    <div class="skill-tags">
+                        <span class="skill-tag">Mathematics</span>
+                        <span class="skill-tag">Algebra</span>
+                        <span class="skill-tag">Geometry</span>
+                        <span class="skill-tag">Calculus</span>
+                        <span class="skill-tag">Computer Science</span>
+                        <span class="skill-tag">Python</span>
+                        <span class="skill-tag">Java</span>
+                        <span class="skill-tag">Web Development</span>
+                        <span class="skill-tag">Problem-Based Learning</span>
+                        <span class="skill-tag">Curriculum Development</span>
+                    </div>
+                </div>
+                <div class="info-card" style="--i:4">
+                    <h3 class="card-title"><i class="fas fa-award"></i>Achievements & Badges</h3>
+                    <div class="badge-container">
+                        <div class="badge">
+                            <div class="badge-icon"><i class="fas fa-star"></i></div>
+                            <div class="badge-title">Teacher of the Year 2023</div>
+                        </div>
+                        <div class="badge">
+                            <div class="badge-icon"><i class="fas fa-laptop-code"></i></div>
+                            <div class="badge-title">Tech Innovation Award</div>
+                        </div>
+                        <div class="badge">
+                            <div class="badge-icon"><i class="fas fa-users"></i></div>
+                            <div class="badge-title">Student Mentor</div>
+                        </div>
+                        <div class="badge">
+                            <div class="badge-icon"><i class="fas fa-book"></i></div>
+                            <div class="badge-title">Published Author</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="info-card" style="--i:5">
+                    <h3 class="card-title"><i class="fas fa-comments"></i>Bio</h3>
+                    <p style="line-height: 1.6; color: #3c4043; font-size: 14px;">
+                        Experienced educator with a passion for making mathematics and computer science accessible and
+                        engaging for all students. With over 10 years of teaching experience at various educational
+                        levels, I focus on creating an inclusive classroom environment that encourages critical thinking
+                        and problem-solving skills.
+                        <br><br>
+                        I believe in using technology to enhance learning experiences and prepare students for the
+                        digital future. When not teaching, I enjoy contributing to educational research, developing
+                        interactive learning tools, and mentoring aspiring teachers in STEM fields.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Modal for Editing Profile -->
+    <div id="profileModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Profile</h2>
+                <span id="closeModal" class="close">&times;</span>
+            </div>
+            <form id="profileForm">
+                <div class="form-group">
+                    <label for="fullName">Full Name</label>
+                    <input type="text" id="fullName" name="fullName" value="Sarah Elizabeth Johnson" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" value="sarah.johnson@edubridge.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="tel" id="phone" name="phone" value="(555) 123-4567" required>
+                </div>
+                <div class="form-group">
+                    <label for="institution">Institution</label>
+                    <input type="text" id="institution" name="institution" value="Washington High School" required>
+                </div>
+                <div class="form-group">
+                    <label for="department">Department</label>
+                    <input type="text" id="department" name="department" value="Mathematics & Computer Science"
+                        required>
+                </div>
+                <div class="form-group">
+                    <label for="title">Job Title</label>
+                    <input type="text" id="title" name="title" value="Mathematics & Computer Science Teacher" required>
+                </div>
+                <div class="form-group">
+                    <label for="bio">Bio</label>
+                    <textarea id="bio" name="bio">Experienced educator with a passion for making mathematics and computer science accessible and engaging for all students. With over 10 years of teaching experience at various educational levels,
+I focus on creating an inclusive classroom environment that encourages critical thinking and problem-solving skills. I believe in using technology to enhance learning experiences and prepare students for the digital future. When not teaching,
+I enjoy contributing to educational research,
+developing interactive learning tools,
+and mentoring aspiring teachers in STEM fields.</textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="cancel-btn">Cancel</button>
+                    <button type="submit" class="submit-btn">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+        // Sidebar toggle functionality using hamburger button
+        const hamburger = document.getElementById('hamburger');
+        const sidebar = document.querySelector('.sidebar');
+        hamburger.addEventListener('click', () => {
+            sidebar.classList.toggle('expanded');
+        });
+
+        // Profile dropdown functionality
+        const profileWrapper = document.querySelector('.profile-wrapper');
+        const profileDropdown = document.querySelector('.profile-dropdown');
+        profileWrapper.addEventListener('click', (e) => {
+            e.stopPropagation();
+            profileDropdown.classList.toggle('show');
+        });
+        document.addEventListener('click', () => {
+            profileDropdown.classList.remove('show');
+        });
+
+        // Modal functionality for Editing Profile
+        const editProfileBtn = document.getElementById('editProfileBtn');
+        const profileModal = document.getElementById('profileModal');
+        const closeModal = document.getElementById('closeModal');
+        const cancelBtn = document.querySelector('.cancel-btn');
+
+        function openModal() {
+            profileModal.classList.add('show');
+            // Disable background scrolling
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModalFunc() {
+            profileModal.classList.remove('show');
+            // Re-enable scrolling
+            document.body.style.overflow = '';
+        }
+
+        editProfileBtn.addEventListener('click', openModal);
+        closeModal.addEventListener('click', closeModalFunc);
+        cancelBtn.addEventListener('click', closeModalFunc);
+        window.addEventListener('click', (e) => {
+            if (e.target === profileModal) {
+                closeModalFunc();
+            }
+        });
+
+        // Handle Edit Profile form submission and update profile section
+        const profileForm = document.getElementById('profileForm');
+        profileForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            // Get new values from the form
+            const fullName = document.getElementById('fullName').value;
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
+            const institution = document.getElementById('institution').value;
+            const department = document.getElementById('department').value;
+            const title = document.getElementById('title').value;
+            const bio = document.getElementById('bio').value;
+
+            // Update profile sidebar details
+            document.querySelector('.profile-name').textContent = fullName;
+            document.querySelector('.profile-title').textContent = title;
+            const contactItems = document.querySelectorAll('.profile-contact .contact-item span');
+            if (contactItems.length >= 3) {
+                contactItems[0].textContent = email;       // Update Email
+                contactItems[1].textContent = phone;         // Update Phone
+                contactItems[2].textContent = institution;   // Update Institution
+            }
+
+            // Update Personal Information card (Full Name)
+            const personalInfoFullName = document.querySelector('.profile-main .info-card:nth-child(1) .info-item:nth-child(1) .info-value');
+            if (personalInfoFullName) {
+                personalInfoFullName.textContent = fullName;
+            }
+
+            // Update Teaching Information card (Department)
+            const teachingDepartment = document.querySelector('.profile-main .info-card:nth-child(3) .info-item:nth-child(1) .info-value');
+            if (teachingDepartment) {
+                teachingDepartment.textContent = department;
+            }
+
+            // Update Bio card
+            const bioCard = document.querySelector('.profile-main .info-card:nth-child(6) p');
+            if (bioCard) {
+                bioCard.textContent = bio;
+            }
+
+            // Close the modal overlay and re-enable scrolling
+            closeModalFunc();
+        });
+    </script>
+</body>
+
+</html>
