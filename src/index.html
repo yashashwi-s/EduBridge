@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Edubridge | AI-Powered Smart Grader</title>
+  <title>EduBridge | AI-Powered Smart Grader</title>
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css?family=Montserrat:400,600|Roboto:300,400,500" rel="stylesheet">
   <!-- Font Awesome for Icons -->
@@ -11,6 +11,11 @@
   <!-- AOS Animation Library CSS -->
   <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
   <style>
+    /* CSS Variables for Dynamic Colors */
+    :root {
+      --gemini-gradient: linear-gradient(90deg, #4776E6, #8E54E9, #FF4081);
+    }
+
     /* Global Reset and Base Styles */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Roboto', sans-serif; line-height: 1.6; color: #333; scroll-behavior: smooth; }
@@ -24,8 +29,8 @@
       padding: 1rem 0;
     }
     
-    /* Particles.js Background */
-    #particles-js {
+    /* Topology Background */
+    #vanta-topology {
       position: absolute;
       width: 100%;
       height: 100%;
@@ -34,7 +39,7 @@
       z-index: 0;
     }
     
-    /* Header */
+    /* Header (Navbar) – Unchanged */
     header {
       width: 100%;
       position: fixed;
@@ -49,12 +54,26 @@
       justify-content: space-between;
       align-items: center;
     }
+    
+    /* Dynamic Gemini Gradient Logo */
     .logo {
       font-family: 'Montserrat', sans-serif;
       font-size: 1.8rem;
       font-weight: 600;
-      color: #1e88e5;
+      background: var(--gemini-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      background-size: 200% auto;
+      animation: gradientShift 5s ease infinite;
     }
+    
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    
     /* Hamburger Icon (hidden on desktop) */
     .hamburger {
       display: none;
@@ -72,17 +91,29 @@
       transition: color 0.3s;
     }
     .nav-menu a:hover { color: #1e88e5; }
+    
     .cta-btn {
-      background: #1e88e5;
+      background: var(--gemini-gradient);
+      background-size: 200% auto;
+      animation: gradientShift 5s linear infinite;
       color: #fff;
-      padding: 0.6rem 1.2rem;
+      padding: 0.8rem 1.5rem;
       border-radius: 25px;
       font-weight: 600;
-      transition: background 0.3s;
+      border: none;
+      transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), 
+                  box-shadow 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), 
+                  background-position 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
     }
-    .cta-btn:hover { background: #1565c0; }
-    
-    /* Hero Section */
+    .cta-btn:hover {
+      background-position: right center;
+      transform: translateY(-6px) scale(1.03);
+      box-shadow: 0 12px 25px rgba(0, 0, 0, 0.25);
+    }
+
+
+    /* Hero Section – Unchanged */
     .hero {
       position: relative;
       height: 100vh;
@@ -137,198 +168,397 @@
       to { opacity: 1; transform: translateY(0); }
     }
     
-    /* Features Section */
+    /* Features Section – Enhanced */
     .features {
-      background: #f9f9f9;
+      background: linear-gradient(180deg, #f9f9f9, #ffffff);
       text-align: center;
-      padding: 4rem 0;
+      padding: 6rem 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .features::before {
+      content: "";
+      position: absolute;
+      top: -50px;
+      left: 0;
+      width: 100%;
+      height: 100px;
+      background: linear-gradient(to bottom right, transparent 49%, #f9f9f9 50%);
+      z-index: 1;
     }
     .features h2 {
       font-family: 'Montserrat', sans-serif;
       font-size: 2.8rem;
-      margin-bottom: 2rem;
+      margin-bottom: 1rem;
       color: #1e88e5;
+      position: relative;
+    }
+    /* Dynamic underline for headings */
+    .features h2::after,
+    .demo h2::after,
+    .testimonials h2::after,
+    .contact h2::after {
+      content: "";
+      display: block;
+      width: 80px;
+      height: 4px;
+      background: var(--gemini-gradient);
+      background-size: 200% auto;
+      animation: gradientShift 5s linear infinite;
+      margin: 1rem auto 2rem;
+      border-radius: 2px;
     }
     .feature-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 2rem;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2.5rem;
       padding: 0 1rem;
+      margin-top: 3rem;
     }
     .feature {
       background: #fff;
-      padding: 2rem;
-      border-radius: 10px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-      transition: transform 0.3s, box-shadow 0.3s;
+      padding: 2.5rem;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      position: relative;
+      overflow: hidden;
+    }
+    .feature::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, rgba(30,136,229,0.05), rgba(142,84,233,0.1));
+      z-index: -1;
+      opacity: 0;
+      transition: opacity 0.4s ease;
     }
     .feature:hover {
-      transform: translateY(-10px);
-      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+      transform: translateY(-15px);
+      box-shadow: 0 15px 35px rgba(30,136,229,0.2);
     }
+    .feature:hover::before { opacity: 1; }
     .feature i {
-      font-size: 3rem;
-      color: #1e88e5;
-      margin-bottom: 1rem;
+      font-size: 3.5rem;
+      margin-bottom: 1.5rem;
+      transition: transform 0.4s ease;
     }
+    .feature:hover i { transform: scale(1.1); }
     .feature h3 {
       font-family: 'Montserrat', sans-serif;
       margin-bottom: 1rem;
+      font-size: 1.3rem;
+      color: #1e4976;
+      transition: color 0.3s;
     }
-    .feature p { font-size: 0.95rem; }
+    .feature:hover h3 { color: #1e88e5; }
+    .feature p { font-size: 1rem; color: #666; line-height: 1.7; }
     
-    /* Demo Section */
+    /* Demo Section – Enhanced */
     .demo {
       background: #fff;
       text-align: center;
-      padding: 4rem 0;
+      padding: 6rem 0;
+      position: relative;
     }
+    .demo::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at 10% 20%, rgba(142,84,233,0.03) 0%, rgba(30,136,229,0.03) 90%);
+      z-index: 0;
+    }
+    .demo .container { position: relative; z-index: 1; }
     .demo h2 {
       font-family: 'Montserrat', sans-serif;
       font-size: 2.5rem;
       margin-bottom: 1rem;
       color: #1e88e5;
-    }
-    .demo p {
-      max-width: 700px;
-      margin: 0 auto 2rem;
-      font-size: 1.1rem;
+      position: relative;
     }
     .demo video {
       width: 90%;
       max-width: 800px;
-      border-radius: 10px;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+      border-radius: 16px;
+      transition: transform 0.4s ease;
+      display: block;
+      margin: 0 auto;
     }
+    .demo video:hover { transform: scale(1.02); }
     
-    /* Testimonials Section */
+    /* Testimonials Section – Enhanced */
     .testimonials {
-      background: #f9f9f9;
-      text-align: center;
-      padding: 4rem 0;
+      background: linear-gradient(180deg, #f9f9f9, #f0f4f8);
+      padding: 6rem 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .testimonials::before,
+    .testimonials::after {
+      content: "";
+      position: absolute;
+      width: 300px;
+      height: 300px;
+      border-radius: 50%;
+      z-index: 0;
+    }
+    .testimonials::before {
+      top: -100px;
+      left: -100px;
+      background: radial-gradient(rgba(71,118,230,0.1), rgba(71,118,230,0.02));
+    }
+    .testimonials::after {
+      bottom: -100px;
+      right: -100px;
+      background: radial-gradient(rgba(142,84,233,0.1), rgba(142,84,233,0.02));
     }
     .testimonials h2 {
       font-family: 'Montserrat', sans-serif;
       font-size: 2.5rem;
       margin-bottom: 2rem;
       color: #1e88e5;
+      text-align: center;
+      position: relative;
+      z-index: 1;
     }
     .testimonial-container {
       display: flex;
       flex-wrap: wrap;
-      gap: 2rem;
+      gap: 2.5rem;
       justify-content: center;
       padding: 0 1rem;
+      position: relative;
+      z-index: 1;
     }
     .testimonial {
       background: #fff;
-      padding: 2rem;
-      border-radius: 10px;
+      padding: 3rem;
+      border-radius: 16px;
       max-width: 350px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+      transition: all 0.4s ease;
+      position: relative;
+    }
+    .testimonial:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 15px 35px rgba(0,0,0,0.12);
     }
     .testimonial p {
       font-style: italic;
       margin-bottom: 1.5rem;
+      color: #555;
+      line-height: 1.8;
+      font-size: 1.05rem;
+      position: relative;
     }
     .testimonial .author {
       font-weight: 600;
       color: #1e88e5;
     }
     
-    /* Contact Section */
+    /* Contact Section – Enhanced */
     .contact {
       background: #fff;
       text-align: center;
-      padding: 4rem 0;
+      padding: 6rem 0;
+      position: relative;
+      overflow: hidden;
     }
+    .contact::before {
+      content: "";
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      background: 
+        radial-gradient(circle at 90% 10%, rgba(30,136,229,0.05) 0%, transparent 60%),
+        radial-gradient(circle at 10% 90%, rgba(142,84,233,0.05) 0%, transparent 60%);
+      z-index: 0;
+    }
+    .contact .container { position: relative; z-index: 1; }
     .contact h2 {
       font-family: 'Montserrat', sans-serif;
       font-size: 2.8rem;
       margin-bottom: 1rem;
       color: #1e88e5;
+      text-align: center;
     }
     .contact form {
+      background: white;
+      padding: 2.5rem;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.06);
       max-width: 600px;
       margin: 0 auto;
       text-align: left;
     }
-    .contact form .form-group {
-      margin-bottom: 1.5rem;
-    }
+    .contact form .form-group { margin-bottom: 1.5rem; }
     .contact form label {
       display: block;
       margin-bottom: 0.5rem;
       font-weight: 500;
+      color: #1e88e5;
     }
     .contact form input,
     .contact form textarea {
       width: 100%;
-      padding: 1rem;
-      border: 1px solid #ccc;
-      border-radius: 5px;
+      padding: 1rem 1.2rem;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
       font-size: 1rem;
       outline: none;
-      transition: border-color 0.3s;
+      transition: all 0.3s;
+      background: #f9fafc;
     }
     .contact form input:focus,
     .contact form textarea:focus {
       border-color: #1e88e5;
+      box-shadow: 0 0 0 2px rgba(30,136,229,0.1);
+      background: white;
     }
     .contact form button {
-      background: #1e88e5;
+      background: var(--gemini-gradient);
+      background-size: 200% auto;
+      animation: gradientShift 5s linear infinite;
       color: #fff;
-      padding: 0.9rem 1.8rem;
+      padding: 1rem 2rem;
       border: none;
-      border-radius: 25px;
+      border-radius: 8px;
       font-size: 1.1rem;
       font-weight: 600;
       cursor: pointer;
-      transition: background 0.3s;
+      width: 100%;
+      margin-top: 1rem;
+      transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), 
+                  box-shadow 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), 
+                  background-position 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
     }
-    .contact form button:hover { background: #1565c0; }
+    .contact form button:hover {
+      background-position: right center;
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: 0 10px 20px rgba(30, 136, 229, 0.3);
+    }
     
-    /* Get Started Section (Optional) */
+    /* Get Started Section – Enhanced */
     .get-started {
-      background: #1e88e5;
+      background: linear-gradient(135deg, #1e88e5, #3967d7);
       color: #fff;
       text-align: center;
-      padding: 4rem 0;
+      padding: 6rem 0;
+      position: relative;
+      overflow: hidden;
     }
+    .get-started::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 20%),
+        radial-gradient(circle at 90% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 20%);
+      z-index: 0;
+    }
+    .get-started .container { position: relative; z-index: 1; }
     .get-started h2 {
       font-family: 'Montserrat', sans-serif;
       font-size: 2.8rem;
-      margin-bottom: 1rem;
+      margin-bottom: 1.5rem;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
     .get-started p {
-      max-width: 600px;
-      margin: 1rem auto 2rem;
-      font-size: 1.1rem;
+      max-width: 700px;
+      margin: 1rem auto 2.5rem;
+      font-size: 1.2rem;
+      line-height: 1.8;
+      opacity: 0.9;
+    }
+    .get-started .cta-btn {
+      /* Reusing the dynamic gemini button */
     }
     
-    /* Footer */
+    /* Enhanced Footer with Dynamic Wave */
     footer {
-      background: #1e88e5;
+      position: relative;
       color: #fff;
       text-align: center;
-      padding: 2rem 0;
+      padding: 4rem 0 2rem;
+      overflow: hidden;
+    }
+    footer::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(45deg, #1e3c72, #2a5298, #1565C0);
+      z-index: -2;
+    }
+    .footer-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
     }
     .footer-links {
-      margin: 1rem 0;
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
     }
     .footer-links a {
-      margin: 0 1rem;
       color: #fff;
       transition: color 0.3s;
     }
     .footer-links a:hover { color: #ffca28; }
+    .social-icons {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+    }
     .social-icons a {
-      margin: 0 0.5rem;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      width: 40px;
+      height: 40px;
       font-size: 1.2rem;
       color: #fff;
-      transition: color 0.3s;
+      background: rgba(255,255,255,0.1);
+      border-radius: 50%;
+      transition: all 0.3s;
     }
-    .social-icons a:hover { color: #ffca28; }
+    .social-icons a:hover { 
+      background: #fff;
+      color: #1e3c72;
+      transform: translateY(-3px);
+    }
+    .wave-bottom {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      overflow: hidden;
+      line-height: 0;
+      transform: rotate(180deg);
+    }
+    .wave-bottom svg {
+      position: relative;
+      display: block;
+      width: calc(100% + 1.3px);
+      height: 60px;
+    }
+    .wave-bottom .shape-fill { fill: #FFFFFF; }
     
     /* Responsive Navigation */
     @media (max-width: 768px) {
@@ -337,9 +567,7 @@
         justify-content: space-between;
         align-items: center;
       }
-      /* Show hamburger icon on mobile */
       .hamburger { display: block; }
-      /* Hide nav-menu by default on mobile */
       .nav-menu { 
         display: none; 
         flex-direction: column; 
@@ -352,14 +580,13 @@
   </style>
 </head>
 <body>
-  <!-- Particles Background -->
-  <div id="particles-js"></div>
+  <!-- VANTA Topology Background -->
+  <div id="vanta-topology"></div>
   
-  <!-- Header -->
+  <!-- Header / Navbar (Unchanged) -->
   <header>
     <div class="container header-container">
-      <div class="logo">Edubridge</div>
-      <!-- Hamburger icon visible on mobile -->
+      <div class="logo">EduBridge</div>
       <i class="fas fa-bars hamburger" onclick="toggleMenu()" aria-label="Toggle Navigation"></i>
       <nav class="nav-menu">
         <a href="#features">Features</a>
@@ -373,7 +600,7 @@
   
   <!-- Main Content -->
   <main>
-    <!-- Hero Section -->
+    <!-- Hero Section (Unchanged) -->
     <section class="hero">
       <div class="hero-content" data-aos="fade-up">
         <h1>Deliver &amp; Grade Assessments Anywhere</h1>
@@ -382,10 +609,10 @@
       </div>
     </section>
     
-    <!-- Features Section -->
+    <!-- Features Section (Enhanced; 4th feature removed) -->
     <section id="features" class="features">
       <div class="container">
-        <h2 data-aos="fade-up">Why Choose Edubridge?</h2>
+        <h2 data-aos="fade-up">Why Choose EduBridge?</h2>
         <div class="feature-grid">
           <div class="feature" data-aos="fade-up" data-aos-delay="100">
             <i class="fas fa-robot"></i>
@@ -402,36 +629,30 @@
             <h3>Real-time Analytics</h3>
             <p>Gain instant insights into student performance and class progress with comprehensive analytics.</p>
           </div>
-          <div class="feature" data-aos="fade-up" data-aos-delay="400">
-            <i class="fas fa-tachometer-alt"></i>
-            <h3>Interactive Dashboard</h3>
-            <p>Access detailed reports, rankings, and performance metrics through an intuitive interface.</p>
-          </div>
         </div>
       </div>
     </section>
     
-    <!-- Demo Section -->
+    <!-- Demo Section (Enhanced; removed extra text) -->
     <section id="demo" class="demo">
       <div class="container">
-        <h2 data-aos="fade-up">See Edubridge in Action</h2>
-        <p data-aos="fade-up" data-aos-delay="100">
-          Watch a quick demo that shows how our platform transforms traditional grading into an automated, efficient process.
-        </p>
-        <video data-aos="fade-up" data-aos-delay="200" controls>
-          <source src="demo-video.mp4" type="video/mp4">
-          Your browser does not support the video tag.
-        </video>
+        <h2 data-aos="fade-up">See EduBridge in Action</h2>
+        <div data-aos="fade-up" data-aos-delay="200">
+          <video controls>
+            <source src="demo-video.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+          </video>
+        </div>
       </div>
     </section>
     
-    <!-- Testimonials Section -->
+    <!-- Testimonials Section (Enhanced) -->
     <section id="testimonials" class="testimonials">
       <div class="container">
         <h2 data-aos="fade-up">What Our Users Say</h2>
         <div class="testimonial-container">
           <div class="testimonial" data-aos="fade-up" data-aos-delay="100">
-            <p>"Edubridge has revolutionized the way I grade assessments. It saves so much time and provides detailed insights."</p>
+            <p>"EduBridge has revolutionized the way I grade assessments. It saves so much time and provides detailed insights."</p>
             <div class="author">- Sarah, High School Teacher</div>
           </div>
           <div class="testimonial" data-aos="fade-up" data-aos-delay="200">
@@ -439,14 +660,14 @@
             <div class="author">- John, College Professor</div>
           </div>
           <div class="testimonial" data-aos="fade-up" data-aos-delay="300">
-            <p>"A seamless experience from classroom management to grading. Edubridge truly empowers educators."</p>
+            <p>"A seamless experience from classroom management to grading. EduBridge truly empowers educators."</p>
             <div class="author">- Emily, Educator</div>
           </div>
         </div>
       </div>
     </section>
     
-    <!-- Contact Section -->
+    <!-- Contact Section (Enhanced) -->
     <section id="contact" class="contact">
       <div class="container">
         <h2 data-aos="fade-up">Get In Touch</h2>
@@ -468,21 +689,21 @@
       </div>
     </section>
     
-    <!-- Get Started Section (Optional) -->
+    <!-- Get Started Section (Enhanced) -->
     <section id="get-started" class="get-started">
       <div class="container">
         <h2 data-aos="fade-up">Ready to Transform Your Assessments?</h2>
         <p data-aos="fade-up" data-aos-delay="100">
-          Join Edubridge today and experience the future of assessment grading with our AI-powered platform.
+          Join EduBridge today and experience the future of assessment grading with our AI-powered platform.
         </p>
-        <button class="cta-btn" data-aos="fade-up" data-aos-delay="200" style="background: #ff7043;">Get Started Now</button>
+        <button class="cta-btn" data-aos="fade-up" data-aos-delay="200">Get Started Now</button>
       </div>
     </section>
   </main>
   
-  <!-- Footer -->
+  <!-- Enhanced Footer with Dynamic Wave -->
   <footer>
-    <div class="container">
+    <div class="container footer-content">
       <div class="footer-links">
         <a href="#features">Features</a>
         <a href="#demo">Demo</a>
@@ -495,48 +716,39 @@
         <a href="#"><i class="fab fa-linkedin-in"></i></a>
         <a href="#"><i class="fab fa-instagram"></i></a>
       </div>
-      <p>&copy; 2025 Edubridge. All rights reserved.</p>
+      <p>&copy; 2025 EduBridge. All rights reserved.</p>
+    </div>
+    <div class="wave-bottom">
+      <svg viewBox="0 0 1200 120" preserveAspectRatio="none">
+        <path d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z" opacity=".25" class="shape-fill"></path>
+        <path d="M0,0V15.81C13,36.92,27.64,56.86,47.69,72.05,99.41,111.27,165,111,224.58,91.58c31.15-10.15,60.09-26.07,89.67-39.8,40.92-19,84.73-46,130.83-49.67,36.26-2.85,70.9,9.42,98.6,31.56,31.77,25.39,62.32,62,103.63,73,40.44,10.79,81.35-6.69,119.13-24.28s75.16-39,116.92-43.05c59.73-5.85,113.28,22.88,168.9,38.84,30.2,8.66,59,6.17,87.09-7.5,22.43-10.89,48-26.93,60.65-49.24V0Z" opacity=".5" class="shape-fill"></path>
+        <path d="M0,0V5.63C149.93,59,314.09,71.32,475.83,42.57c43-7.64,84.23-20.12,127.61-26.46,59-8.63,112.48,12.24,165.56,35.4C827.93,77.22,886,95.24,951.2,90c86.53-7,172.46-45.71,248.8-84.81V0Z" class="shape-fill"></path>
+      </svg>
     </div>
   </footer>
   
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/particles.js/2.0.0/particles.min.js" defer></script>
-  <script defer>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.topology.min.js"></script>
+  <script>
     document.addEventListener('DOMContentLoaded', function() {
-      // Initialize AOS animations
       AOS.init({ duration: 1000, once: true });
-      
-      // Toggle mobile navigation
       window.toggleMenu = function() {
         const navMenu = document.querySelector('.nav-menu');
         navMenu.classList.toggle('active');
       };
-
-      // Initialize Particles.js for dynamic hero background
-      particlesJS("particles-js", {
-        "particles": {
-          "number": { "value": 80, "density": { "enable": true, "value_area": 800 } },
-          "color": { "value": "#ffffff" },
-          "shape": { "type": "circle", "stroke": { "width": 0, "color": "#000000" } },
-          "opacity": { "value": 0.5, "random": false },
-          "size": { "value": 3, "random": true },
-          "line_linked": { "enable": true, "distance": 150, "color": "#ffffff", "opacity": 0.4, "width": 1 },
-          "move": { "enable": true, "speed": 6, "direction": "none", "random": false, "straight": false, "out_mode": "out" }
-        },
-        "interactivity": {
-          "detect_on": "canvas",
-          "events": {
-            "onhover": { "enable": true, "mode": "grab" },
-            "onclick": { "enable": true, "mode": "push" },
-            "resize": true
-          },
-          "modes": {
-            "grab": { "distance": 140, "line_linked": { "opacity": 1 } },
-            "push": { "particles_nb": 4 }
-          }
-        },
-        "retina_detect": true
+      VANTA.TOPOLOGY({
+        el: "#vanta-topology",
+        mouseControls: true,
+        touchControls: true,
+        gyroControls: false,
+        minHeight: 200.00,
+        minWidth: 200.00,
+        scale: 1.00,
+        scaleMobile: 1.00,
+        color: 0xedff,
+        backgroundColor: 0x43
       });
     });
   </script>
