@@ -10,580 +10,14 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- AOS Animation Library CSS -->
   <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
-  <style>
-    /* CSS Variables for Dynamic Colors */
-    :root {
-      --gemini-gradient: linear-gradient(90deg, #4776E6, #8E54E9, #FF4081);
-    }
-
-    /* Global Reset and Base Styles */
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Roboto', sans-serif; line-height: 1.6; color: #333; scroll-behavior: smooth; }
-    a { text-decoration: none; color: inherit; }
-    
-    /* Container */
-    .container {
-      width: 90%;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 1rem 0;
-    }
-    
-    /* Topology Background */
-    #vanta-topology {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      top: 0;
-      left: 0;
-      z-index: 0;
-    }
-    
-    /* Header (Navbar) – Unchanged */
-    header {
-      width: 100%;
-      position: fixed;
-      top: 0;
-      left: 0;
-      background: rgba(255,255,255,0.95);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      z-index: 1000;
-    }
-    .header-container {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    
-    /* Dynamic Gemini Gradient Logo */
-    .logo {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 1.8rem;
-      font-weight: 600;
-      background: var(--gemini-gradient);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      background-size: 200% auto;
-      animation: gradientShift 5s ease infinite;
-    }
-    
-    @keyframes gradientShift {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-    
-    /* Hamburger Icon (hidden on desktop) */
-    .hamburger {
-      display: none;
-      font-size: 1.5rem;
-      cursor: pointer;
-      margin-left: 1rem;
-    }
-    /* Navigation and CTA */
-    .nav-menu {
-      display: flex;
-      gap: 1.5rem;
-    }
-    .nav-menu a {
-      font-weight: 500;
-      transition: color 0.3s;
-    }
-    .nav-menu a:hover { color: #1e88e5; }
-    
-    .cta-btn {
-      background: var(--gemini-gradient);
-      background-size: 200% auto;
-      animation: gradientShift 5s linear infinite;
-      color: #fff;
-      padding: 0.8rem 1.5rem;
-      border-radius: 25px;
-      font-weight: 600;
-      border: none;
-      transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), 
-                  box-shadow 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), 
-                  background-position 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-    }
-    .cta-btn:hover {
-      background-position: right center;
-      transform: translateY(-6px) scale(1.03);
-      box-shadow: 0 12px 25px rgba(0, 0, 0, 0.25);
-    }
-
-
-    /* Hero Section – Unchanged */
-    .hero {
-      position: relative;
-      height: 100vh;
-      background: url('https://via.placeholder.com/1500x900') center/cover no-repeat;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 0 1rem;
-      overflow: hidden;
-    }
-    .hero::after {
-      content: "";
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: linear-gradient(135deg, rgba(30,136,229,0.6), rgba(255,112,67,0.6));
-      z-index: 1;
-    }
-    .hero-content {
-      position: relative;
-      z-index: 2;
-      color: #fff;
-      max-width: 800px;
-      animation: fadeIn 1.5s ease-in-out;
-    }
-    .hero h1 {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 3.5rem;
-      margin-bottom: 1rem;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
-    }
-    .hero p {
-      font-size: 1.2rem;
-      margin-bottom: 2rem;
-      text-shadow: 1px 1px 3px rgba(0,0,0,0.4);
-    }
-    .hero .hero-btn {
-      background: #ff7043;
-      padding: 0.9rem 1.8rem;
-      border: none;
-      border-radius: 25px;
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: #fff;
-      cursor: pointer;
-      transition: background 0.3s;
-    }
-    .hero .hero-btn:hover { background: #f4511e; }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    /* Features Section – Enhanced */
-    .features {
-      background: linear-gradient(180deg, #f9f9f9, #ffffff);
-      text-align: center;
-      padding: 6rem 0;
-      position: relative;
-      overflow: hidden;
-    }
-    .features::before {
-      content: "";
-      position: absolute;
-      top: -50px;
-      left: 0;
-      width: 100%;
-      height: 100px;
-      background: linear-gradient(to bottom right, transparent 49%, #f9f9f9 50%);
-      z-index: 1;
-    }
-    .features h2 {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 2.8rem;
-      margin-bottom: 1rem;
-      color: #1e88e5;
-      position: relative;
-    }
-    /* Dynamic underline for headings */
-    .features h2::after,
-    .demo h2::after,
-    .testimonials h2::after,
-    .contact h2::after {
-      content: "";
-      display: block;
-      width: 80px;
-      height: 4px;
-      background: var(--gemini-gradient);
-      background-size: 200% auto;
-      animation: gradientShift 5s linear infinite;
-      margin: 1rem auto 2rem;
-      border-radius: 2px;
-    }
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 2.5rem;
-      padding: 0 1rem;
-      margin-top: 3rem;
-    }
-    .feature {
-      background: #fff;
-      padding: 2.5rem;
-      border-radius: 16px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      position: relative;
-      overflow: hidden;
-    }
-    .feature::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(135deg, rgba(30,136,229,0.05), rgba(142,84,233,0.1));
-      z-index: -1;
-      opacity: 0;
-      transition: opacity 0.4s ease;
-    }
-    .feature:hover {
-      transform: translateY(-15px);
-      box-shadow: 0 15px 35px rgba(30,136,229,0.2);
-    }
-    .feature:hover::before { opacity: 1; }
-    .feature i {
-      font-size: 3.5rem;
-      margin-bottom: 1.5rem;
-      transition: transform 0.4s ease;
-    }
-    .feature:hover i { transform: scale(1.1); }
-    .feature h3 {
-      font-family: 'Montserrat', sans-serif;
-      margin-bottom: 1rem;
-      font-size: 1.3rem;
-      color: #1e4976;
-      transition: color 0.3s;
-    }
-    .feature:hover h3 { color: #1e88e5; }
-    .feature p { font-size: 1rem; color: #666; line-height: 1.7; }
-    
-    /* Demo Section – Enhanced */
-    .demo {
-      background: #fff;
-      text-align: center;
-      padding: 6rem 0;
-      position: relative;
-    }
-    .demo::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: radial-gradient(circle at 10% 20%, rgba(142,84,233,0.03) 0%, rgba(30,136,229,0.03) 90%);
-      z-index: 0;
-    }
-    .demo .container { position: relative; z-index: 1; }
-    .demo h2 {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 2.5rem;
-      margin-bottom: 1rem;
-      color: #1e88e5;
-      position: relative;
-    }
-    .demo video {
-      width: 90%;
-      max-width: 800px;
-      border-radius: 16px;
-      transition: transform 0.4s ease;
-      display: block;
-      margin: 0 auto;
-    }
-    .demo video:hover { transform: scale(1.02); }
-    
-    /* Testimonials Section – Enhanced */
-    .testimonials {
-      background: linear-gradient(180deg, #f9f9f9, #f0f4f8);
-      padding: 6rem 0;
-      position: relative;
-      overflow: hidden;
-    }
-    .testimonials::before,
-    .testimonials::after {
-      content: "";
-      position: absolute;
-      width: 300px;
-      height: 300px;
-      border-radius: 50%;
-      z-index: 0;
-    }
-    .testimonials::before {
-      top: -100px;
-      left: -100px;
-      background: radial-gradient(rgba(71,118,230,0.1), rgba(71,118,230,0.02));
-    }
-    .testimonials::after {
-      bottom: -100px;
-      right: -100px;
-      background: radial-gradient(rgba(142,84,233,0.1), rgba(142,84,233,0.02));
-    }
-    .testimonials h2 {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 2.5rem;
-      margin-bottom: 2rem;
-      color: #1e88e5;
-      text-align: center;
-      position: relative;
-      z-index: 1;
-    }
-    .testimonial-container {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 2.5rem;
-      justify-content: center;
-      padding: 0 1rem;
-      position: relative;
-      z-index: 1;
-    }
-    .testimonial {
-      background: #fff;
-      padding: 3rem;
-      border-radius: 16px;
-      max-width: 350px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-      transition: all 0.4s ease;
-      position: relative;
-    }
-    .testimonial:hover {
-      transform: translateY(-10px);
-      box-shadow: 0 15px 35px rgba(0,0,0,0.12);
-    }
-    .testimonial p {
-      font-style: italic;
-      margin-bottom: 1.5rem;
-      color: #555;
-      line-height: 1.8;
-      font-size: 1.05rem;
-      position: relative;
-    }
-    .testimonial .author {
-      font-weight: 600;
-      color: #1e88e5;
-    }
-    
-    /* Contact Section – Enhanced */
-    .contact {
-      background: #fff;
-      text-align: center;
-      padding: 6rem 0;
-      position: relative;
-      overflow: hidden;
-    }
-    .contact::before {
-      content: "";
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      top: 0;
-      left: 0;
-      background: 
-        radial-gradient(circle at 90% 10%, rgba(30,136,229,0.05) 0%, transparent 60%),
-        radial-gradient(circle at 10% 90%, rgba(142,84,233,0.05) 0%, transparent 60%);
-      z-index: 0;
-    }
-    .contact .container { position: relative; z-index: 1; }
-    .contact h2 {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 2.8rem;
-      margin-bottom: 1rem;
-      color: #1e88e5;
-      text-align: center;
-    }
-    .contact form {
-      background: white;
-      padding: 2.5rem;
-      border-radius: 16px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.06);
-      max-width: 600px;
-      margin: 0 auto;
-      text-align: left;
-    }
-    .contact form .form-group { margin-bottom: 1.5rem; }
-    .contact form label {
-      display: block;
-      margin-bottom: 0.5rem;
-      font-weight: 500;
-      color: #1e88e5;
-    }
-    .contact form input,
-    .contact form textarea {
-      width: 100%;
-      padding: 1rem 1.2rem;
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      font-size: 1rem;
-      outline: none;
-      transition: all 0.3s;
-      background: #f9fafc;
-    }
-    .contact form input:focus,
-    .contact form textarea:focus {
-      border-color: #1e88e5;
-      box-shadow: 0 0 0 2px rgba(30,136,229,0.1);
-      background: white;
-    }
-    .contact form button {
-      background: var(--gemini-gradient);
-      background-size: 200% auto;
-      animation: gradientShift 5s linear infinite;
-      color: #fff;
-      padding: 1rem 2rem;
-      border: none;
-      border-radius: 8px;
-      font-size: 1.1rem;
-      font-weight: 600;
-      cursor: pointer;
-      width: 100%;
-      margin-top: 1rem;
-      transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), 
-                  box-shadow 0.5s cubic-bezier(0.25, 0.8, 0.25, 1), 
-                  background-position 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-    }
-    .contact form button:hover {
-      background-position: right center;
-      transform: translateY(-4px) scale(1.02);
-      box-shadow: 0 10px 20px rgba(30, 136, 229, 0.3);
-    }
-    
-    /* Get Started Section – Enhanced */
-    .get-started {
-      background: linear-gradient(135deg, #1e88e5, #3967d7);
-      color: #fff;
-      text-align: center;
-      padding: 6rem 0;
-      position: relative;
-      overflow: hidden;
-    }
-    .get-started::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-image: 
-        radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 20%),
-        radial-gradient(circle at 90% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 20%);
-      z-index: 0;
-    }
-    .get-started .container { position: relative; z-index: 1; }
-    .get-started h2 {
-      font-family: 'Montserrat', sans-serif;
-      font-size: 2.8rem;
-      margin-bottom: 1.5rem;
-      text-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    .get-started p {
-      max-width: 700px;
-      margin: 1rem auto 2.5rem;
-      font-size: 1.2rem;
-      line-height: 1.8;
-      opacity: 0.9;
-    }
-    .get-started .cta-btn {
-      /* Reusing the dynamic gemini button */
-    }
-    
-    /* Enhanced Footer with Dynamic Wave */
-    footer {
-      position: relative;
-      color: #fff;
-      text-align: center;
-      padding: 4rem 0 2rem;
-      overflow: hidden;
-    }
-    footer::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(45deg, #1e3c72, #2a5298, #1565C0);
-      z-index: -2;
-    }
-    .footer-content {
-      position: relative;
-      z-index: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-    }
-    .footer-links {
-      display: flex;
-      justify-content: center;
-      gap: 1.5rem;
-    }
-    .footer-links a {
-      color: #fff;
-      transition: color 0.3s;
-    }
-    .footer-links a:hover { color: #ffca28; }
-    .social-icons {
-      display: flex;
-      justify-content: center;
-      gap: 1rem;
-    }
-    .social-icons a {
-      display: inline-flex;
-      justify-content: center;
-      align-items: center;
-      width: 40px;
-      height: 40px;
-      font-size: 1.2rem;
-      color: #fff;
-      background: rgba(255,255,255,0.1);
-      border-radius: 50%;
-      transition: all 0.3s;
-    }
-    .social-icons a:hover { 
-      background: #fff;
-      color: #1e3c72;
-      transform: translateY(-3px);
-    }
-    .wave-bottom {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      overflow: hidden;
-      line-height: 0;
-      transform: rotate(180deg);
-    }
-    .wave-bottom svg {
-      position: relative;
-      display: block;
-      width: calc(100% + 1.3px);
-      height: 60px;
-    }
-    .wave-bottom .shape-fill { fill: #FFFFFF; }
-    
-    /* Responsive Navigation */
-    @media (max-width: 768px) {
-      .header-container {
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-      }
-      .hamburger { display: block; }
-      .nav-menu { 
-        display: none; 
-        flex-direction: column; 
-        gap: 1rem;
-        width: 100%;
-        margin-top: 1rem;
-      }
-      .nav-menu.active { display: flex; }
-    }
-  </style>
+  <!-- External CSS -->
+  <link rel="stylesheet" href="index.css">
 </head>
 <body>
   <!-- VANTA Topology Background -->
   <div id="vanta-topology"></div>
   
-  <!-- Header / Navbar (Unchanged) -->
+  <!-- Header / Navbar -->
   <header>
     <div class="container header-container">
       <div class="logo">EduBridge</div>
@@ -600,7 +34,7 @@
   
   <!-- Main Content -->
   <main>
-    <!-- Hero Section (Unchanged) -->
+    <!-- Hero Section -->
     <section class="hero">
       <div class="hero-content" data-aos="fade-up">
         <h1>Deliver &amp; Grade Assessments Anywhere</h1>
@@ -609,7 +43,7 @@
       </div>
     </section>
     
-    <!-- Features Section (Enhanced; 4th feature removed) -->
+    <!-- Features Section -->
     <section id="features" class="features">
       <div class="container">
         <h2 data-aos="fade-up">Why Choose EduBridge?</h2>
@@ -633,20 +67,21 @@
       </div>
     </section>
     
-    <!-- Demo Section (Enhanced; removed extra text) -->
+    <!-- Demo Section (remove the video source if you don't have a demo video) -->
     <section id="demo" class="demo">
       <div class="container">
         <h2 data-aos="fade-up">See EduBridge in Action</h2>
         <div data-aos="fade-up" data-aos-delay="200">
-          <video controls>
+          <!-- Remove or comment out the video source if not available -->
+          <!--<video controls>
             <source src="demo-video.mp4" type="video/mp4">
             Your browser does not support the video tag.
-          </video>
+          </video>-->
         </div>
       </div>
     </section>
     
-    <!-- Testimonials Section (Enhanced) -->
+    <!-- Testimonials Section -->
     <section id="testimonials" class="testimonials">
       <div class="container">
         <h2 data-aos="fade-up">What Our Users Say</h2>
@@ -667,7 +102,7 @@
       </div>
     </section>
     
-    <!-- Contact Section (Enhanced) -->
+    <!-- Contact Section -->
     <section id="contact" class="contact">
       <div class="container">
         <h2 data-aos="fade-up">Get In Touch</h2>
@@ -689,7 +124,7 @@
       </div>
     </section>
     
-    <!-- Get Started Section (Enhanced) -->
+    <!-- Get Started Section -->
     <section id="get-started" class="get-started">
       <div class="container">
         <h2 data-aos="fade-up">Ready to Transform Your Assessments?</h2>
@@ -701,7 +136,7 @@
     </section>
   </main>
   
-  <!-- Enhanced Footer with Dynamic Wave -->
+  <!-- Footer -->
   <footer>
     <div class="container footer-content">
       <div class="footer-links">
@@ -727,30 +162,11 @@
     </div>
   </footer>
   
-  <!-- Scripts -->
+  <!-- External Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.topology.min.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      AOS.init({ duration: 1000, once: true });
-      window.toggleMenu = function() {
-        const navMenu = document.querySelector('.nav-menu');
-        navMenu.classList.toggle('active');
-      };
-      VANTA.TOPOLOGY({
-        el: "#vanta-topology",
-        mouseControls: true,
-        touchControls: true,
-        gyroControls: false,
-        minHeight: 200.00,
-        minWidth: 200.00,
-        scale: 1.00,
-        scaleMobile: 1.00,
-        color: 0xedff,
-        backgroundColor: 0x43
-      });
-    });
-  </script>
+  <!-- External JavaScript -->
+  <script src="index.js"></script>
 </body>
 </html>

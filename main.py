@@ -1,7 +1,7 @@
 import os
-from flask import Flask, send_file, redirect, url_for,render_template
+from flask import Flask, send_file, redirect, url_for
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="src", static_url_path="")
 
 @app.route("/")
 def index():
@@ -21,5 +21,5 @@ def get_started():
     return redirect(url_for('signup'))
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Using port 5000 to avoid permission issues
+    port = int(os.environ.get("PORT", 5000))
     app.run(debug=True, port=port)
