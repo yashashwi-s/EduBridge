@@ -20,6 +20,18 @@ def get_started():
     # Redirect to the signup page
     return redirect(url_for('signup'))
 
+# New route: Teacher Dashboard (after successful login)
+@app.route("/teacher_dashboard")
+def teacher_dashboard():
+    # TODO: Add logic here to verify teacher login credentials before serving the page
+    return send_file('src/teacher_after_login.html')
+
+# New route: Teacher Profile Page
+@app.route("/teacher_profile")
+def teacher_profile():
+    # TODO: Add authentication/authorization logic here before serving the profile page
+    return send_file('src/teacher_profile_page.html')
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=True, port=port)
