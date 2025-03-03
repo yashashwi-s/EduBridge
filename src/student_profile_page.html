@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EduBridge - Student Profile</title>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans:400,500,700|Roboto:300,400,500&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+  <!-- Font Awesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- External CSS -->
+  <link rel="stylesheet" href="student_profile_page.css">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <!-- Navbar -->
+  <div class="navbar">
+    <div class="nav-left">
+      <button id="hamburger" class="hamburger" aria-label="Menu"><i class="fas fa-bars"></i></button>
+      <div class="logo"><i class="fas fa-graduation-cap"></i> EduBridge</div>
+    </div>
+    <div class="nav-right">
+      <div class="profile-wrapper">
+        <img src="https://i.pravatar.cc/40" alt="Profile" class="profile-icon">
+        <div class="profile-dropdown">
+          <a href="student_profile_page.html" class="active"><i class="fas fa-user-circle"></i> Show Profile</a>
+          <a href="#"><i class="fas fa-bell"></i> Notifications</a>
+          <a href="#"><i class="fas fa-cog"></i> Settings</a>
+          <a href="/login"><i class="fas fa-sign-out-alt"></i> Log Out</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <ul>
+      <li><a href="student_dashboard.html"><i class="fas fa-home"></i><span class="text">Home</span></a></li>
+      <li><a href="announcements_page.html"><i class="fas fa-bullhorn"></i><span class="text">Announcements</span></a></li>
+      <li><a href="#"><i class="fas fa-book"></i><span class="text">Courses</span></a></li>
+      <li><a href="#"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a></li>
+      <li><a href="student_profile_page.html" class="active"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a></li>
+      <li><a href="#"><i class="fas fa-cog"></i><span class="text">Settings</span></a></li>
+    </ul>
+  </div>
+  <!-- Main Content / Profile Section -->
+  <div class="content">
+    <div class="profile-header">
+      <h1>My Profile</h1>
+      <button class="edit-profile-btn"><i class="fas fa-edit"></i> Edit Profile</button>
+    </div>
+    
+    <div class="profile-container">
+      <!-- Profile Sidebar -->
+      <div class="profile-sidebar">
+        <img src="https://i.pravatar.cc/150" alt="Profile Avatar" class="profile-avatar">
+        <h2 class="profile-name">John Doe</h2>
+        <p class="profile-title">Student</p>
+        <div class="profile-contact">
+          <div class="contact-item"><i class="fas fa-envelope"></i><span>john.doe@example.com</span></div>
+          <div class="contact-item"><i class="fas fa-phone"></i><span>(555) 987-6543</span></div>
+          <div class="contact-item"><i class="fas fa-school"></i><span>XYZ High School</span></div>
+          <div class="contact-item"><i class="fas fa-id-card"></i><span>Student ID: 215487</span></div>
+          <div class="contact-item"><i class="fas fa-calendar-alt"></i><span>Joined: Sep 2023</span></div>
+        </div>
+      </div>
+      
+      <!-- Profile Main -->
+      <div class="profile-main">
+        <!-- Performance Overview Card -->
+        <div class="info-card">
+          <h3 class="card-title"><i class="fas fa-chart-line"></i>Performance Overview</h3>
+          
+          <div class="tab-container">
+            <div class="tabs">
+              <div class="tab active" data-tab="overall">Overall</div>
+              <div class="tab" data-tab="classes">Class-wise</div>
+              <div class="tab" data-tab="trends">Trends</div>
+            </div>
+            
+            <!-- Overall Performance Tab -->
+            <div class="tab-content active" id="overall-tab">
+              <div class="chart-container">
+                <canvas id="performanceChart" width="400" height="200"></canvas>
+              </div>
+            </div>
+            
+            <!-- Class-wise Performance Tab -->
+            <div class="tab-content" id="classes-tab">
+              <div class="class-performance">
+                <!-- Physics Class Card -->
+                <div class="class-card">
+                  <div class="class-card-header">
+                    <div class="class-card-title">Physics 101</div>
+                    <div class="class-card-grade">A-</div>
+                  </div>
+                  <div class="class-card-details">
+                    <i class="fas fa-user-tie"></i> Dr. Albert Einstein
+                  </div>
+                  <div class="class-card-details">
+                    <i class="fas fa-chart-bar"></i> Current Score: 92%
+                  </div>
+                  <div class="class-progress-container">
+                    <div class="progress-label">Course Completion: 75%</div>
+                    <div class="class-progress-bar">
+                      <div class="class-progress-fill" style="width: 75%"></div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Calculus Class Card -->
+                <div class="class-card">
+                  <div class="class-card-header">
+                    <div class="class-card-title">Calculus II</div>
+                    <div class="class-card-grade">B+</div>
+                  </div>
+                  <div class="class-card-details">
+                    <i class="fas fa-user-tie"></i> Dr. Katherine Johnson
+                  </div>
+                  <div class="class-card-details">
+                    <i class="fas fa-chart-bar"></i> Current Score: 88%
+                  </div>
+                  <div class="class-progress-container">
+                    <div class="progress-label">Course Completion: 80%</div>
+                    <div class="class-progress-bar">
+                      <div class="class-progress-fill" style="width: 80%"></div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Computer Science Class Card -->
+                <div class="class-card">
+                  <div class="class-card-header">
+                    <div class="class-card-title">Computer Science 101</div>
+                    <div class="class-card-grade">A</div>
+                  </div>
+                  <div class="class-card-details">
+                    <i class="fas fa-user-tie"></i> Prof. Ada Lovelace
+                  </div>
+                  <div class="class-card-details">
+                    <i class="fas fa-chart-bar"></i> Current Score: 95%
+                  </div>
+                  <div class="class-progress-container">
+                    <div class="progress-label">Course Completion: 85%</div>
+                    <div class="class-progress-bar">
+                      <div class="class-progress-fill" style="width: 85%"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Trends Tab -->
+            <div class="tab-content" id="trends-tab">
+              <div class="chart-container">
+                <canvas id="trendsChart" width="400" height="200"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Achievements Card -->
+        <div class="info-card">
+          <h3 class="card-title"><i class="fas fa-award"></i>Achievements</h3>
+          <div class="class-performance">
+            <div class="class-card">
+              <div class="class-card-header">
+                <div class="class-card-title">Perfect Attendance</div>
+                <div><i class="fas fa-medal" style="color: gold;"></i></div>
+              </div>
+              <div class="class-card-details">
+                <i class="fas fa-calendar-check"></i> Achieved: Feb 2025
+              </div>
+              <div class="class-card-details">
+                <i class="fas fa-info-circle"></i> Attended all classes for 3 consecutive months
+              </div>
+            </div>
+            
+            <div class="class-card">
+              <div class="class-card-header">
+                <div class="class-card-title">Top Performer</div>
+                <div><i class="fas fa-medal" style="color: silver;"></i></div>
+              </div>
+              <div class="class-card-details">
+                <i class="fas fa-calendar-check"></i> Achieved: Jan 2025
+              </div>
+              <div class="class-card-details">
+                <i class="fas fa-info-circle"></i> Ranked in the top 5% in Physics 101
+              </div>
+            </div>
+            
+            <div class="class-card">
+              <div class="class-card-header">
+                <div class="class-card-title">Quick Learner</div>
+                <div><i class="fas fa-medal" style="color: #cd7f32;"></i></div>
+              </div>
+              <div class="class-card-details">
+                <i class="fas fa-calendar-check"></i> Achieved: Dec 2024
+              </div>
+              <div class="class-card-details">
+                <i class="fas fa-info-circle"></i> Completed 5 courses ahead of schedule
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- External JS -->
+  <script src="student_profile_page.js"></script>
+</body>
+</html>

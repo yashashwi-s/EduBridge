@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EduBridge - Announcements</title>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans:400,500,700|Roboto:300,400,500&display=swap" rel="stylesheet">
+  <!-- Font Awesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- External CSS -->
+  <link rel="stylesheet" href="announcements_page.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <div class="navbar">
+    <div class="nav-left">
+      <button id="hamburger" class="hamburger" aria-label="Menu"><i class="fas fa-bars"></i></button>
+      <div class="logo"><i class="fas fa-graduation-cap"></i> EduBridge</div>
+    </div>
+    <div class="nav-right">
+      <div class="profile-wrapper">
+        <img src="https://i.pravatar.cc/150" alt="Profile" class="profile-icon">
+        <div class="profile-dropdown">
+          <a href="student_profile_page.html"><i class="fas fa-user-circle"></i> Show Profile</a>
+          <a href="#"><i class="fas fa-bell"></i> Notifications</a>
+          <a href="#"><i class="fas fa-cog"></i> Settings</a>
+          <a href="/login"><i class="fas fa-sign-out-alt"></i> Log Out</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <ul>
+      <li><a href="student_dashboard.html"><i class="fas fa-home"></i><span class="text">Home</span></a></li>
+      <li><a href="announcements_page.html" class="active"><i class="fas fa-bullhorn"></i><span class="text">Announcements</span></a></li>
+      <li><a href="#"><i class="fas fa-book"></i><span class="text">Courses</span></a></li>
+      <li><a href="#"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a></li>
+      <li><a href="student_profile_page.html"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a></li>
+      <li><a href="#"><i class="fas fa-cog"></i><span class="text">Settings</span></a></li>
+    </ul>
+  </div>
+  
+  <!-- Main Content / Tabs -->
+  <div class="content">
+    <h1>Physics 101 - Classroom</h1>
+    <div class="tabs">
+      <div class="tab-buttons" id="tabButtons">
+        <button class="tab-btn active" data-tab="announcements">Announcements</button>
+        <button class="tab-btn" data-tab="assignments">Assignments</button>
+        <button class="tab-btn" data-tab="tests">Tests</button>
+      </div>
+      <div class="tab-contents">
+        <div class="tab-content active" id="announcements">
+          <!-- Announcements -->
+          <div class="announcement">
+            <h3>Exam Schedule Posted</h3>
+            <p>The final exam schedule for this semester has been posted. Please review the dates and times carefully and mark your calendars accordingly. Contact the administration if you have any scheduling conflicts.</p>
+            <span class="date"><i class="far fa-calendar-alt"></i> March 1, 2025</span>
+          </div>
+          <div class="announcement">
+            <h3>Guest Lecture: Quantum Physics</h3>
+            <p>Dr. Sarah Johnson from MIT will be giving a special guest lecture on recent advancements in Quantum Physics tomorrow at 2:00 PM in the Main Auditorium. Attendance is highly recommended for all students.</p>
+            <span class="date"><i class="far fa-calendar-alt"></i> March 2, 2025</span>
+          </div>
+          <div class="announcement">
+            <h3>Lab Equipment Update</h3>
+            <p>New laboratory equipment has arrived for our upcoming experiments on electromagnetic fields. A brief orientation session will be held next Monday before the regular lab period.</p>
+            <span class="date"><i class="far fa-calendar-alt"></i> February 28, 2025</span>
+          </div>
+        </div>
+        
+        <div class="tab-content" id="assignments">
+          <!-- Assignments -->
+          <div class="assignment">
+            <h3>Homework 1: Classical Mechanics</h3>
+            <p>Complete problems 2.1 through 2.15 in Chapter 2 of your textbook. Submit your solutions as a single PDF document through the submission portal.</p>
+            <span class="due-date"><i class="far fa-clock"></i> Due: March 5, 2025</span>
+          </div>
+          <div class="assignment">
+            <h3>Project Proposal: Applied Physics</h3>
+            <p>Submit a 2-page proposal for your semester project. Include your research question, methodology, and expected outcomes. See the rubric for detailed requirements.</p>
+            <span class="due-date"><i class="far fa-clock"></i> Due: March 10, 2025</span>
+          </div>
+          <div class="assignment">
+            <h3>Lab Report: Pendulum Motion</h3>
+            <p>Complete your lab report for last week's pendulum experiment. Include all data tables, graphs, and analysis sections as outlined in the lab manual.</p>
+            <span class="due-date"><i class="far fa-clock"></i> Due: March 7, 2025</span>
+          </div>
+        </div>
+        
+        <div class="tab-content" id="tests">
+          <!-- Tests -->
+          <div class="test">
+            <h3>Quiz 1: Mechanics Fundamentals</h3>
+            <p>This 30-minute quiz will cover Newton's Laws, forces, and basic kinematics. Review chapters 1 and 2 and your lecture notes. Calculators allowed but no formula sheets.</p>
+            <span class="date"><i class="fas fa-calendar-check"></i> March 3, 2025 - 10:00 AM</span>
+          </div>
+          <div class="test">
+            <h3>Midterm Exam</h3>
+            <p>The midterm exam will be comprehensive, covering all topics from weeks 1-7 including mechanics, thermodynamics, and wave motion. The exam will consist of multiple choice, short answer, and problem-solving sections.</p>
+            <span class="date"><i class="fas fa-calendar-check"></i> March 15, 2025 - 1:00 PM</span>
+          </div>
+          <div class="test">
+            <h3>Lab Practical: Circuit Analysis</h3>
+            <p>A hands-on assessment of your ability to construct and analyze basic electrical circuits. You will be asked to build specific circuits and take measurements using the lab equipment.</p>
+            <span class="date"><i class="fas fa-calendar-check"></i> March 8, 2025 - 3:00 PM</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- JavaScript for interactivity -->
+  <script src="announcements_page.js"></script>
+</body>
+</html>

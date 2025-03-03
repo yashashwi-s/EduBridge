@@ -32,6 +32,18 @@ def teacher_profile():
     # TODO: Add authentication/authorization logic here before serving the profile page
     return send_file('src/teacher_profile_page.html')
 
+@app.route("/student_dashboard")
+def student_dashboard():
+    return send_file('src/student_dashboard.html')
+
+@app.route("/student_profile")
+def student_profile():
+    return send_file('src/student_profile_page.html')
+
+@app.route("/announcements")
+def announcements():
+    return send_file('src/announcements_page").html')
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(debug=True, port=port)
