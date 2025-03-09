@@ -29,7 +29,6 @@ const cancelBtn = document.querySelector('.cancel-btn');
 function openModal() {
   if (profileModal) {
     profileModal.classList.add('show');
-    // Disable background scrolling
     document.body.style.overflow = 'hidden';
   }
 }
@@ -37,7 +36,6 @@ function openModal() {
 function closeModalFunc() {
   if (profileModal) {
     profileModal.classList.remove('show');
-    // Re-enable scrolling after modal closes
     document.body.style.overflow = '';
   }
 }
@@ -58,12 +56,45 @@ window.addEventListener('click', (e) => {
   }
 });
 
-// Handle Edit Profile form submission and update profile section
+// On DOM load, fetch teacher profile data from API and display it
+document.addEventListener('DOMContentLoaded', function() {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    alert('Please log in.');
+    window.location.href = '/login';
+    return;
+  }
+  fetch('/api/profile', {
+    method: 'GET',
+    headers: {
+      'Authorization': 'Bearer ' + token
+    }
+  })
+  .then(response => response.json())
+  .then(user => {
+    // Display user info in the profile sidebar and main section
+    document.querySelector('.profile-name').textContent = user.fullName;
+    document.querySelector('.profile-title').textContent = user.title || '';
+    const contactItems = document.querySelectorAll('.profile-contact .contact-item span');
+    if (contactItems.length >= 3) {
+      contactItems[0].textContent = user.email;
+      contactItems[1].textContent = user.phone;
+      contactItems[2].textContent = user.institution;
+    }
+    // Optionally update additional sections like bio, department, etc.
+    const bioElem = document.querySelector('.profile-main .bio p');
+    if (bioElem) {
+      bioElem.textContent = user.bio || '';
+    }
+  })
+  .catch(err => console.error(err));
+});
+
+// Handle Edit Profile form submission using API
 const profileForm = document.getElementById('profileForm');
 if (profileForm) {
   profileForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    // Get new values from the form
     const fullName = document.getElementById('fullName').value;
     const email = document.getElementById('email').value;
     const phone = document.getElementById('phone').value;
@@ -71,36 +102,42 @@ if (profileForm) {
     const department = document.getElementById('department').value;
     const title = document.getElementById('title').value;
     const bio = document.getElementById('bio').value;
-
-    // Update profile sidebar details
-    document.querySelector('.profile-name').textContent = fullName;
-    document.querySelector('.profile-title').textContent = title;
-    const contactItems = document.querySelectorAll('.profile-contact .contact-item span');
-    if (contactItems.length >= 3) {
-      contactItems[0].textContent = email;       // Update Email
-      contactItems[1].textContent = phone;         // Update Phone
-      contactItems[2].textContent = institution;   // Update Institution
+  
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      alert('Please log in.');
+      return;
     }
-
-    // Update Personal Information card (Full Name)
-    const personalInfoFullName = document.querySelector('.profile-main .info-card:nth-child(1) .info-item:nth-child(1) .info-value');
-    if (personalInfoFullName) {
-      personalInfoFullName.textContent = fullName;
-    }
-
-    // Update Teaching Information card (Department)
-    const teachingDepartment = document.querySelector('.profile-main .info-card:nth-child(3) .info-item:nth-child(1) .info-value');
-    if (teachingDepartment) {
-      teachingDepartment.textContent = department;
-    }
-
-    // Update Bio card
-    const bioCard = document.querySelector('.profile-main .info-card:nth-child(6) p');
-    if (bioCard) {
-      bioCard.textContent = bio;
-    }
-
-    // Close the modal overlay and re-enable scrolling
-    closeModalFunc();
+    fetch('/api/profile', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({
+        fullName, email, phone, institution, department, title, bio
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.msg === 'Profile updated') {
+        // Update profile display on the page
+        document.querySelector('.profile-name').textContent = fullName;
+        document.querySelector('.profile-title').textContent = title;
+        const contactItems = document.querySelectorAll('.profile-contact .contact-item span');
+        if (contactItems.length >= 3) {
+          contactItems[0].textContent = email;
+          contactItems[1].textContent = phone;
+          contactItems[2].textContent = institution;
+        }
+        closeModalFunc();
+      } else {
+        alert('Failed to update profile.');
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Error updating profile.');
+    });
   });
 }

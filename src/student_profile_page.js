@@ -159,3 +159,67 @@ const trendsChart = new Chart(ctxTrends, {
     }
   }
 });
+
+/* NEW CODE: Fetch student profile from API and update UI */
+document.addEventListener('DOMContentLoaded', function() {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    alert('Please log in.');
+    window.location.href = '/login';
+    return;
+  }
+  fetch('/api/profile', {
+    method: 'GET',
+    headers: { 'Authorization': 'Bearer ' + token }
+  })
+  .then(response => response.json())
+  .then(user => {
+    // Update profile details in sidebar and main section
+    document.querySelector('.profile-name').textContent = user.fullName;
+    document.querySelector('.profile-title').textContent = user.title || '';
+    const contactItems = document.querySelectorAll('.profile-contact .contact-item span');
+    if (contactItems.length >= 3) {
+      contactItems[0].textContent = user.email;
+      contactItems[1].textContent = user.phone;
+      contactItems[2].textContent = user.institution;
+    }
+    // Update bio section if exists
+    const bioElem = document.querySelector('.profile-main .bio p');
+    if (bioElem) {
+      bioElem.textContent = user.bio || '';
+    }
+  })
+  .catch(err => console.error(err));
+});
+
+/* NEW CODE: Fetch and display courses data from the API */
+// Assume a new API endpoint exists at /api/courses that returns an array of course objects.
+// Each course might have: _id, courseName, courseDescription, instructor, credits, schedule, etc.
+document.addEventListener('DOMContentLoaded', function() {
+  const token = localStorage.getItem('access_token');
+  if (!token) return;
+  fetch('/api/courses', {
+    method: 'GET',
+    headers: { 'Authorization': 'Bearer ' + token }
+  })
+  .then(response => response.json())
+  .then(courses => {
+    const coursesContainer = document.getElementById('coursesContainer');
+    if (!coursesContainer) return;
+    coursesContainer.innerHTML = ''; // Clear any existing content
+    courses.forEach(course => {
+      // Create a card or list item for each course
+      const courseCard = document.createElement('div');
+      courseCard.className = 'course-card';
+      courseCard.innerHTML = `
+        <h3>${course.courseName}</h3>
+        <p>${course.courseDescription}</p>
+        <p><strong>Instructor:</strong> ${course.instructor}</p>
+        <p><strong>Credits:</strong> ${course.credits}</p>
+        <p><strong>Schedule:</strong> ${course.schedule}</p>
+      `;
+      coursesContainer.appendChild(courseCard);
+    });
+  })
+  .catch(err => console.error(err));
+});
