@@ -281,19 +281,20 @@ body {
 }
 
 /* Announcement Composer */
+/* Composer */
 .announcement-composer {
-    background: var(--card-bg);
-    padding: 18px;
+    background: var(--card-bg, #fff);
+    padding: 16px;
     border-radius: 8px;
-    margin-bottom: 16px;
-    box-shadow: var(--shadow-sm);
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.1));
 }
 
 .announcement-composer textarea {
     width: 100%;
     min-height: 100px;
     padding: 12px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-color, #dadce0);
     border-radius: 4px;
     font-size: 14px;
     resize: vertical;
@@ -301,13 +302,231 @@ body {
 
 .announcement-composer textarea:focus {
     outline: none;
-    border-color: var(--primary-color);
+    border-color: var(--primary-color, #1a73e8);
 }
 
 .composer-footer {
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
+    align-items: center;
     margin-top: 12px;
+}
+
+.composer-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.composer-actions button {
+    background: none;
+    border: none;
+    color: var(--secondary-color, #5f6368);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px;
+}
+
+.post-btn {
+    background-color: var(--primary-color, #1a73e8);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.post-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+/* Announcement Feed */
+.announcements-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.announcement-card {
+    background: var(--card-bg, #fff);
+    border-radius: 8px;
+    box-shadow: var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.1));
+    padding: 16px;
+}
+
+.announcement-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.profile-pic {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 12px;
+}
+
+.poster-info {
+    flex: 1;
+}
+
+.poster-name {
+    font-weight: 500;
+    color: var(--text-color, #202124);
+}
+
+.post-time {
+    font-size: 12px;
+    color: var(--secondary-color, #5f6368);
+}
+
+.announcement-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.announcement-actions button {
+    background: none;
+    border: none;
+    color: var(--secondary-color, #5f6368);
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.announcement-content p {
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: var(--text-color, #202124);
+}
+
+.announcement-footer {
+    margin-top: 12px;
+}
+
+.comment-btn {
+    background: none;
+    border: none;
+    color: var(--primary-color, #1a73e8);
+    cursor: pointer;
+    font-size: 14px;
+}
+
+/* Comments Section */
+.comments-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color, #dadce0);
+}
+
+.comments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.comment {
+    display: flex;
+}
+
+.comment .profile-pic {
+    margin-right: 12px;
+}
+
+.comment-info {
+    flex: 1;
+}
+
+.commenter-name {
+    font-weight: 500;
+    color: var(--text-color, #202124);
+}
+
+.comment p {
+    font-size: 14px;
+    color: var(--text-color, #202124);
+    margin: 4px 0;
+}
+
+.comment-time {
+    font-size: 12px;
+    color: var(--secondary-color, #5f6368);
+}
+
+.comment-input {
+    display: none; /* Hidden until 'Add class comment' is clicked */
+    margin-top: 12px;
+}
+
+.comment-input textarea {
+    width: 100%;
+    min-height: 60px;
+    padding: 8px;
+    border: 1px solid var(--border-color, #dadce0);
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.comment-input button {
+    margin-top: 8px;
+    background-color: var(--primary-color, #1a73e8);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.announcement-card {
+    transition: box-shadow 0.2s ease;
+    animation: fadeIn 0.3s ease;
+}
+/* Add these to your existing CSS */
+
+/* Animations and transitions */
+.announcement-card {
+    transition: box-shadow 0.2s ease;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Hover effects */
+.announcement-card:hover {
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.composer-actions button:hover {
+    color: #1a73e8;
+}
+
+.post-btn:hover:not(:disabled) {
+    background-color: #0d62d1;
+}
+
+.announcement-actions button:hover {
+    color: #202124;
+}
+
+.comment-btn:hover {
+    text-decoration: underline;
+}
+
+/* Comment section improvements */
+.comments-section {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    padding: 12px;
+    margin-top: 16px;
+}
+
+.comment-input textarea:focus {
+    outline: none;
+    border-color: #1a73e8;
+    transition: border-color 0.2s ease;
 }
 
 /* Cards Styling */

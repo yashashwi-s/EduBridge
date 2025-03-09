@@ -65,16 +65,84 @@
             <div class="tab-contents">
                 <!-- Announcements -->
                 <div class="tab-content active" id="announcements">
+                    <!-- Composer for New Announcements -->
                     <div class="announcement-composer">
                         <textarea placeholder="Share something with your class..."></textarea>
                         <div class="composer-footer">
-                            <button class="btn btn-primary">Post</button>
+                            <div class="composer-actions">
+                                <button class="attach-btn"><i class="fas fa-paperclip"></i></button>
+                                <button class="image-btn"><i class="fas fa-image"></i></button>
+                            </div>
+                            <button class="post-btn" disabled>Post</button>
                         </div>
                     </div>
-                    <div class="announcement">
-                        <h3>Welcome to Advanced Mathematics 101</h3>
-                        <p>I'm excited to embark on this journey with you. Review the syllabus in the assignments section.</p>
-                        <span class="date"><i class="far fa-calendar-alt"></i> Today, 10:30 AM</span>
+                
+                    <!-- Announcements Feed -->
+                    <div class="announcements-feed">
+                        <!-- Sample Announcement 1 (with Comment) -->
+                        <div class="announcement-card">
+                            <div class="announcement-header">
+                                <img src="https://i.pravatar.cc/40" alt="Profile" class="profile-pic">
+                                <div class="poster-info">
+                                    <span class="poster-name">Teacher Name</span>
+                                    <span class="post-time">Posted on Mar 10, 2025</span>
+                                </div>
+                                <div class="announcement-actions">
+                                    <button class="edit-btn">Edit</button>
+                                    <button class="delete-btn">Delete</button>
+                                </div>
+                            </div>
+                            <div class="announcement-content">
+                                <p>Welcome to Advanced Mathematics 101! Please review the syllabus in the assignments section.</p>
+                            </div>
+                            <div class="announcement-footer">
+                                <button class="comment-btn">Add class comment</button>
+                            </div>
+                            <div class="comments-section">
+                                <div class="comments-list">
+                                    <div class="comment">
+                                        <img src="https://i.pravatar.cc/40" alt="Profile" class="profile-pic">
+                                        <div class="comment-info">
+                                            <span class="commenter-name">Student Name</span>
+                                            <p>Great, thanks!</p>
+                                            <span class="comment-time">Mar 10, 2025</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="comment-input">
+                                    <textarea placeholder="Add a comment..."></textarea>
+                                    <button class="post-comment-btn">Post</button>
+                                </div>
+                            </div>
+                        </div>
+                
+                        <!-- Sample Announcement 2 (no Comments) -->
+                        <div class="announcement-card">
+                            <div class="announcement-header">
+                                <img src="https://i.pravatar.cc/40" alt="Profile" class="profile-pic">
+                                <div class="poster-info">
+                                    <span class="poster-name">Teacher Name</span>
+                                    <span class="post-time">Posted on Mar 5, 2025</span>
+                                </div>
+                                <div class="announcement-actions">
+                                    <button class="edit-btn">Edit</button>
+                                    <button class="delete-btn">Delete</button>
+                                </div>
+                            </div>
+                            <div class="announcement-content">
+                                <p>Don’t forget to submit your homework by Friday.</p>
+                            </div>
+                            <div class="announcement-footer">
+                                <button class="comment-btn">Add class comment</button>
+                            </div>
+                            <div class="comments-section">
+                                <div class="comments-list"></div>
+                                <div class="comment-input">
+                                    <textarea placeholder="Add a comment..."></textarea>
+                                    <button class="post-comment-btn">Post</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
