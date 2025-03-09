@@ -25,6 +25,9 @@ def get_started():
 def teacher_dashboard():
     # TODO: Add logic here to verify teacher login credentials before serving the page
     return send_file('src/teacher_after_login.html')
+@app.route("/teacher_classroom")
+def teacher_classrooom():
+    return send_file('src/teacher_classroom.html')
 
 # New route: Teacher Profile Page
 @app.route("/teacher_profile")

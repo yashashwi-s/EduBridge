@@ -100,6 +100,6 @@ classroomForm.addEventListener('submit', (e) => {
 // Add click functionality to all visit buttons
 document.addEventListener('click', (e) => {
   if (e.target.classList.contains('visit-btn')) {
-    alert('Classroom functionality would open here');
+      window.location.href = '/teacher_classroom';
   }
 });
