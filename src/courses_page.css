@@ -1,0 +1,302 @@
+/* Global Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  /* CSS Variables */
+  :root {
+    --primary-color: #1a73e8;
+    --primary-light: #e8f0fe;
+    --secondary-color: #5f6368;
+    --text-color: #3c4043;
+    --bg-color: #f5f5f5;
+    --card-bg: #ffffff;
+    --border-color: #e0e0e0;
+    --hover-color: #f1f3f4;
+    --shadow-sm: 0 1px 2px rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+    --shadow-md: 0 1px 3px rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
+    --transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+  
+  /* Body */
+  body {
+    font-family: 'Google Sans', 'Montserrat', 'Roboto', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.5;
+  }
+  
+  .navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #fff;
+    padding: 0 24px;
+    height: 64px;
+    box-shadow: 0 1px 2px rgba(60,64,67,0.3), 0 2px 6px 2px rgba(60,64,67,0.15);
+    position: fixed;
+    top: 0;
+    width: 100%;
+    z-index: 100;
+  }
+  .nav-left, .nav-right {
+    display: flex;
+    align-items: center;
+  }
+  .hamburger {
+    background: none;
+    border: none;
+    color: #5f6368;
+    font-size: 24px;
+    cursor: pointer;
+    margin-right: 16px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+  }
+  .hamburger:hover {
+    background-color: rgba(95,99,104,0.1);
+  }
+  .logo {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a73e8;
+    display: flex;
+    align-items: center;
+  }
+  .logo i {
+    color: #1a73e8;
+    font-size: 26px;
+    margin-right: 10px;
+  }
+  .profile-wrapper {
+    position: relative;
+    cursor: pointer;
+  }
+  .profile-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid #e8eaed;
+    transition: transform 0.2s, border-color 0.2s;
+    object-fit: cover;
+  }
+  .profile-icon:hover {
+    transform: scale(1.05);
+    border-color: #1a73e8;
+  }
+  .profile-dropdown {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 50px;
+    background-color: white;
+    box-shadow: 0 4px 8px rgba(60,64,67,0.3);
+    border-radius: 8px;
+    overflow: hidden;
+    z-index: 150;
+    min-width: 220px;
+  }
+  .profile-dropdown a {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    text-decoration: none;
+    color: #3c4043;
+    font-size: 14px;
+    transition: background-color 0.2s;
+  }
+  .profile-dropdown a i {
+    margin-right: 12px;
+    width: 20px;
+    text-align: center;
+    color: #5f6368;
+  }
+  .profile-dropdown a:hover {
+    background-color: #f1f3f4;
+  }
+  .profile-dropdown.show {
+    display: block;
+    animation: fadeIn 0.2s ease-out;
+  }
+  
+  /* Sidebar */
+  .sidebar {
+    position: fixed;
+    top: 64px;
+    left: 0;
+    width: 72px;
+    height: calc(100% - 64px);
+    background-color: var(--card-bg);
+    border-right: 1px solid var(--border-color);
+    overflow: hidden;
+    transition: width 0.3s cubic-bezier(0.4,0,0.2,1);
+    z-index: 90;
+  }
+  .sidebar.expanded,
+  .sidebar:hover {
+    width: 256px;
+    box-shadow: var(--shadow-sm);
+  }
+  .sidebar ul {
+    list-style: none;
+    padding: 12px 0;
+  }
+  .sidebar ul li {
+    margin: 4px 0;
+  }
+  .sidebar ul li a {
+    display: flex;
+    align-items: center;
+    padding: 12px 24px;
+    text-decoration: none;
+    color: var(--text-color);
+    font-weight: 500;
+    transition: var(--transition);
+    white-space: nowrap;
+    margin-right: 16px;
+  }
+  .sidebar ul li a i {
+    font-size: 20px;
+    margin-right: 32px;
+    color: var(--secondary-color);
+    width: 24px;
+    text-align: center;
+    transition: var(--transition);
+  }
+  .sidebar ul li a .text {
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .sidebar.expanded ul li a .text,
+  .sidebar:hover ul li a .text {
+    opacity: 1;
+  }
+  .sidebar ul li a:hover {
+    background-color: var(--hover-color);
+  }
+  .sidebar ul li a.active {
+    background-color: var(--primary-light);
+    color: var(--primary-color);
+  }
+  .sidebar ul li a.active i {
+    color: var(--primary-color);
+  }
+  
+  /* Main Content */
+  .content {
+    margin-left: 72px;
+    padding: 32px;
+    padding-top: 96px;
+    background-color: var(--bg-color);
+    transition: margin-left 0.3s cubic-bezier(0.4,0,0.2,1);
+    min-height: 100vh;
+  }
+  .sidebar.expanded ~ .content {
+    margin-left: 256px;
+  }
+  
+  /* Courses Page Specific Styles */
+  .courses-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+  .course-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 16px;
+    width: calc(33.333% - 16px);
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.3s, box-shadow 0.3s;
+    cursor: pointer;
+  }
+  .course-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+  }
+  .course-card h2 {
+    font-size: 20px;
+    margin-bottom: 8px;
+    color: var(--primary-color);
+  }
+  .course-card p {
+    font-size: 14px;
+    color: var(--text-color);
+  }
+  
+  /* Modal Styles for Syllabus */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 200;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.4);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    transition: opacity 0.3s ease;
+  }
+  .modal.show {
+    display: block;
+    opacity: 1;
+  }
+  .modal-content {
+    background-color: var(--card-bg);
+    margin: 10% auto;
+    padding: 24px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: var(--shadow-md);
+    position: relative;
+  }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .modal-header h2 {
+    font-size: 20px;
+    color: var(--text-color);
+  }
+  .modal-header .close {
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--secondary-color);
+    transition: background-color 0.2s;
+    border-radius: 50%;
+    padding: 4px;
+  }
+  .modal-header .close:hover {
+    background-color: var(--hover-color);
+  }
+  
+  /* Floating Chatbot Icon */
+  .chatbot-icon {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: var(--primary-color);
+    color: #fff;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 300;
+  }
+  
