@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>EduBridge - Announcements</title>
+    <title>EduBridge - Student Calendar</title>
     <!-- Google Fonts -->
     <link
-      href="https://fonts.googleapis.com/css?family=Google+Sans:400,500,700|Roboto:300,400,500&display=swap"
+      href="https://fonts.googleapis.com/css?family=Montserrat:400,500,600,700|Google+Sans:400,500,700|Roboto:300,400,500&display=swap"
       rel="stylesheet"
     />
     <!-- Font Awesome for Icons -->
@@ -15,7 +15,7 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
     />
     <!-- External CSS -->
-    <link rel="stylesheet" href="announcements_page.css" />
+    <link rel="stylesheet" href="student_calendar.css" />
   </head>
   <body>
     <!-- Navbar -->
@@ -44,7 +44,7 @@
           <a href="student_dashboard.html"><i class="fas fa-home"></i><span class="text">Dashboard</span></a>
         </li>
         <li>
-          <a href="student_calendar.html"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a>
+          <a href="student_calendar.html" class="active"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a>
         </li>
         <li>
           <a href="courses_page.html"><i class="fas fa-book"></i><span class="text">Courses</span></a>
@@ -58,48 +58,50 @@
       </ul>
     </div>
 
-    <!-- Main Content / Tabs -->
+    <!-- Main Content: Calendar -->
     <div class="content">
-      <h1>Classroom Announcements</h1>
-      <div class="tabs">
-        <div class="tab-buttons" id="tabButtons">
-          <button class="tab-btn active" data-tab="announcements">Announcements</button>
-          <button class="tab-btn" data-tab="assignments">Assignments</button>
-          <button class="tab-btn" data-tab="tests">Tests</button>
+      <div class="calendar-header">
+        <div class="calendar-header-left">
+          <button id="prevMonth" class="nav-btn"><i class="fas fa-chevron-left"></i></button>
+          <h2 id="monthYear"></h2>
+          <button id="nextMonth" class="nav-btn"><i class="fas fa-chevron-right"></i></button>
         </div>
-        <div class="tab-contents">
-          <!-- Announcements Tab (dynamic) -->
-          <div class="tab-content active" id="announcements">
-            <div id="announcementsContainer">
-              <p>Loading announcements...</p>
-            </div>
-          </div>
-          <!-- Assignments Tab (static fallback) -->
-          <div class="tab-content" id="assignments">
-            <div class="assignment">
-              <h3>Homework 1: Classical Mechanics</h3>
-              <p>Complete problems 2.1 through 2.15 in your textbook. Submit your solutions as a PDF.</p>
-              <span class="due-date"><i class="far fa-clock"></i> Due: March 5, 2025</span>
-            </div>
-          </div>
-          <!-- Tests Tab (static fallback) -->
-          <div class="tab-content" id="tests">
-            <div class="test">
-              <h3>Quiz 1: Mechanics Fundamentals</h3>
-              <p>This 30-minute quiz covers Newton's Laws and basic kinematics.</p>
-              <span class="date"><i class="fas fa-calendar-check"></i> March 3, 2025 - 10:00 AM</span>
-            </div>
-          </div>
+        <div class="calendar-header-right">
+          <button id="todayBtn" class="nav-btn">Today</button>
+        </div>
+      </div>
+      
+      <div class="calendar-grid">
+        <div class="day-name">Sun</div>
+        <div class="day-name">Mon</div>
+        <div class="day-name">Tue</div>
+        <div class="day-name">Wed</div>
+        <div class="day-name">Thu</div>
+        <div class="day-name">Fri</div>
+        <div class="day-name">Sat</div>
+        <!-- Calendar days will be populated dynamically -->
+      </div>
+    </div>
+    
+    <!-- Modal for Day Events -->
+    <div id="dayModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modalDate"></h2>
+          <span id="closeDayModal" class="close">&times;</span>
+        </div>
+        <div id="eventsList">
+          <!-- Events for the day will be listed here -->
         </div>
       </div>
     </div>
-
+    
     <!-- Floating Chatbot Icon -->
     <div class="chatbot-icon">
       <i class="fas fa-comment-dots"></i>
     </div>
-
+    
     <!-- External JS -->
-    <script src="announcements_page.js"></script>
+    <script src="student_calendar.js"></script>
   </body>
 </html>

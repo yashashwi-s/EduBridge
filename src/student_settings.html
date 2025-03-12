@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EduBridge - Student Settings</title>
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css?family=Google+Sans:400,500,700|Roboto:300,400,500&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Font Awesome for Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <!-- External CSS -->
+    <link rel="stylesheet" href="student_settings.css" />
+  </head>
+  <body>
+    <!-- Navbar -->
+    <div class="navbar">
+      <div class="nav-left">
+        <button id="hamburger" class="hamburger">
+          <i class="fas fa-bars"></i>
+        </button>
+        <div class="logo"><i class="fas fa-graduation-cap"></i> EduBridge</div>
+      </div>
+      <div class="nav-right">
+        <div class="profile-wrapper">
+          <img src="https://i.pravatar.cc/40" alt="Profile" class="profile-icon" />
+          <div class="profile-dropdown">
+            <a href="student_profile_page.html"><i class="fas fa-user-circle"></i> Show Profile</a>
+            <a href="/login"><i class="fas fa-sign-out-alt"></i> Log Out</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar (updated order) -->
+    <div class="sidebar">
+      <ul>
+        <li>
+          <a href="student_dashboard.html"><i class="fas fa-home"></i><span class="text">Dashboard</span></a>
+        </li>
+        <li>
+          <a href="student_calendar.html"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a>
+        </li>
+        <li>
+          <a href="courses_page.html"><i class="fas fa-book"></i><span class="text">Courses</span></a>
+        </li>
+        <li>
+          <a href="student_profile_page.html"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a>
+        </li>
+        <li>
+          <a href="student_settings.html" class="active"><i class="fas fa-cog"></i><span class="text">Settings</span></a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Main Content: Settings -->
+    <div class="content">
+      <h1>Settings</h1>
+      <div class="settings-section">
+        <h2>Profile Settings</h2>
+        <form id="profileSettingsForm">
+          <div class="form-group">
+            <label for="studentName">Full Name</label>
+            <input type="text" id="studentName" name="studentName" placeholder="Enter your full name" />
+          </div>
+          <div class="form-group">
+            <label for="studentEmail">Email</label>
+            <input type="email" id="studentEmail" name="studentEmail" value="student@example.com" readonly />
+          </div>
+          <div class="form-group">
+            <label for="profilePicture">Profile Picture URL</label>
+            <input type="text" id="profilePicture" name="profilePicture" placeholder="Enter profile picture URL" />
+          </div>
+          <div class="form-group password-group">
+            <label>Change Password</label>
+            <input type="password" id="currentPassword" name="currentPassword" placeholder="Current Password" />
+            <input type="password" id="newPassword" name="newPassword" placeholder="New Password" />
+            <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirm New Password" />
+          </div>
+          <button type="submit" class="submit-btn">Save Profile Settings</button>
+        </form>
+      </div>
+      <div class="settings-section">
+        <h2>Notification Settings</h2>
+        <form id="notificationSettingsForm">
+          <div class="toggle-group">
+            <label>Announcements Notifications</label>
+            <input type="checkbox" id="notifAnnouncements" />
+          </div>
+          <div class="toggle-group">
+            <label>Tests Notifications</label>
+            <input type="checkbox" id="notifTests" />
+          </div>
+          <div class="toggle-group">
+            <label>Assignments Notifications</label>
+            <input type="checkbox" id="notifAssignments" />
+          </div>
+          <div class="toggle-group">
+            <label>Email Notifications</label>
+            <input type="checkbox" id="emailNotifications" />
+          </div>
+          <button type="submit" class="submit-btn">Save Notification Settings</button>
+        </form>
+      </div>
+      <div class="settings-section">
+        <h2>Display Settings</h2>
+        <form id="displaySettingsForm">
+          <div class="toggle-group">
+            <label>Light/Dark Mode</label>
+            <select id="themeSelect">
+              <option value="light" selected>Light Mode</option>
+              <option value="dark">Dark Mode</option>
+            </select>
+          </div>
+          <div class="toggle-group">
+            <label>Font Size</label>
+            <select id="fontSizeSelect">
+              <option value="small">Small</option>
+              <option value="medium" selected>Medium</option>
+              <option value="large">Large</option>
+            </select>
+          </div>
+          <button type="submit" class="submit-btn">Save Display Settings</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Floating Chatbot Icon -->
+    <div class="chatbot-icon">
+      <i class="fas fa-comment-dots"></i>
+    </div>
+
+    <!-- External JS -->
+    <script src="student_settings.js"></script>
+  </body>
+</html>

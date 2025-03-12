@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EduBridge - Courses</title>
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css?family=Google+Sans:400,500,700|Roboto:300,400,500&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Font Awesome for Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <!-- External CSS -->
+    <link rel="stylesheet" href="courses_page.css" />
+  </head>
+  <body>
+    <!-- Navbar (copied exactly from dashboard) -->
+    <div class="navbar">
+        <div class="nav-left">
+          <button id="hamburger" class="hamburger">
+            <i class="fas fa-bars"></i>
+          </button>
+          <div class="logo"><i class="fas fa-graduation-cap"></i> EduBridge</div>
+        </div>
+        <div class="nav-right">
+          <div class="profile-wrapper">
+            <img src="https://i.pravatar.cc/40" alt="Profile" class="profile-icon" />
+            <div class="profile-dropdown">
+              <a href="student_profile_page.html"><i class="fas fa-user-circle"></i> Show Profile</a>
+              <a href="/login"><i class="fas fa-sign-out-alt"></i> Log Out</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    <!-- Sidebar (using updated order) -->
+    <div class="sidebar">
+      <ul>
+        <li>
+          <a href="student_dashboard.html"><i class="fas fa-home"></i><span class="text">Dashboard</span></a>
+        </li>
+        <li>
+          <a href="student_calendar.html"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a>
+        </li>
+        <li>
+          <a href="courses_page.html" class="active"><i class="fas fa-book"></i><span class="text">Courses</span></a>
+        </li>
+        <li>
+          <a href="student_profile_page.html"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a>
+        </li>
+        <li>
+          <a href="student_settings.html"><i class="fas fa-cog"></i><span class="text">Settings</span></a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Main Content: Courses -->
+    <div class="content">
+      <h1>Your Courses</h1>
+      <div class="courses-container" id="coursesContainer">
+        <!-- Hardcoded course cards for now -->
+        <div class="course-card" data-course="physics">
+          <h2>Physics 101</h2>
+          <p>Instructor: Dr. Albert Einstein</p>
+        </div>
+        <div class="course-card" data-course="calculus">
+          <h2>Calculus II</h2>
+          <p>Instructor: Dr. Katherine Johnson</p>
+        </div>
+        <div class="course-card" data-course="cs">
+          <h2>Computer Science 101</h2>
+          <p>Instructor: Prof. Ada Lovelace</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Syllabus Modal -->
+    <div id="syllabusModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="syllabusTitle">Course Syllabus</h2>
+          <span id="closeSyllabusModal" class="close">&times;</span>
+        </div>
+        <div id="syllabusContent">
+          <!-- Hardcoded syllabus content -->
+          <p>This is the syllabus for the selected course. Details about course topics, assessment methods, and resources will be displayed here.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Floating Chatbot Icon -->
+    <div class="chatbot-icon">
+      <i class="fas fa-comment-dots"></i>
+    </div>
+
+    <!-- Inline JavaScript for Syllabus Modal -->
+    <script>
+      // Sidebar toggle and profile dropdown (as in dashboard)
+      document.getElementById('hamburger').addEventListener('click', function () {
+        document.querySelector('.sidebar').classList.toggle('expanded');
+      });
+      document.querySelector('.profile-icon').addEventListener('click', function () {
+        document.querySelector('.profile-dropdown').classList.toggle('show');
+      });
+      document.addEventListener('click', function (event) {
+        if (!event.target.closest('.profile-wrapper') && document.querySelector('.profile-dropdown.show')) {
+          document.querySelector('.profile-dropdown').classList.remove('show');
+        }
+      });
+
+      // Syllabus modal functionality
+      const courseCards = document.querySelectorAll('.course-card');
+      const syllabusModal = document.getElementById('syllabusModal');
+      const closeSyllabusModal = document.getElementById('closeSyllabusModal');
+      const syllabusTitle = document.getElementById('syllabusTitle');
+      const syllabusContent = document.getElementById('syllabusContent');
+
+      courseCards.forEach(card => {
+        card.addEventListener('click', () => {
+          const course = card.getAttribute('data-course');
+          // Set modal title and content based on course (hardcoded for now)
+          if (course === 'physics') {
+            syllabusTitle.textContent = 'Physics 101 Syllabus';
+            syllabusContent.innerHTML = '<p>Topics include: Mechanics, Thermodynamics, Electromagnetism, and Optics.</p>';
+          } else if (course === 'calculus') {
+            syllabusTitle.textContent = 'Calculus II Syllabus';
+            syllabusContent.innerHTML = '<p>Topics include: Integration Techniques, Series, and Multivariable Calculus.</p>';
+          } else if (course === 'cs') {
+            syllabusTitle.textContent = 'Computer Science 101 Syllabus';
+            syllabusContent.innerHTML = '<p>Topics include: Algorithms, Data Structures, Programming Basics, and Software Engineering.</p>';
+          }
+          syllabusModal.classList.add('show');
+        });
+      });
+
+      closeSyllabusModal.addEventListener('click', () => {
+        syllabusModal.classList.remove('show');
+      });
+
+      window.addEventListener('click', (e) => {
+        if (e.target === syllabusModal) {
+          syllabusModal.classList.remove('show');
+        }
+      });
+    </script>
+  </body>
+</html>
