@@ -33,11 +33,6 @@
       
       <h2>Welcome Back</h2>
       
-      <div class="tab-buttons" id="tabButtonsContainer">
-        <button id="teacherTab" class="active" onclick="showTab('teacher')">Teacher</button>
-        <button id="studentTab" onclick="showTab('student')">Student</button>
-      </div>
-      
       <!-- Teacher Login Form -->
       <div id="teacher" class="tab-content active">
         <form id="teacherForm">
@@ -60,48 +55,16 @@
             </div>
           </div>
           
-          <button type="submit" class="login-btn">Log In as Teacher</button>
+          <button type="submit" class="login-btn">Log In </button>
         </form>
       </div>
-      
-      <!-- Student Login Form -->
-      <div id="student" class="tab-content">
-        <form id="studentForm">
-          <div class="form-group">
-            <div class="form-control">
-              <input type="email" id="studentEmail" name="email" placeholder="Your email" required>
-              <i class="fas fa-envelope"></i>
-              <span class="floating-label">Email</span>
-            </div>
-          </div>
-          
-          <div class="form-group">
-            <div class="form-control">
-              <input type="password" id="studentPassword" name="password" placeholder="Your password" required>
-              <i class="fas fa-lock"></i>
-              <span class="floating-label">Password</span>
-            </div>
-            <div class="forgot-password">
-              <a href="/forgot-password">Forgot password?</a>
-            </div>
-          </div>
-          
-          <button type="submit" class="login-btn">Log In as Student</button>
-        </form>
-      </div>
-      
+            
       <!-- Social Login -->
       <div class="social-login">
         <div class="social-login-text">Or login with</div>
         <div class="social-icons">
           <a href="/auth/google" class="social-icon google">
             <i class="fab fa-google"></i>
-          </a>
-          <a href="/auth/facebook" class="social-icon facebook">
-            <i class="fab fa-facebook-f"></i>
-          </a>
-          <a href="/auth/twitter" class="social-icon twitter">
-            <i class="fab fa-twitter"></i>
           </a>
         </div>
       </div>
