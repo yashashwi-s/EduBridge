@@ -685,7 +685,7 @@ input:focus, textarea:focus, button:focus, a:focus {
 }
 
 .testimonial::before {
-  content: """;
+  content: "";
   position: absolute;
   top: 10px;
   left: 20px;
