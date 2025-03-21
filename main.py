@@ -114,6 +114,18 @@ def profile():
 def announcements():
     return send_file('src/announcements.html')
 
+@app.route("/courses")
+def courses():
+    return send_file('src/courses.html')
+
+@app.route("/calendar")
+def calendar():
+    return send_file('src/calendar.html')
+
+@app.route("/settings")
+def settings():
+    return send_file('src/settings.html')
+
 # -------------------------
 # API Endpoints
 # -------------------------
