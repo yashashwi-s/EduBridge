@@ -5,10 +5,26 @@
     box-sizing: border-box;
   }
   
+  :root {
+    --primary-color: #1a73e8;
+    --primary-light: #e8f0fe;
+    --secondary-color: #5f6368;
+    --text-color: #3c4043;
+    --bg-color: #f5f5f5;
+    --card-bg: #ffffff;
+    --border-color: #e0e0e0;
+    --hover-color: #f1f3f4;
+    --shadow-sm: 0 1px 2px rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+    --shadow-md: 0 1px 3px rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
+    --transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+  
+
   body {
     font-family: 'Montserrat', 'Google Sans', 'Roboto', sans-serif;
-    background-color: #f5f7fa;
-    color: #3c4043;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.5;
   }
   
   /* Navbar Styles */
@@ -16,10 +32,10 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: #fff;
-    padding: 0 24px;
+    background-color: var(--card-bg);
+    padding: 0 16px;
     height: 64px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    box-shadow: var(--shadow-sm);
     position: fixed;
     top: 0;
     width: 100%;
@@ -29,41 +45,40 @@
   .nav-left, .nav-right {
     display: flex;
     align-items: center;
+    gap: 16px;
   }
   
   .hamburger {
     background: none;
     border: none;
-    color: #5f6368;
-    font-size: 20px;
+    color: var(--secondary-color);
+    font-size: 24px;
     cursor: pointer;
-    margin-right: 16px;
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: var(--transition);
   }
   
   .hamburger:hover {
-    background-color: rgba(26,115,232,0.1);
-    color: #1a73e8;
+    background-color: rgba(95,99,104,0.1);
   }
   
   .logo {
     font-size: 22px;
     font-weight: 700;
-    color: #1a73e8;
+    color: var(--primary-color);
     display: flex;
     align-items: center;
+    gap: 10px;
   }
   
   .logo i {
-    color: #1a73e8;
+    color: var(--primary-color);
     font-size: 26px;
-    margin-right: 12px;
   }
   
   .profile-wrapper {
@@ -75,75 +90,58 @@
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    border: 2px solid #e8eaed;
+    border: 2px solid var(--border-color);
+    transition: transform 0.2s, border-color 0.2s;
     object-fit: cover;
-    transition: all 0.3s ease;
   }
   
   .profile-icon:hover {
     transform: scale(1.05);
-    border-color: #1a73e8;
-    box-shadow: 0 0 0 4px rgba(26,115,232,0.15);
+    border-color: var(--primary-color);
   }
   
   .profile-dropdown {
     display: none;
     position: absolute;
     right: 0;
-    top: 55px;
-    background-color: white;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    top: 50px;
+    background-color: var(--card-bg);
+    box-shadow: var(--shadow-md);
     border-radius: 8px;
     overflow: hidden;
     z-index: 150;
-    min-width: 220px;
-    animation: fadeIn 0.2s ease-out;
+    min-width: 200px;
   }
   
   .profile-dropdown a {
     display: flex;
     align-items: center;
-    padding: 14px 18px;
+    gap: 12px;
+    padding: 12px 16px;
     text-decoration: none;
-    color: #3c4043;
+    color: var(--text-color);
     font-size: 14px;
-    transition: all 0.2s ease;
-  }
-  
-  .profile-dropdown a i {
-    margin-right: 12px;
-    font-size: 16px;
-    color: #5f6368;
-    width: 20px;
+    transition: background-color 0.2s;
   }
   
   .profile-dropdown a:hover {
-    background-color: #f1f3f4;
-    color: #1a73e8;
-  }
-  
-  .profile-dropdown a:hover i {
-    color: #1a73e8;
+    background-color: var(--hover-color);
   }
   
   .profile-dropdown.show {
     display: block;
+    animation: fadeIn 0.2s ease-out;
   }
   
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-  
-  /* Sidebar Styles */
+  /* Sidebar Styling */
   .sidebar {
     position: fixed;
     top: 64px;
     left: 0;
     width: 72px;
     height: calc(100% - 64px);
-    background-color: white;
-    border-right: 1px solid #e0e0e0;
+    background-color: var(--card-bg);
+    border-right: 1px solid var(--border-color);
     overflow: hidden;
     transition: width 0.3s cubic-bezier(0.4,0,0.2,1);
     z-index: 90;
@@ -152,45 +150,45 @@
   .sidebar.expanded,
   .sidebar:hover {
     width: 256px;
-    box-shadow: 5px 0 15px rgba(0,0,0,0.05);
+    box-shadow: var(--shadow-sm);
   }
   
   .sidebar ul {
     list-style: none;
-    padding: 12px 0;
+    padding: 8px 0;
   }
   
   .sidebar ul li {
-    margin: 4px 0;
+    margin: 2px 0;
   }
   
   .sidebar ul li a {
-    color: #3c4043;
+    color: var(--text-color);
     text-decoration: none;
     display: flex;
     align-items: center;
     padding: 12px 24px;
     height: 48px;
     border-radius: 0 24px 24px 0;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s;
     white-space: nowrap;
     margin-right: 16px;
+    font-weight: 500;
+    font-size: 14px;
   }
   
   .sidebar ul li a i {
-    font-size: 18px;
-    color: #5f6368;
+    font-size: 20px;
+    color: var(--secondary-color);
     margin-right: 32px;
     width: 24px;
     text-align: center;
-    transition: all 0.2s ease;
+    transition: var(--transition);
   }
   
   .sidebar ul li a .text {
     opacity: 0;
-    transition: opacity 0.2s ease;
-    font-weight: 500;
-    font-size: 14px;
+    transition: opacity 0.3s;
   }
   
   .sidebar.expanded ul li a .text,
@@ -199,24 +197,17 @@
   }
   
   .sidebar ul li a:hover {
-    background-color: rgba(26,115,232,0.08);
-    color: #1a73e8;
-  }
-  
-  .sidebar ul li a:hover i {
-    color: #1a73e8;
+    background-color: var(--hover-color);
   }
   
   .sidebar ul li a.active {
-    background-color: #e8f0fe;
-    color: #1a73e8;
-    font-weight: 500;
+    background-color: var(--primary-light);
+    color: var(--primary-color);
   }
   
   .sidebar ul li a.active i {
-    color: #1a73e8;
+    color: var(--primary-color);
   }
-  
   /* Content Area */
   .content {
     margin-left: 72px;
