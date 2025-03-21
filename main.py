@@ -6,7 +6,8 @@ from pymongo import MongoClient
 from bson import ObjectId
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
-
+import random
+import string
 load_dotenv()
 
 app = Flask(__name__, static_folder="src", static_url_path="")
@@ -18,11 +19,16 @@ jwt = JWTManager(app)
 
 # MongoDB Connection
 mongo_url = os.getenv("MONGO_URL")
-client = MongoClient(mongo_url)
+try:
+    client = MongoClient(mongo_url)
+    print("MongoDB connected")
+except Exception as e:
+    print("Error connecting to MongoDB:", e)
 db = client["edubridge_db"]
 users_collection = db["users"]
 announcements_collection = db["announcements"]
 classrooms_collection = db["classrooms"]
+
 
 """
 Intended Schemas:
@@ -278,17 +284,43 @@ def post_comment(announcement_id):
     return jsonify({"msg": "Comment added", "comment": comment}), 201
 
 # Classrooms API – create a classroom.
+# Predefined list of background images
+BACKGROUND_IMAGES = [
+    'https://www.gstatic.com/classroom/themes/img_graduation.jpg',
+    'https://www.gstatic.com/classroom/themes/img_code.jpg',
+    'https://www.gstatic.com/classroom/themes/img_bookclub.jpg',
+    'https://www.gstatic.com/classroom/themes/img_breakfast.jpg',
+    'https://www.gstatic.com/classroom/themes/img_reachout.jpg',
+    'https://www.gstatic.com/classroom/themes/img_learnlanguage.jpg'
+]
+
+# Helper function to generate a random classroom code
+def generate_class_code(length=6):
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
+
+
 @app.route("/api/classrooms", methods=["POST"])
 @jwt_required()
 def create_classroom():
     user_id = get_jwt_identity()
     data = request.get_json()
+    
+    # Generate a unique classroom code
+    class_code = generate_class_code()
+    while classrooms_collection.find_one({"classCode": class_code}):
+        class_code = generate_class_code()
+    
+    # Randomly choose a background image from the list
+    header_image = random.choice(BACKGROUND_IMAGES)
+
     classroom = {
         "teacher_id": ObjectId(user_id),
         "className": data.get("className"),
         "subject": data.get("subject"),
         "section": data.get("section"),
         "room": data.get("room"),
+        "classCode": class_code,
+        "headerImage": header_image,  # Save the chosen image
         "createdAt": datetime.utcnow(),
         "enrolled_students": []
     }
@@ -297,6 +329,7 @@ def create_classroom():
     classroom["teacher_id"] = user_id
     classroom["createdAt"] = classroom["createdAt"].isoformat()
     return jsonify({"msg": "Classroom created", "classroom": classroom}), 201
+
 
 # Get classrooms – for teachers, return those they created; for students, those they’re enrolled in.
 @app.route("/api/classrooms", methods=["GET"])
@@ -310,12 +343,41 @@ def get_classrooms():
     else:
         query = {"enrolled_students": ObjectId(user_id)}
     for c in classrooms_collection.find(query).sort("createdAt", -1):
+        # Get the teacher's details before converting teacher_id to string.
+        teacher = users_collection.find_one({"_id": c["teacher_id"]})
+        c["teacherName"] = teacher["fullName"] if teacher else ""
         c["_id"] = str(c["_id"])
         c["teacher_id"] = str(c["teacher_id"])
         c["createdAt"] = c["createdAt"].isoformat()
         c["enrolled_students"] = [str(s) for s in c.get("enrolled_students", [])]
+        c["headerImage"] = c.get("headerImage", random.choice(BACKGROUND_IMAGES))
         classrooms.append(c)
     return jsonify(classrooms), 200
+
+@app.route("/api/classrooms/join", methods=["POST"])
+@jwt_required()
+def join_classroom():
+    user_id = get_jwt_identity()
+    data = request.get_json()
+    class_code = data.get("classCode")
+    
+    if not class_code:
+        return jsonify({"msg": "Class code is required"}), 400
+
+    classroom = classrooms_collection.find_one({"classCode": class_code})
+    if not classroom:
+        return jsonify({"msg": "Invalid class code"}), 404
+
+    # Check if student is already enrolled
+    if ObjectId(user_id) in classroom.get("enrolled_students", []):
+        return jsonify({"msg": "You are already enrolled in this class"}), 400
+
+    classrooms_collection.update_one(
+        {"_id": classroom["_id"]},
+        {"$push": {"enrolled_students": ObjectId(user_id)}}
+    )
+    return jsonify({"msg": "Successfully joined the class", "classroomId": str(classroom["_id"])}), 200
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
