@@ -280,7 +280,7 @@
     padding: 24px;
     text-align: center;
     animation: fadeIn 0.5s ease forwards;
-    height: fit-content;
+    /* height: fit-content; */
   }
   
   .profile-avatar {
@@ -310,7 +310,7 @@
     color: var(--secondary-color);
     margin-bottom: 24px;
     padding-bottom: 16px;
-    border-bottom: 1px solid var(--border-color);
+    /* border-bottom: 1px solid var(--border-color); */
     font-weight: 400;
   }
   

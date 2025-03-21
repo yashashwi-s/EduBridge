@@ -139,52 +139,65 @@
     transition: width 0.3s cubic-bezier(0.4,0,0.2,1);
     z-index: 90;
   }
+  
   .sidebar.expanded,
   .sidebar:hover {
     width: 256px;
     box-shadow: var(--shadow-sm);
   }
+  
   .sidebar ul {
     list-style: none;
-    padding: 12px 0;
+    padding: 8px 0;
   }
+  
   .sidebar ul li {
-    margin: 4px 0;
+    margin: 2px 0;
   }
+  
   .sidebar ul li a {
+    color: var(--text-color);
+    text-decoration: none;
     display: flex;
     align-items: center;
     padding: 12px 24px;
-    text-decoration: none;
-    color: var(--text-color);
-    font-weight: 500;
-    transition: var(--transition);
+    height: 48px;
+    border-radius: 0 24px 24px 0;
+    transition: background-color 0.2s;
     white-space: nowrap;
     margin-right: 16px;
+    font-weight: 500;
+    font-size: 14px;
   }
+  
   .sidebar ul li a i {
     font-size: 20px;
-    margin-right: 32px;
     color: var(--secondary-color);
+    margin-right: 32px;
     width: 24px;
     text-align: center;
     transition: var(--transition);
   }
+  
   .sidebar ul li a .text {
     opacity: 0;
     transition: opacity 0.3s;
   }
+  
   .sidebar.expanded ul li a .text,
   .sidebar:hover ul li a .text {
     opacity: 1;
   }
+  
   .sidebar ul li a:hover {
     background-color: var(--hover-color);
   }
+  
   .sidebar ul li a.active {
     background-color: var(--primary-light);
     color: var(--primary-color);
   }
+  
   .sidebar ul li a.active i {
     color: var(--primary-color);
   }

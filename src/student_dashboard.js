@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', function () {
         </div>
       </div>
       <div class="card-actions">
-        <button class="visit-btn" onclick="window.location.href='announcements_page.html'">View Class</button>
+        <button class="visit-btn" onclick="window.location.href='announcements'">View Class</button>
       </div>
     `;
     cardsContainer.appendChild(card);

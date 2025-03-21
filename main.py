@@ -102,17 +102,17 @@ def teacher_classroom():
 def teacher_profile():
     return send_file('src/teacher_profile_page.html')
 
-@app.route("/student_dashboard")
-def student_dashboard():
-    return send_file('src/student_dashboard.html')
+@app.route("/dashboard")
+def dashboard():
+    return send_file('src/dashboard.html')
 
-@app.route("/student_profile")
-def student_profile():
-    return send_file('src/student_profile_page.html')
+@app.route("/profile")
+def profile():
+    return send_file('src/profile.html')
 
 @app.route("/announcements")
-def announcements_page():
-    return send_file('src/announcements_page.html')
+def announcements():
+    return send_file('src/announcements.html')
 
 # -------------------------
 # API Endpoints

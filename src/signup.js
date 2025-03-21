@@ -343,7 +343,7 @@ function loginUser(email, password) {
       if (result.userType === "teacher") {
         window.location.href = "/teacher_profile";
       } else {
-        window.location.href = "/student_profile";
+        window.location.href = "/profile";
       }
     } else {
       alert(result.msg || "Login failed.");
