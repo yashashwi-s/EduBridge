@@ -115,8 +115,8 @@ document.addEventListener('DOMContentLoaded', function () {
     visitBtn.addEventListener('click', function () {
       // Retrieve class id from data attribute and redirect.
       const classId = card.getAttribute('data-id');
-      // Change the URL as needed (here we use /announcements with a query parameter)
-      window.location.href = `/announcements?classId=${classId}`;
+      // Redirect to student_classroom.html instead of announcements
+      window.location.href = `/student_classroom.html?classId=${classId}`;
     });
     
     cardsContainer.appendChild(card);

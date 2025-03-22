@@ -1,93 +1,19 @@
 {% extends "base.html" %}
 
-{% block title %}EduBridge - Announcements{% endblock %}
+{% block title %}EduBridge - Classroom{% endblock %}
 
 {% block content %}
-  <!-- Google Fonts -->
-  <link
-    href="https://fonts.googleapis.com/css?family=Montserrat:400,500,600,700|Roboto:300,400,500&display=swap"
-    rel="stylesheet"
-  />
-  <!-- Font Awesome for Icons -->
-  <link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-  />
-    <link rel="stylesheet" href="announcements_page.css" />
-    <!-- Navbar -->
-    <div class="navbar">
-      <div class="nav-left">
-        <button id="hamburger" class="hamburger">
-          <i class="fas fa-bars"></i>
-        </button>
-        <div class="logo"><i class="fas fa-graduation-cap"></i> EduBridge</div>
-      </div>
-      <div class="nav-right">
-        <div class="profile-wrapper">
-          <img src="https://i.pravatar.cc/40" alt="Profile" class="profile-icon" />
-          <div class="profile-dropdown">
-            <a href="/profile"><i class="fas fa-user-circle"></i> Show Profile</a>
-            <a href="/login"><i class="fas fa-sign-out-alt"></i> Log Out</a>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Sidebar (updated order) -->
-    <div class="sidebar">
-      <ul>
-        <li>
-          <a href="/dashboard" class="active"><i class="fas fa-home"></i><span class="text">Dashboard</span></a>
-        </li>
-        <li>
-          <a href="/calendar"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a>
-        </li>
-        <li><a href="/todo"><i class="fas fa-check-circle"></i><span class="text">To-do</span></a></li>
-        <li>
-          <a href="/profile"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a>
-        </li>
-        <li>
-          <a href="/settings"><i class="fas fa-cog"></i><span class="text">Settings</span></a>
-        </li>
-      </ul>
-    </div>
-
-    <!-- Main Content / Tabs -->
-    <div class="content">
-      <h1>Classroom Announcements</h1>
-      <div class="tabs">
-        <div class="tab-buttons" id="tabButtons">
-          <button class="tab-btn active" data-tab="announcements">Announcements</button>
-          <button class="tab-btn" data-tab="assignments">Assignments</button>
-          <button class="tab-btn" data-tab="tests">Tests</button>
-        </div>
-        <div class="tab-contents">
-          <!-- Announcements Tab (dynamic) -->
-          <div class="tab-content active" id="announcements">
-            <div id="announcementsContainer">
-              <p>Loading announcements...</p>
-            </div>
-          </div>
-          <!-- Assignments Tab (static fallback) -->
-          <div class="tab-content" id="assignments">
-            <div class="assignment">
-              <h3>Homework 1: Classical Mechanics</h3>
-              <p>Complete problems 2.1 through 2.15 in your textbook. Submit your solutions as a PDF.</p>
-              <span class="due-date"><i class="far fa-clock"></i> Due: March 5, 2025</span>
-            </div>
-          </div>
-          <!-- Tests Tab (static fallback) -->
-          <div class="tab-content" id="tests">
-            <div class="test">
-              <h3>Quiz 1: Mechanics Fundamentals</h3>
-              <p>This 30-minute quiz covers Newton's Laws and basic kinematics.</p>
-              <span class="date"><i class="fas fa-calendar-check"></i> March 3, 2025 - 10:00 AM</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- External JS -->
-    <script src="announcements_page.js"></script>
+  <script>
+    // Redirect to student_classroom.html with the same classId
+    document.addEventListener('DOMContentLoaded', function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const classId = urlParams.get('classId');
+      if (classId) {
+        window.location.href = `/student_classroom.html?classId=${classId}`;
+      } else {
+        // If no classId is provided, redirect to dashboard
+        window.location.href = '/dashboard';
+      }
+    });
+  </script>
 {% endblock %}

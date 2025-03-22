@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduBridge - Student Classroom</title>
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans:400,500,700|Roboto:300,400,500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="student_classroom.css">
+</head>
+<body>
+  <div class="navbar">
+    <div class="nav-left">
+      <button id="hamburger" class="hamburger" aria-label="Menu"><i class="fas fa-bars"></i></button>
+      <div class="logo"><i class="fas fa-graduation-cap"></i> EduBridge</div>
+    </div>
+    <div class="nav-right">
+      <div class="profile-wrapper">
+        <img src="https://i.pravatar.cc/40" alt="Profile" class="profile-icon">
+        <div class="profile-dropdown">
+          <a href="/profile"><i class="fas fa-user-circle"></i> Show Profile</a>
+          <a href="/login"><i class="fas fa-sign-out-alt"></i> Log Out</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="sidebar">
+    <ul>
+      <li><a href="/dashboard" class="active"><i class="fas fa-home"></i><span class="text">Home</span></a></li>
+      <li><a href="/calendar"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a></li>
+      <li><a href="/courses"><i class="fas fa-book"></i><span class="text">Courses</span></a></li>
+      <li><a href="/profile"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a></li>
+      <li><a href="/settings"><i class="fas fa-cog"></i><span class="text">Settings</span></a></li>
+    </ul>
+  </div>
+  <div class="content">
+    <div class="classroom-header">
+      <h1>Loading Course Name...</h1>
+      <p>Loading Section...</p>
+    </div>
+    <div class="tabs">
+      <div class="tab-buttons" id="tabButtons">
+        <button class="tab-btn active" data-tab="announcements">Announcements</button>
+        <button class="tab-btn" data-tab="assignments">Assignments</button>
+        <button class="tab-btn" data-tab="quizzes">Quizzes & Exams</button>
+        <button class="tab-btn" data-tab="performance">My Performance</button>
+        <button class="tab-btn" data-tab="resources">Resources</button>
+      </div>
+      <div class="tab-contents">
+        <div class="tab-content active" id="announcements">
+          <!-- Announcements Controls -->
+          <div class="announcements-controls">
+            <div class="search-container">
+              <input type="text" id="announcement-search" placeholder="Search announcements...">
+              <button id="search-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              </button>
+            </div>
+            <div class="sort-container">
+              <label for="sort-announcements">Sort by:</label>
+              <select id="sort-announcements">
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="comments">Most commented</option>
+              </select>
+            </div>
+          </div>
+          <div class="announcements-feed"></div>
+        </div>
+        <div class="tab-content" id="assignments">
+          <div class="assignment-list">
+            <div class="no-assignments">Loading assignments...</div>
+          </div>
+        </div>
+        <div class="tab-content" id="quizzes">
+          <div class="quiz-list">
+            <div class="no-quizzes">Loading quizzes & exams...</div>
+          </div>
+        </div>
+        <div class="tab-content" id="performance">
+          <div class="performance-summary">
+            <h3>My Performance</h3>
+            <div class="performance-container">
+              <div class="performance-card">
+                <div class="performance-metric">
+                  <h4>Overall Grade</h4>
+                  <div class="metric-value" id="overall-grade">Loading...</div>
+                </div>
+              </div>
+              <div class="performance-card">
+                <div class="performance-metric">
+                  <h4>Assignments</h4>
+                  <div class="metric-value" id="assignments-grade">Loading...</div>
+                </div>
+              </div>
+              <div class="performance-card">
+                <div class="performance-metric">
+                  <h4>Quizzes & Exams</h4>
+                  <div class="metric-value" id="quizzes-grade">Loading...</div>
+                </div>
+              </div>
+            </div>
+            <div class="performance-details">
+              <h4>Detailed Performance</h4>
+              <div class="performance-chart-container">
+                <canvas id="performanceChart"></canvas>
+                <div id="loading-chart">Loading performance data...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="tab-content" id="resources">
+          <div class="resources-list">
+            <div class="no-resources">Loading resources...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-mml-chtml.js"></script>
+  <script src="student_classroom.js"></script>
+</body>
+</html> 
