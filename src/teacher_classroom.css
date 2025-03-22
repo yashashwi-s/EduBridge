@@ -1,39 +1,47 @@
+/* Import fonts from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Roboto+Mono:wght@300;400;500;600&display=swap');
+
 /* Global Styles */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    transition: all 0.2s ease-in-out;
 }
 
 :root {
-    --primary-color: #4285F4;
-    --primary-light: #e8f0fe;
-    --primary-dark: #3367d6;
+    --primary-color: #1a73e8;
+    --primary-dark: #1557b0;
+    --primary-light: rgba(26, 115, 232, 0.2);
     --secondary-color: #5f6368;
-    --text-color: #3c4043;
+    --text-color: #202124;
+    --text-secondary: #5f6368;
     --bg-color: #f8f9fa;
     --card-bg: #ffffff;
     --border-color: #dadce0;
     --hover-color: #f1f3f4;
-    --shadow-sm: 0 1px 3px rgba(60, 64, 67, 0.16), 0 1px 2px rgba(60, 64, 67, 0.23);
-    --shadow-md: 0 4px 6px rgba(60, 64, 67, 0.12), 0 1px 3px rgba(60, 64, 67, 0.26);
-    --shadow-lg: 0 10px 20px rgba(60, 64, 67, 0.10), 0 6px 6px rgba(60, 64, 67, 0.15);
+    --shadow-sm: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+    --shadow-md: 0 2px 6px 2px rgba(60, 64, 67, 0.15);
+    --shadow-lg: 0 4px 8px 3px rgba(60, 64, 67, 0.15);
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --success-color: #34A853;
-    --warning-color: #FBBC05;
-    --error-color: #EA4335;
+    --success-color: #188038;
+    --warning-color: #f29900;
+    --error-color: #d93025;
     --accent-color: #9C27B0;
     --border-radius: 8px;
     --border-radius-lg: 12px;
     --btn-padding: 8px 16px;
     --gutter: 24px;
+    --font-family-body: 'Roboto Mono', monospace;
+    --font-family-heading: 'Montserrat', sans-serif;
 }
 
 body {
-    font-family: 'Google Sans', 'Montserrat', 'Roboto', sans-serif;
+    font-family: var(--font-family-body);
     background-color: var(--bg-color);
     color: var(--text-color);
     line-height: 1.5;
+    font-size: 14px;
 }
 
 /* Navbar Styling */
@@ -1908,4 +1916,94 @@ body {
     .sort-container {
         justify-content: space-between;
     }
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6, 
+.classroom-header h1,
+.classroom-header p,
+.tab-btn,
+.composer-name,
+.post-btn,
+.announcement-card .poster-name,
+.schedule-modal h3,
+.drafts-modal h3,
+.sidebar ul li a .text,
+.logo,
+.search-container label,
+.sort-container label {
+    font-family: var(--font-family-heading);
+    font-weight: 600;
+}
+
+/* Inputs and text areas */
+textarea,
+input[type="text"],
+input[type="date"],
+input[type="time"],
+input[type="search"],
+input[type="email"],
+input[type="password"],
+select,
+.announcement-composer textarea,
+.comment-input textarea,
+.search-container input {
+    font-family: var(--font-family-body);
+    font-size: 14px;
+    letter-spacing: 0.2px;
+}
+
+/* Comments and markdown content */
+.markdown-content,
+.comment p,
+.comment-info,
+.commenter-name,
+.comment-time,
+.markdown-preview,
+.draft-preview p,
+.post-time,
+.file-name,
+.file-size,
+.image-name,
+.notification-message,
+.search-container input::placeholder,
+.no-results,
+.markdown-tip,
+.schedule-indicator {
+    font-family: var(--font-family-body);
+}
+
+/* Buttons and interactive elements */
+button,
+.btn,
+.action-btn,
+.draft-list-btn,
+.post-btn,
+.comment-btn,
+.post-comment-btn,
+.edit-btn,
+.delete-btn,
+.load-draft-btn,
+.delete-draft-btn,
+.cancel-schedule-btn,
+.confirm-schedule-btn,
+.close-drafts-btn,
+.search-container button {
+    font-family: var(--font-family-heading);
+    font-weight: 500;
+    letter-spacing: 0.2px;
+}
+
+/* Navigation and tabs */
+.navbar,
+.sidebar,
+.tab-buttons,
+.tab-content,
+.profile-dropdown a {
+    font-family: var(--font-family-heading);
+}
+
+/* Adjustments for LaTeX elements */
+.MathJax {
+    font-family: 'MathJax_Math', serif !important;
 }
