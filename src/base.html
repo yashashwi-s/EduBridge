@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}EduBridge{% endblock %}</title>
+  
+  <!-- Include Marked.js for Markdown parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  
+  <!-- Common CSS for Chatbot -->
+  <style>
+    /* Reset fonts */
+    :root {
+      --gemini-gradient: linear-gradient(90deg, #4776E6, #8E54E9, #FF4081);
+      --primary-color: #8E54E9;
+      --primary-light: #e8f0fe;
+      --secondary-color: #5f6368;
+      --text-color: #3c4043;
+      --bg-color: #f5f5f5;
+      --card-bg: #ffffff;
+      --border-color: #e0e0e0;
+      --hover-color: #f1f3f4;
+      --shadow-sm: 0 1px 2px rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+      --shadow-md: 0 1px 3px rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
+      --transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    body, button {
+      font-family: 'Google Sans', 'Montserrat', 'Roboto', sans-serif;
+    }
+
+    textarea{
+      font-family: 'Roboto mono' ,sans-serif;
+    }
+    /* Chatbot Floating Icon */
+    .chatbot-icon {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      color: var(--card-bg);
+      border-radius: 50%;
+      width: 55px;
+      height: 55px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 1000;
+      transition: background 0.3s ease;
+    }
+    
+    /* Chat Widget Container */
+    .chat-widget {
+      position: fixed;
+      bottom: 90px;
+      right: 20px;
+      width: 40%; /* initial width */
+      height: 70%; /* increased height */
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      z-index: 1000;
+      box-shadow: var(--shadow-md);
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .chat-header {
+      font-size: 1.1em;
+      font-weight: 600;
+      color: white;
+      padding: 12px 15px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+      border-radius: 12px 12px 0 0;
+      z-index: 2;
+    }
+    
+    
+    
+    
+    .chat-body {
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      background: #f9f9f9;
+      overflow: hidden;
+      height: calc(100% - 52px); /* Subtract header height */
+    }
+    
+    /* Conversation area styling */
+    .conversation-container {
+      height: 65%; /* Fixed height for output area */
+      overflow: hidden;
+      position: relative;
+    }
+    
+    #chatConversation {
+      height: 100%;
+      width: 100%;
+      overflow-y: auto;
+      padding: 15px;
+      background: #fff;
+      font-size: 0.95em;
+      line-height: 1.5;
+    }
+    
+    .input-container {
+      height: 35%; /* Fixed height for input area */
+      background: var(--bg-color);
+      border-top: 1px solid var(--border-color);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .message {
+      margin-bottom: 12px;
+      max-width: 85%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      position: relative;
+    }
+    
+    .user-message {
+      background: #8E54E9;  /* Using the purple from the gradient */
+      color: white;
+      margin-left: auto;
+      border-radius: 12px 12px 0 12px;
+    }
+
+    .bot-message {
+      background-color: #f1f1f1;
+      color: var(--text-color);
+      margin-right: auto;
+      border-radius: 12px 12px 12px 0;
+      width: 85%; /* Fixed width to ensure consistent sizing */
+    }
+    
+    /* Fix for lists and other elements in bot messages */
+    .bot-message ul, 
+    .bot-message ol {
+      padding-left: 20px;
+      margin: 5px 0;
+    }
+    
+    .bot-message li {
+      margin-bottom: 3px;
+    }
+    
+    .greeting {
+      text-align: center;
+      margin: 15px auto;
+      color: var(--secondary-color);
+      font-style: italic;
+      max-width: 90%;
+    }
+    
+    #chatInput {
+      flex: 1;
+      width: 100%;
+      padding: 10px 15px;
+      resize: none;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.95em;
+      margin-bottom: 10px;
+      overflow-y: auto;
+    }
+    
+    .bottom-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .chat-function-btn {
+      border-radius: 12px;
+      padding: 4px 8px;
+      font-size: 1em;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: center;
+    }
+    
+    .chat-function-btn:hover {
+      background: rgba(255, 255, 255, 0.5);
+    }
+    
+    .function-controls {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .function-controls .chat-function-btn {
+      background: white;
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+    }
+    
+    .function-controls .chat-function-btn.active {
+      background: var(--gemini-gradient);
+      background-size: 200% 200%;
+      animation: gradientShift 5s ease infinite;
+      color: white;
+      font-weight: 50;
+    }
+    
+    #sendButton {
+      width: 40px;
+      height: 36px;
+      background: var(--gemini-gradient);
+      border: none;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.3s ease;
+      font-size: 1.2em;
+    }
+    
+    
+    /* Custom resize cursor detection */
+    .resize-handle {
+      position: absolute;
+      z-index: 10;
+    }
+    
+    .resize-handle.right {
+      top: 0;
+      right: 0;
+      width: 5px;
+      height: 100%;
+      cursor: e-resize;
+    }
+    
+    .resize-handle.bottom {
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 5px;
+      cursor: s-resize;
+    }
+    
+    .resize-handle.corner {
+      bottom: 0;
+      right: 0;
+      width: 15px;
+      height: 15px;
+      cursor: se-resize;
+    }
+    
+    /* Scrollbar styling */
+    #chatConversation::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    #chatConversation::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+    
+    #chatConversation::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 4px;
+    }
+    
+    #chatConversation::-webkit-scrollbar-thumb:hover {
+      background: #a8a8a8;
+    }
+    
+    /* Loading spinner styles */
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(0, 0, 0, 0.1);
+      border-radius: 50%;
+      border-top-color: var(--gemini-gradient);
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 10px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .bot-message.loading {
+      display: flex;
+      align-items: center;
+    }
+    
+    /* Typewriter effect container */
+    .typewriter-text {
+      display: inline-block;
+    }
+    .chat-header, #sendButton, .chatbot-icon {
+      background: var(--gemini-gradient);
+      background-size: 200% 200%;
+      animation: gradientShift 5s ease infinite;
+    }
+  </style>
+  {% block extra_styles %}{% endblock %}
+</head>
+<body>
+  {% block content %}
+  <!-- Page-specific content goes here -->
+  {% endblock %}
+
+  <!-- Chatbot Floating Icon -->
+  <div class="chatbot-icon" id="chatbotIcon">
+    <i class="fas fa-comment-dots"></i>
+  </div>
+
+  <!-- Chat Widget (initially hidden) -->
+  <div class="chat-widget" id="chatWidget" style="display: none;">
+    <!-- Resize handles -->
+    <div class="resize-handle right" id="resizeRight"></div>
+    <div class="resize-handle bottom" id="resizeBottom"></div>
+    <div class="resize-handle corner" id="resizeCorner"></div>
+    
+    <div class="chat-header">
+      <span>EduBridge Assistant</span>
+    </div>
+    <div class="chat-body">
+      <div class="conversation-container">
+        <div id="chatConversation">
+          <div class="bot-message message greeting">
+            Hello! 👋 I'm your EduBridge Assistant. How can I help you today? You can ask me questions or get help navigating the site.
+          </div>
+        </div>
+      </div>
+      <div class="input-container">
+        <textarea id="chatInput" placeholder="Type your message..."></textarea>
+        <div class="bottom-controls">
+          <div class="function-controls">
+            <button id="doubtActionBtn" class="chat-function-btn active">Ask Doubt</button>
+            <button id="navigateActionBtn" class="chat-function-btn">Navigate</button>
+          </div>
+          <button id="sendButton" title="Send message">➤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Common JavaScript for Chatbot -->
+  <script>
+    // Toggle the display of the chatbot widget when clicking the floating icon.
+    document.getElementById('chatbotIcon').addEventListener('click', function() {
+      const widget = document.getElementById('chatWidget');
+      widget.style.display = (widget.style.display === 'none' || widget.style.display === '') ? 'block' : 'none';
+    });
+
+    // Functionality toggle: "Ask Doubt" vs. "Navigate Site"
+    const doubtActionBtn = document.getElementById('doubtActionBtn');
+    const navigateActionBtn = document.getElementById('navigateActionBtn');
+    let currentFunction = "doubt"; // default function is "doubt"
+
+    // Function to update all related buttons
+    function updateFunctionButtons(funcType) {
+      currentFunction = funcType;
+      
+      if (funcType === "doubt") {
+        doubtActionBtn.classList.add('active');
+        navigateActionBtn.classList.remove('active');
+      } else {
+        navigateActionBtn.classList.add('active');
+        doubtActionBtn.classList.remove('active');
+      }
+    }
+
+    // Add click handlers for both sets of buttons
+    doubtActionBtn.addEventListener('click', function() {
+      updateFunctionButtons("doubt");
+    });
+    
+    navigateActionBtn.addEventListener('click', function() {
+      updateFunctionButtons("navigate");
+    });
+
+    // Retrieve JWT token from localStorage (assumes you store it there after login)
+    const token = localStorage.getItem('access_token');
+
+    // Handle Enter key press
+    const chatInput = document.getElementById('chatInput');
+    chatInput.addEventListener('keydown', function(e) {
+      // Send message when Enter is pressed without Shift
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault(); // Prevent default behavior (newline)
+        document.getElementById('sendButton').click();
+      }
+    });
+
+    // Typewriter effect function
+    function typeWriter(element, text, speed = 20) {
+      let i = 0;
+      element.innerHTML = '';
+      
+      function type() {
+        if (i < text.length) {
+          element.innerHTML += text.charAt(i);
+          i++;
+          setTimeout(type, speed);
+        }
+      }
+      
+      type();
+    }
+
+    // Send button event: sends the chat query to the /chat endpoint.
+    // Send button event: sends the chat query to the /chat endpoint.
+document.getElementById('sendButton').addEventListener('click', async function() {
+  const query = chatInput.value;
+  if (!query.trim()) return;  // Do nothing if empty.
+
+  // Append user's message to the conversation display.
+  const conversation = document.getElementById('chatConversation');
+  conversation.innerHTML += `<div class="user-message message">${query}</div>`;
+  
+  // Create and append loading spinner message
+  const loadingMessage = document.createElement('div');
+  loadingMessage.className = 'bot-message message loading';
+  loadingMessage.innerHTML = '<div class="loading-spinner"></div>';
+  conversation.appendChild(loadingMessage);
+  conversation.scrollTop = conversation.scrollHeight;
+  
+  chatInput.value = '';  // Clear the input.
+  chatInput.focus(); // Keep focus on input field
+
+  try {
+    // POST the chat query to the /chat endpoint along with the current function.
+    const response = await fetch('/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token
+      },
+      body: JSON.stringify({
+        query: query,
+        function: currentFunction
+      })
+    });
+    const data = await response.json();
+    
+    // Convert Markdown to HTML using marked.parse()
+    let formattedAnswer = marked.parse(data.answer);
+    
+    // Remove loading message
+    conversation.removeChild(loadingMessage);
+    
+    // Create bot message with typewriter container
+    const botMessage = document.createElement('div');
+    botMessage.className = 'bot-message message';
+    const typewriterSpan = document.createElement('div');
+    typewriterSpan.className = 'typewriter-text';
+    botMessage.appendChild(typewriterSpan);
+    conversation.appendChild(botMessage);
+    
+    // First add the HTML to a hidden container to extract the text content
+    const tempDiv = document.createElement('div');
+    tempDiv.style.display = 'none';
+    tempDiv.innerHTML = formattedAnswer;
+    document.body.appendChild(tempDiv);
+    
+    // Apply typewriter effect to just the container, then replace with HTML
+    let index = 0;
+    let allHTML = formattedAnswer;
+    typewriterSpan.innerHTML = '';
+    
+    function typeNextChar() {
+      if (index < allHTML.length) {
+        typewriterSpan.innerHTML = allHTML.substring(0, index + 1);
+        index++;
+        setTimeout(typeNextChar, 10);
+      }
+    }
+    
+    typeNextChar();
+    
+    // Clean up temp div
+    document.body.removeChild(tempDiv);
+    conversation.scrollTop = conversation.scrollHeight;
+  } catch (error) {
+    console.error("Error:", error);
+    // Remove loading message
+    conversation.removeChild(loadingMessage);
+    
+    // Add error message
+    const errorMessage = document.createElement('div');
+    errorMessage.className = 'bot-message message';
+    errorMessage.style.color = 'red';
+    errorMessage.textContent = 'Sorry, I encountered an error. Please try again.';
+    conversation.appendChild(errorMessage);
+    conversation.scrollTop = conversation.scrollHeight;
+  }
+});
+    
+    // Custom resize functionality
+    let isResizing = false;
+    let currentResizeHandle = null;
+    const widget = document.getElementById('chatWidget');
+    const resizeRight = document.getElementById('resizeRight');
+    const resizeBottom = document.getElementById('resizeBottom');
+    const resizeCorner = document.getElementById('resizeCorner');
+    
+    // Handle mouse down on resize handles
+    resizeRight.addEventListener('mousedown', startResize);
+    resizeBottom.addEventListener('mousedown', startResize);
+    resizeCorner.addEventListener('mousedown', startResize);
+    
+    function startResize(e) {
+      isResizing = true;
+      currentResizeHandle = e.target;
+      e.preventDefault();
+    }
+    
+    // Handle mouse move for resizing
+    document.addEventListener('mousemove', function(e) {
+      if (!isResizing) return;
+      
+      const rect = widget.getBoundingClientRect();
+      
+      if (currentResizeHandle === resizeRight || currentResizeHandle === resizeCorner) {
+        const width = e.clientX - rect.left;
+        if (width >= 300) { // Minimum width
+          widget.style.width = width + 'px';
+        }
+      }
+      
+      if (currentResizeHandle === resizeBottom || currentResizeHandle === resizeCorner) {
+        const height = e.clientY - rect.top;
+        if (height >= 400) { // Minimum height
+          widget.style.height = height + 'px';
+        }
+      }
+    });
+    
+    // Stop resizing on mouse up
+    document.addEventListener('mouseup', function() {
+      isResizing = false;
+      currentResizeHandle = null;
+    });
+  </script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

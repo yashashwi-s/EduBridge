@@ -1,9 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>EduBridge - Student Profile</title>
+{% extends "base.html" %}
+
+{% block title %}EduBridge - Student Profile{% endblock %}
+
+{% block content %}
     <!-- Google Fonts -->
     <link
       href="https://fonts.googleapis.com/css?family=Google+Sans:400,500,700|Roboto:300,400,500&display=swap"
@@ -24,8 +23,6 @@
     <link rel="stylesheet" href="student_profile_page.css" />
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  </head>
-  <body>
     <!-- Navbar -->
     <div class="navbar">
       <div class="nav-left">
@@ -176,5 +173,4 @@
 
     <!-- External JS -->
     <script src="student_profile_page.js"></script>
-  </body>
-</html>
+{% endblock %}
