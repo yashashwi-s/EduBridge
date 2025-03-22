@@ -37,6 +37,122 @@ tabs.forEach((tab) => {
   });
 });
 
+/* Modal functionality for Editing Profile */
+const editProfileBtn = document.querySelector('.edit-profile-btn');
+const profileModal = document.getElementById('profileModal');
+const closeModal = document.getElementById('closeModal');
+const cancelBtn = document.querySelector('.cancel-btn');
+const profileForm = document.getElementById('profileForm');
+
+function openModal() {
+  if (profileModal) {
+    profileModal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    
+    // Populate form fields with current profile data
+    const fullNameInput = document.getElementById('fullName');
+    const emailInput = document.getElementById('email');
+    const phoneInput = document.getElementById('phone');
+    const institutionInput = document.getElementById('institution');
+    const titleInput = document.getElementById('title');
+    
+    if (fullNameInput) fullNameInput.value = document.querySelector('.profile-name').textContent;
+    if (titleInput) titleInput.value = document.querySelector('.profile-title').textContent;
+    
+    const contactItems = document.querySelectorAll('.profile-contact .contact-item span');
+    if (contactItems.length >= 3) {
+      if (emailInput) emailInput.value = contactItems[0].textContent;
+      if (phoneInput) phoneInput.value = contactItems[1].textContent;
+      if (institutionInput) institutionInput.value = contactItems[2].textContent;
+    }
+  }
+}
+
+function closeModalFunc() {
+  if (profileModal) {
+    profileModal.classList.remove('show');
+    document.body.style.overflow = '';
+  }
+}
+
+if (editProfileBtn) {
+  editProfileBtn.addEventListener('click', openModal);
+}
+
+if (closeModal) {
+  closeModal.addEventListener('click', closeModalFunc);
+}
+
+if (cancelBtn) {
+  cancelBtn.addEventListener('click', closeModalFunc);
+}
+
+window.addEventListener('click', (e) => {
+  if (profileModal && e.target === profileModal) {
+    closeModalFunc();
+  }
+});
+
+// Handle form submission
+if (profileForm) {
+  profileForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = {
+      fullName: document.getElementById('fullName').value,
+      email: document.getElementById('email').value,
+      phone: document.getElementById('phone').value,
+      institution: document.getElementById('institution').value,
+      title: document.getElementById('title').value,
+    };
+    
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      alert('Please log in.');
+      window.location.href = '/login';
+      return;
+    }
+    
+    // Update UI immediately for better UX
+    document.querySelector('.profile-name').textContent = formData.fullName;
+    document.querySelector('.profile-title').textContent = formData.title;
+    
+    const contactItems = document.querySelectorAll('.profile-contact .contact-item span');
+    if (contactItems.length >= 3) {
+      contactItems[0].textContent = formData.email;
+      contactItems[1].textContent = formData.phone;
+      contactItems[2].textContent = formData.institution;
+    }
+    
+    // Send data to server
+    fetch('/api/profile', {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(formData)
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+      return response.json();
+    })
+    .then(data => {
+      // Close the modal
+      closeModalFunc();
+      
+      // Show success message
+      alert('Profile updated successfully!');
+    })
+    .catch(error => {
+      console.error('Error updating profile:', error);
+      alert('Failed to update profile. Please try again.');
+    });
+  });
+}
+
 /* Performance Chart using Chart.js */
 const ctxPerformance = document.getElementById('performanceChart').getContext('2d');
 const performanceChart = new Chart(ctxPerformance, {
