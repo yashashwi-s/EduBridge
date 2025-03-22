@@ -1,23 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>EduBridge Dashboard</title>
-  <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css?family=Google+Sans:400,500,700|Roboto:300,400,500&display=swap" rel="stylesheet">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
-  <!-- Font Awesome for Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- External CSS -->
   <link rel="stylesheet" href="teacher_after_login.css">
 </head>
-
 <body>
-  <!-- Navbar -->
   <div class="navbar">
     <div class="nav-left">
       <button id="hamburger" class="hamburger"><i class="fas fa-bars"></i></button>
@@ -33,7 +27,6 @@
       </div>
     </div>
   </div>
-  <!-- Sidebar -->
   <div class="sidebar">
     <ul>
       <li><a href="/teacher_dashboard" class="active"><i class="fas fa-home"></i><span class="text">Home</span></a></li>
@@ -43,18 +36,13 @@
       <li><a href="/Settings"><i class="fas fa-cog"></i><span class="text">Settings</span></a></li>
     </ul>
   </div>
-  <!-- Main Content -->
   <div class="content">
     <div class="cards-header">
       <h1>Your Classrooms</h1>
       <button id="addClassroomBtn" class="add-card-btn"><i class="fas fa-plus"></i> Add Classroom</button>
     </div>
-    <div class="cards-container" id="cards-container">
-      <!-- Example Classroom Card -->
-      <!-- Additional cards can be added dynamically -->
-    </div>
+    <div class="cards-container" id="cards-container"></div>
   </div>
-  <!-- Modal for Adding Classroom -->
   <div id="modal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
@@ -85,8 +73,6 @@
       </form>
     </div>
   </div>
-  <!-- External JavaScript -->
   <script src="teacher_after_login.js"></script>
 </body>
-
 </html>
