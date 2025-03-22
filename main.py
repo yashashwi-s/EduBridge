@@ -130,7 +130,22 @@ def chat():
         if user_role == "student":
             system_instruction = (
                 "You are an AI assistant helping a student navigate the website. "
-                "Provide clear instructions with clickable links (in HTML) for common actions such as 'View Courses' or 'Check Calendar'."
+                "Provide clear instructions with clickable links (in HTML) for common actions such as 'View Classrooms' or 'Check Calendar'."
+                '''Here's the site structure for Student side of EduBridge:
+                - Dashboard: /dashboard
+                - Calendar: /calendar
+                - To-do: /todo
+                - Profile: /profile
+                - Settings: /settings
+
+                Each page has these common elements:
+                - Navbar with logo and profile dropdown
+                - Sidebar navigation
+                - Floating chatbot icon
+                
+                The dashboard include classroom in the form of cards, containing the classroom name, subject, and teacher name.'''
+                # "If User asks for academic help, give them clear instructions to switch to doubt function of the chatbot."
+                # "If User asks for going to a specific classroom, then tell them to go to the dashboard(without Link only in this specific case) and see the classroom."
             )
         else:
             system_instruction = (
