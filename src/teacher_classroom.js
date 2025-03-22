@@ -1,35 +1,35 @@
-document.getElementById('hamburger').addEventListener('click', function() {
+document.getElementById('hamburger').addEventListener('click', function () {
     document.querySelector('.sidebar').classList.toggle('expanded');
 });
 
-document.querySelector('.profile-icon').addEventListener('click', function() {
+document.querySelector('.profile-icon').addEventListener('click', function () {
     document.querySelector('.profile-dropdown').classList.toggle('show');
 });
 
-document.addEventListener('click', function(event) {
+document.addEventListener('click', function (event) {
     if (!event.target.closest('.profile-wrapper') && document.querySelector('.profile-dropdown.show')) {
-      document.querySelector('.profile-dropdown').classList.remove('show');
+        document.querySelector('.profile-dropdown').classList.remove('show');
     }
 });
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const tabButtons = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
     tabButtons.forEach(button => {
-      button.addEventListener('click', () => {
-        const tabId = button.getAttribute('data-tab');
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        tabContents.forEach(content => content.classList.remove('active'));
-        button.classList.add('active');
-        document.getElementById(tabId).classList.add('active');
-      });
+        button.addEventListener('click', () => {
+            const tabId = button.getAttribute('data-tab');
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            tabContents.forEach(content => content.classList.remove('active'));
+            button.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        });
     });
 });
 
 const urlParams = new URLSearchParams(window.location.search);
 const classroomId = urlParams.get('classroomId');
 if (!classroomId) {
-  alert('Classroom ID not provided in URL');
+    alert('Classroom ID not provided in URL');
 }
 
 let teacherNameGlobal = "";
@@ -38,7 +38,7 @@ let announcementAttachments = [];
 let announcementImages = [];
 let draftAnnouncements = {};
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     const markdownScript = document.createElement('script');
     markdownScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js';
     document.head.appendChild(markdownScript);
@@ -128,165 +128,165 @@ function initializeComposer() {
 
 function setupComposerListeners() {
     document.querySelectorAll('.composer-tab').forEach(tab => {
-      tab.addEventListener('click', function() {
-        const mode = this.getAttribute('data-mode');
-        document.querySelectorAll('.composer-tab').forEach(t => t.classList.remove('active'));
-        document.querySelector('.write-mode').classList.remove('active');
-        document.querySelector('.preview-mode').classList.remove('active');
-        this.classList.add('active');
-        document.querySelector(`.${mode}-mode`).classList.add('active');
-        if (mode === 'preview') {
-          updateMarkdownPreview();
-        }
-      });
+        tab.addEventListener('click', function () {
+            const mode = this.getAttribute('data-mode');
+            document.querySelectorAll('.composer-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector('.write-mode').classList.remove('active');
+            document.querySelector('.preview-mode').classList.remove('active');
+            this.classList.add('active');
+            document.querySelector(`.${mode}-mode`).classList.add('active');
+            if (mode === 'preview') {
+                updateMarkdownPreview();
+            }
+        });
     });
     const composerTextarea = document.querySelector('.announcement-composer textarea');
     const postBtn = document.querySelector('.announcement-composer .post-btn');
     if (composerTextarea && postBtn) {
-      composerTextarea.addEventListener('input', function() {
-        postBtn.disabled = this.value.trim() === '';
-        if (this.value.trim() !== '') {
-          autosaveDraft(this.value);
-        }
-      });
-      composerTextarea.addEventListener('keyup', function() {
-        if (document.querySelector('.preview-mode').classList.contains('active')) {
-          updateMarkdownPreview();
-        }
-      });
+        composerTextarea.addEventListener('input', function () {
+            postBtn.disabled = this.value.trim() === '';
+            if (this.value.trim() !== '') {
+                autosaveDraft(this.value);
+            }
+        });
+        composerTextarea.addEventListener('keyup', function () {
+            if (document.querySelector('.preview-mode').classList.contains('active')) {
+                updateMarkdownPreview();
+            }
+        });
     }
     const attachBtn = document.querySelector('.announcement-composer .attach-btn');
     const attachmentInput = document.getElementById('attachment-file-input');
     if (attachBtn && attachmentInput) {
-      attachBtn.addEventListener('click', function() {
-        attachmentInput.click();
-      });
-      attachmentInput.addEventListener('change', function() {
-        if (this.files.length > 0) {
-          const file = this.files[0];
-          const fileObj = {
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            url: URL.createObjectURL(file)
-          };
-          announcementAttachments.push(fileObj);
-          renderAttachmentPreviews();
-        }
-      });
+        attachBtn.addEventListener('click', function () {
+            attachmentInput.click();
+        });
+        attachmentInput.addEventListener('change', function () {
+            if (this.files.length > 0) {
+                const file = this.files[0];
+                const fileObj = {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    url: URL.createObjectURL(file)
+                };
+                announcementAttachments.push(fileObj);
+                renderAttachmentPreviews();
+            }
+        });
     }
     const imageBtn = document.querySelector('.announcement-composer .image-btn');
     const imageInput = document.getElementById('image-file-input');
     if (imageBtn && imageInput) {
-      imageBtn.addEventListener('click', function() {
-        imageInput.click();
-      });
-      imageInput.addEventListener('change', function() {
-        if (this.files.length > 0) {
-          Array.from(this.files).forEach(file => {
-            if (file.type.startsWith('image/')) {
-              const imgObj = {
-                name: file.name,
-                type: file.type,
-                size: file.size,
-                url: URL.createObjectURL(file)
-              };
-              announcementImages.push(imgObj);
-              renderImagePreviews();
+        imageBtn.addEventListener('click', function () {
+            imageInput.click();
+        });
+        imageInput.addEventListener('change', function () {
+            if (this.files.length > 0) {
+                Array.from(this.files).forEach(file => {
+                    if (file.type.startsWith('image/')) {
+                        const imgObj = {
+                            name: file.name,
+                            type: file.type,
+                            size: file.size,
+                            url: URL.createObjectURL(file)
+                        };
+                        announcementImages.push(imgObj);
+                        renderImagePreviews();
+                    }
+                });
             }
-          });
-        }
-      });
+        });
     }
     const scheduleBtn = document.querySelector('.schedule-btn');
     if (scheduleBtn) {
-      scheduleBtn.addEventListener('click', function() {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        document.getElementById('schedule-date').valueAsDate = tomorrow;
-        document.getElementById('schedule-time').value = new Date().toTimeString().slice(0, 5);
-        document.querySelector('.schedule-modal').style.display = 'flex';
-      });
+        scheduleBtn.addEventListener('click', function () {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            document.getElementById('schedule-date').valueAsDate = tomorrow;
+            document.getElementById('schedule-time').value = new Date().toTimeString().slice(0, 5);
+            document.querySelector('.schedule-modal').style.display = 'flex';
+        });
     }
-    document.querySelector('.cancel-schedule-btn')?.addEventListener('click', function() {
-      document.querySelector('.schedule-modal').style.display = 'none';
-    });
-    document.querySelector('.confirm-schedule-btn')?.addEventListener('click', function() {
-      const scheduledDate = document.getElementById('schedule-date').value;
-      const scheduledTime = document.getElementById('schedule-time').value;
-      if (scheduledDate && scheduledTime) {
-        const scheduledDateTime = new Date(`${scheduledDate}T${scheduledTime}`);
-        document.querySelector('.post-btn').textContent = 'Schedule';
-        document.querySelector('.post-btn').setAttribute('data-scheduled', scheduledDateTime.toISOString());
+    document.querySelector('.cancel-schedule-btn')?.addEventListener('click', function () {
         document.querySelector('.schedule-modal').style.display = 'none';
-        const scheduleIndicator = document.createElement('div');
-        scheduleIndicator.className = 'schedule-indicator';
-        scheduleIndicator.innerHTML = `
+    });
+    document.querySelector('.confirm-schedule-btn')?.addEventListener('click', function () {
+        const scheduledDate = document.getElementById('schedule-date').value;
+        const scheduledTime = document.getElementById('schedule-time').value;
+        if (scheduledDate && scheduledTime) {
+            const scheduledDateTime = new Date(`${scheduledDate}T${scheduledTime}`);
+            document.querySelector('.post-btn').textContent = 'Schedule';
+            document.querySelector('.post-btn').setAttribute('data-scheduled', scheduledDateTime.toISOString());
+            document.querySelector('.schedule-modal').style.display = 'none';
+            const scheduleIndicator = document.createElement('div');
+            scheduleIndicator.className = 'schedule-indicator';
+            scheduleIndicator.innerHTML = `
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
           Scheduled for ${scheduledDateTime.toLocaleString()}
         `;
-        const existingIndicator = document.querySelector('.schedule-indicator');
-        if (existingIndicator) existingIndicator.remove();
-        document.querySelector('.composer-footer').prepend(scheduleIndicator);
-      }
+            const existingIndicator = document.querySelector('.schedule-indicator');
+            if (existingIndicator) existingIndicator.remove();
+            document.querySelector('.composer-footer').prepend(scheduleIndicator);
+        }
     });
-    document.querySelector('.save-draft-btn')?.addEventListener('click', function() {
-      saveDraft();
+    document.querySelector('.save-draft-btn')?.addEventListener('click', function () {
+        saveDraft();
     });
     if (postBtn) {
-      postBtn.addEventListener('click', function() {
-        const text = composerTextarea.value.trim();
-        if (!text) return;
-        const token = localStorage.getItem('access_token');
-        if (!token) {
-          alert('You are not authenticated. Please log in.');
-          return;
-        }
-        const scheduledTime = this.getAttribute('data-scheduled');
-        const formattedAttachments = announcementAttachments.map(att => ({
-          name: att.name,
-          url: att.url
-        }));
-        const formattedImages = announcementImages.map(img => ({
-          url: img.url
-        }));
-        fetch(`/api/classrooms/${classroomId}/announcements`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
-          },
-          body: JSON.stringify({ 
-            text: text, 
-            attachments: formattedAttachments, 
-            images: formattedImages,
-            scheduledTime: scheduledTime || null
-          })
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.announcement) {
-            clearDraft();
-            renderNewAnnouncement(data.announcement);
-            composerTextarea.value = '';
-            postBtn.disabled = true;
-            announcementAttachments = [];
-            announcementImages = [];
-            document.querySelector('.images-preview').innerHTML = '';
-            document.querySelector('.files-preview').innerHTML = '';
-            postBtn.textContent = 'Post';
-            postBtn.removeAttribute('data-scheduled');
-            const scheduleIndicator = document.querySelector('.schedule-indicator');
-            if (scheduleIndicator) scheduleIndicator.remove();
-          } else {
-            alert('Failed to post announcement.');
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          alert('Error posting announcement.');
+        postBtn.addEventListener('click', function () {
+            const text = composerTextarea.value.trim();
+            if (!text) return;
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                alert('You are not authenticated. Please log in.');
+                return;
+            }
+            const scheduledTime = this.getAttribute('data-scheduled');
+            const formattedAttachments = announcementAttachments.map(att => ({
+                name: att.name,
+                url: att.url
+            }));
+            const formattedImages = announcementImages.map(img => ({
+                url: img.url
+            }));
+            fetch(`/api/classrooms/${classroomId}/announcements`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + token
+                },
+                body: JSON.stringify({
+                    text: text,
+                    attachments: formattedAttachments,
+                    images: formattedImages,
+                    scheduledTime: scheduledTime || null
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.announcement) {
+                        clearDraft();
+                        renderNewAnnouncement(data.announcement);
+                        composerTextarea.value = '';
+                        postBtn.disabled = true;
+                        announcementAttachments = [];
+                        announcementImages = [];
+                        document.querySelector('.images-preview').innerHTML = '';
+                        document.querySelector('.files-preview').innerHTML = '';
+                        postBtn.textContent = 'Post';
+                        postBtn.removeAttribute('data-scheduled');
+                        const scheduleIndicator = document.querySelector('.schedule-indicator');
+                        if (scheduleIndicator) scheduleIndicator.remove();
+                    } else {
+                        alert('Failed to post announcement.');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('Error posting announcement.');
+                });
         });
-      });
     }
 }
 
@@ -294,9 +294,9 @@ function updateMarkdownPreview() {
     const text = document.querySelector('.announcement-composer textarea').value;
     const previewElement = document.querySelector('.markdown-preview');
     if (typeof marked !== 'undefined') {
-      previewElement.innerHTML = marked.parse(text);
+        previewElement.innerHTML = marked.parse(text);
     } else {
-      previewElement.textContent = text;
+        previewElement.textContent = text;
     }
 }
 
@@ -304,17 +304,17 @@ function renderAttachmentPreviews() {
     const previewContainer = document.querySelector('.files-preview');
     previewContainer.innerHTML = '';
     announcementAttachments.forEach((attachment, index) => {
-      const fileCard = document.createElement('div');
-      fileCard.className = 'file-card';
-      let fileIcon = `
+        const fileCard = document.createElement('div');
+        fileCard.className = 'file-card';
+        let fileIcon = `
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
       `;
-      if (attachment.type.includes('pdf')) {
-        fileIcon = `
+        if (attachment.type.includes('pdf')) {
+            fileIcon = `
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M9 15v-4h6"></path><path d="M9 13h5"></path></svg>
         `;
-      }
-      fileCard.innerHTML = `
+        }
+        fileCard.innerHTML = `
         <div class="file-icon">${fileIcon}</div>
         <div class="file-info">
           <div class="file-name">${attachment.name}</div>
@@ -324,14 +324,14 @@ function renderAttachmentPreviews() {
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="6"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
       `;
-      previewContainer.appendChild(fileCard);
+        previewContainer.appendChild(fileCard);
     });
     document.querySelectorAll('.remove-file-btn').forEach(button => {
-      button.addEventListener('click', function() {
-        const index = parseInt(this.getAttribute('data-index'));
-        announcementAttachments.splice(index, 1);
-        renderAttachmentPreviews();
-      });
+        button.addEventListener('click', function () {
+            const index = parseInt(this.getAttribute('data-index'));
+            announcementAttachments.splice(index, 1);
+            renderAttachmentPreviews();
+        });
     });
 }
 
@@ -339,9 +339,9 @@ function renderImagePreviews() {
     const previewContainer = document.querySelector('.images-preview');
     previewContainer.innerHTML = '';
     announcementImages.forEach((image, index) => {
-      const imgCard = document.createElement('div');
-      imgCard.className = 'image-card';
-      imgCard.innerHTML = `
+        const imgCard = document.createElement('div');
+        imgCard.className = 'image-card';
+        imgCard.innerHTML = `
         <div class="image-preview-container">
           <img src="${image.url}" alt="Image preview">
         </div>
@@ -352,14 +352,14 @@ function renderImagePreviews() {
           </button>
         </div>
       `;
-      previewContainer.appendChild(imgCard);
+        previewContainer.appendChild(imgCard);
     });
     document.querySelectorAll('.remove-image-btn').forEach(button => {
-      button.addEventListener('click', function() {
-        const index = parseInt(this.getAttribute('data-index'));
-        announcementImages.splice(index, 1);
-        renderImagePreviews();
-      });
+        button.addEventListener('click', function () {
+            const index = parseInt(this.getAttribute('data-index'));
+            announcementImages.splice(index, 1);
+            renderImagePreviews();
+        });
     });
 }
 
@@ -377,7 +377,7 @@ function renderNewAnnouncement(announcement) {
     </div>` : '';
     let announcementText = announcement.text;
     if (typeof marked !== 'undefined') {
-      announcementText = marked.parse(announcement.text);
+        announcementText = marked.parse(announcement.text);
     }
     const newAnnouncementHTML = `<div class="announcement-card" data-id="${announcement.announcement_id}">
       <div class="announcement-header">
@@ -414,37 +414,37 @@ function renderNewAnnouncement(announcement) {
 function loadClassroomData() {
     const token = localStorage.getItem('access_token');
     if (!token) {
-      alert('You are not authenticated. Please log in.');
-      return;
+        alert('You are not authenticated. Please log in.');
+        return;
     }
     fetch(`/api/classrooms/${classroomId}`, {
-      headers: { 'Authorization': 'Bearer ' + token }
+        headers: { 'Authorization': 'Bearer ' + token }
     })
-    .then(resp => resp.json())
-    .then(data => {
-      teacherNameGlobal = data.teacherName || "Teacher Name";
-      document.querySelector('.classroom-header h1').textContent = data.className || "Course Name";
-      document.querySelector('.classroom-header p').textContent = `${data.section || "Section"} - ${data.subject || "Subject"}`;
-      document.getElementById('teacher-name').textContent = teacherNameGlobal;
-      const feed = document.querySelector('.announcements-feed');
-      feed.innerHTML = '';
-      data.announcements.forEach(ann => {
-        let announcementText = ann.text;
-        if (typeof marked !== 'undefined') {
-          announcementText = marked.parse(ann.text);
-        }
-        const attHtml = ann.attachments && ann.attachments.length ? `<div class="attachments">
+        .then(resp => resp.json())
+        .then(data => {
+            teacherNameGlobal = data.teacherName || "Teacher Name";
+            document.querySelector('.classroom-header h1').textContent = data.className || "Course Name";
+            document.querySelector('.classroom-header p').textContent = `${data.section || "Section"} - ${data.subject || "Subject"}`;
+            document.getElementById('teacher-name').textContent = teacherNameGlobal;
+            const feed = document.querySelector('.announcements-feed');
+            feed.innerHTML = '';
+            data.announcements.forEach(ann => {
+                let announcementText = ann.text;
+                if (typeof marked !== 'undefined') {
+                    announcementText = marked.parse(ann.text);
+                }
+                const attHtml = ann.attachments && ann.attachments.length ? `<div class="attachments">
           ${ann.attachments.map(att => `<a href="${att.url}" target="_blank" class="attachment-link">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
             ${att.name}
           </a>`).join(' ')}
         </div>` : '';
-        const imgHtml = ann.images && ann.images.length ? `<div class="images">
+                const imgHtml = ann.images && ann.images.length ? `<div class="images">
           ${ann.images.map(img => `<a href="${img.url}" target="_blank" class="image-link">
             <img src="${img.url}" alt="Image" class="announcement-image">
           </a>`).join(' ')}
         </div>` : '';
-        const annHtml = `<div class="announcement-card" data-id="${ann.announcement_id}">
+                const annHtml = `<div class="announcement-card" data-id="${ann.announcement_id}">
           <div class="announcement-header">
             <img src="${teacherAvatarGlobal}" alt="Profile" class="profile-pic">
             <div class="poster-info">
@@ -483,10 +483,10 @@ function loadClassroomData() {
             </div>
           </div>
         </div>`;
-        feed.insertAdjacentHTML('beforeend', annHtml);
-      });
-    })
-    .catch(err => console.error(err));
+                feed.insertAdjacentHTML('beforeend', annHtml);
+            });
+        })
+        .catch(err => console.error(err));
 }
 
 function saveDraft() {
@@ -494,11 +494,11 @@ function saveDraft() {
     if (!text) return;
     const draftId = 'draft_' + Date.now();
     const draft = {
-      id: draftId,
-      text: text,
-      attachments: announcementAttachments,
-      images: announcementImages,
-      timestamp: new Date().toISOString()
+        id: draftId,
+        text: text,
+        attachments: announcementAttachments,
+        images: announcementImages,
+        timestamp: new Date().toISOString()
     };
     draftAnnouncements[draftId] = draft;
     localStorage.setItem('announcement_drafts', JSON.stringify(draftAnnouncements));
@@ -508,11 +508,11 @@ function saveDraft() {
 function autosaveDraft(text) {
     const autosaveDraftId = 'autosave_draft';
     const draft = {
-      id: autosaveDraftId,
-      text: text,
-      attachments: announcementAttachments,
-      images: announcementImages,
-      timestamp: new Date().toISOString()
+        id: autosaveDraftId,
+        text: text,
+        attachments: announcementAttachments,
+        images: announcementImages,
+        timestamp: new Date().toISOString()
     };
     draftAnnouncements[autosaveDraftId] = draft;
     localStorage.setItem('announcement_drafts', JSON.stringify(draftAnnouncements));
@@ -521,22 +521,22 @@ function autosaveDraft(text) {
 function loadDrafts() {
     const savedDrafts = localStorage.getItem('announcement_drafts');
     if (savedDrafts) {
-      draftAnnouncements = JSON.parse(savedDrafts);
-      if (draftAnnouncements['autosave_draft']) {
-        const draft = draftAnnouncements['autosave_draft'];
-        document.querySelector('.announcement-composer textarea').value = draft.text;
-        if (draft.attachments && draft.attachments.length) {
-          announcementAttachments = draft.attachments;
-          renderAttachmentPreviews();
+        draftAnnouncements = JSON.parse(savedDrafts);
+        if (draftAnnouncements['autosave_draft']) {
+            const draft = draftAnnouncements['autosave_draft'];
+            document.querySelector('.announcement-composer textarea').value = draft.text;
+            if (draft.attachments && draft.attachments.length) {
+                announcementAttachments = draft.attachments;
+                renderAttachmentPreviews();
+            }
+            if (draft.images && draft.images.length) {
+                announcementImages = draft.images;
+                renderImagePreviews();
+            }
+            if (draft.text.trim() !== '') {
+                document.querySelector('.post-btn').disabled = false;
+            }
         }
-        if (draft.images && draft.images.length) {
-          announcementImages = draft.images;
-          renderImagePreviews();
-        }
-        if (draft.text.trim() !== '') {
-          document.querySelector('.post-btn').disabled = false;
-        }
-      }
     }
 }
 
@@ -545,17 +545,17 @@ function loadDraftsList() {
     draftsContainer.innerHTML = '';
     const regularDrafts = Object.values(draftAnnouncements).filter(draft => draft.id !== 'autosave_draft');
     if (regularDrafts.length === 0) {
-      draftsContainer.innerHTML = '<p class="no-drafts">No saved drafts found.</p>';
-      return;
+        draftsContainer.innerHTML = '<p class="no-drafts">No saved drafts found.</p>';
+        return;
     }
     regularDrafts.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     regularDrafts.forEach(draft => {
-      const draftCard = document.createElement('div');
-      draftCard.className = 'draft-card';
-      const truncatedText = draft.text.length > 100 ? 
-        draft.text.substring(0, 100) + '...' : 
-        draft.text;
-      draftCard.innerHTML = `
+        const draftCard = document.createElement('div');
+        draftCard.className = 'draft-card';
+        const truncatedText = draft.text.length > 100 ?
+            draft.text.substring(0, 100) + '...' :
+            draft.text;
+        draftCard.innerHTML = `
         <div class="draft-preview">
           <p>${truncatedText}</p>
           <span class="draft-date">${new Date(draft.timestamp).toLocaleString()}</span>
@@ -565,21 +565,21 @@ function loadDraftsList() {
           <button class="delete-draft-btn" data-id="${draft.id}">Delete</button>
         </div>
       `;
-      draftsContainer.appendChild(draftCard);
+        draftsContainer.appendChild(draftCard);
     });
     document.querySelectorAll('.load-draft-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        const draftId = this.getAttribute('data-id');
-        loadDraftContent(draftId);
-        document.querySelector('.drafts-modal').style.display = 'none';
-      });
+        btn.addEventListener('click', function () {
+            const draftId = this.getAttribute('data-id');
+            loadDraftContent(draftId);
+            document.querySelector('.drafts-modal').style.display = 'none';
+        });
     });
     document.querySelectorAll('.delete-draft-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        const draftId = this.getAttribute('data-id');
-        deleteDraft(draftId);
-        loadDraftsList();
-      });
+        btn.addEventListener('click', function () {
+            const draftId = this.getAttribute('data-id');
+            deleteDraft(draftId);
+            loadDraftsList();
+        });
     });
 }
 
@@ -596,15 +596,15 @@ function loadDraftContent(draftId) {
 
 function deleteDraft(draftId) {
     if (draftAnnouncements[draftId]) {
-      delete draftAnnouncements[draftId];
-      localStorage.setItem('announcement_drafts', JSON.stringify(draftAnnouncements));
+        delete draftAnnouncements[draftId];
+        localStorage.setItem('announcement_drafts', JSON.stringify(draftAnnouncements));
     }
 }
 
 function clearDraft() {
     if (draftAnnouncements['autosave_draft']) {
-      delete draftAnnouncements['autosave_draft'];
-      localStorage.setItem('announcement_drafts', JSON.stringify(draftAnnouncements));
+        delete draftAnnouncements['autosave_draft'];
+        localStorage.setItem('announcement_drafts', JSON.stringify(draftAnnouncements));
     }
 }
 
@@ -618,52 +618,52 @@ function setupDragAndDrop() {
     const composerDropZone = document.querySelector('.composer-body');
     if (!composerDropZone) return;
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-      composerDropZone.addEventListener(eventName, preventDefaults, false);
+        composerDropZone.addEventListener(eventName, preventDefaults, false);
     });
     function preventDefaults(e) {
-      e.preventDefault();
-      e.stopPropagation();
+        e.preventDefault();
+        e.stopPropagation();
     }
     ['dragenter', 'dragover'].forEach(eventName => {
-      composerDropZone.addEventListener(eventName, highlight, false);
+        composerDropZone.addEventListener(eventName, highlight, false);
     });
     ['dragleave', 'drop'].forEach(eventName => {
-      composerDropZone.addEventListener(eventName, unhighlight, false);
+        composerDropZone.addEventListener(eventName, unhighlight, false);
     });
     function highlight() {
-      composerDropZone.classList.add('highlight-drop');
+        composerDropZone.classList.add('highlight-drop');
     }
     function unhighlight() {
-      composerDropZone.classList.remove('highlight-drop');
+        composerDropZone.classList.remove('highlight-drop');
     }
     composerDropZone.addEventListener('drop', handleDrop, false);
     function handleDrop(e) {
-      const dt = e.dataTransfer;
-      const files = dt.files;
-      handleFiles(files);
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        handleFiles(files);
     }
     function handleFiles(files) {
-      [...files].forEach(file => {
-        if (file.type.startsWith('image/')) {
-          const imgObj = {
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            url: URL.createObjectURL(file)
-          };
-          announcementImages.push(imgObj);
-          renderImagePreviews();
-        } else {
-          const fileObj = {
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            url: URL.createObjectURL(file)
-          };
-          announcementAttachments.push(fileObj);
-          renderAttachmentPreviews();
-        }
-      });
+        [...files].forEach(file => {
+            if (file.type.startsWith('image/')) {
+                const imgObj = {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    url: URL.createObjectURL(file)
+                };
+                announcementImages.push(imgObj);
+                renderImagePreviews();
+            } else {
+                const fileObj = {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                    url: URL.createObjectURL(file)
+                };
+                announcementAttachments.push(fileObj);
+                renderAttachmentPreviews();
+            }
+        });
     }
 }
 
@@ -698,13 +698,13 @@ function addMarkdownToolbar() {
     `;
     const textareaContainer = document.querySelector('.write-mode');
     if (textareaContainer) {
-      textareaContainer.insertBefore(composerToolbar, textareaContainer.firstChild);
-      document.querySelectorAll('.toolbar-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-          const format = this.getAttribute('data-format');
-          applyMarkdownFormat(format);
+        textareaContainer.insertBefore(composerToolbar, textareaContainer.firstChild);
+        document.querySelectorAll('.toolbar-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const format = this.getAttribute('data-format');
+                applyMarkdownFormat(format);
+            });
         });
-      });
     }
 }
 
@@ -716,85 +716,85 @@ function applyMarkdownFormat(format) {
     let replacement = '';
     let cursorOffset = 0;
     switch (format) {
-      case 'bold':
-        replacement = `**${selectedText}**`;
-        cursorOffset = 2;
-        break;
-      case 'italic':
-        replacement = `*${selectedText}*`;
-        cursorOffset = 1;
-        break;
-      case 'heading':
-        replacement = `# ${selectedText}`;
-        cursorOffset = 2;
-        break;
-      case 'link':
-        if (selectedText) {
-          replacement = `[${selectedText}](url)`;
-          cursorOffset = 3;
-        } else {
-          replacement = '[text](url)';
-          cursorOffset = 1;
-        }
-        break;
-      case 'list':
-        if (selectedText) {
-          replacement = selectedText.split('\n').map(line => `- ${line}`).join('\n');
-        } else {
-          replacement = '- ';
-        }
-        break;
-      case 'numbered-list':
-        if (selectedText) {
-          replacement = selectedText.split('\n').map((line, i) => `${i+1}. ${line}`).join('\n');
-        } else {
-          replacement = '1. ';
-        }
-        break;
-      case 'quote':
-        if (selectedText) {
-          replacement = selectedText.split('\n').map(line => `> ${line}`).join('\n');
-        } else {
-          replacement = '> ';
-        }
-        break;
-      case 'code':
-        if (selectedText.includes('\n')) {
-          replacement = '```\n' + selectedText + '\n```';
-        } else {
-          replacement = '`' + selectedText + '`';
-          cursorOffset = 1;
-        }
-        break;
+        case 'bold':
+            replacement = `**${selectedText}**`;
+            cursorOffset = 2;
+            break;
+        case 'italic':
+            replacement = `*${selectedText}*`;
+            cursorOffset = 1;
+            break;
+        case 'heading':
+            replacement = `# ${selectedText}`;
+            cursorOffset = 2;
+            break;
+        case 'link':
+            if (selectedText) {
+                replacement = `[${selectedText}](url)`;
+                cursorOffset = 3;
+            } else {
+                replacement = '[text](url)';
+                cursorOffset = 1;
+            }
+            break;
+        case 'list':
+            if (selectedText) {
+                replacement = selectedText.split('\n').map(line => `- ${line}`).join('\n');
+            } else {
+                replacement = '- ';
+            }
+            break;
+        case 'numbered-list':
+            if (selectedText) {
+                replacement = selectedText.split('\n').map((line, i) => `${i + 1}. ${line}`).join('\n');
+            } else {
+                replacement = '1. ';
+            }
+            break;
+        case 'quote':
+            if (selectedText) {
+                replacement = selectedText.split('\n').map(line => `> ${line}`).join('\n');
+            } else {
+                replacement = '> ';
+            }
+            break;
+        case 'code':
+            if (selectedText.includes('\n')) {
+                replacement = '```\n' + selectedText + '\n```';
+            } else {
+                replacement = '`' + selectedText + '`';
+                cursorOffset = 1;
+            }
+            break;
     }
     const newText = textarea.value.substring(0, selectionStart) + replacement + textarea.value.substring(selectionEnd);
     textarea.value = newText;
     textarea.focus();
     if (selectedText) {
-      textarea.setSelectionRange(selectionStart + replacement.length, selectionStart + replacement.length);
+        textarea.setSelectionRange(selectionStart + replacement.length, selectionStart + replacement.length);
     } else {
-      const newCursorPos = selectionStart + replacement.length - cursorOffset;
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
+        const newCursorPos = selectionStart + replacement.length - cursorOffset;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
     }
     const event = new Event('input', { bubbles: true });
     textarea.dispatchEvent(event);
     if (document.querySelector('.preview-mode').classList.contains('active')) {
-      updateMarkdownPreview();
+        updateMarkdownPreview();
     }
 }
 
-document.addEventListener('click', function(event) {
+document.addEventListener('click', function (event) {
     if (event.target.classList.contains('comment-btn')) {
-      const commentSection = event.target.closest('.announcement-card').querySelector('.comment-input');
-      commentSection.style.display = commentSection.style.display === 'none' ? 'flex' : 'none';
+        const commentSection = event.target.closest('.announcement-card').querySelector('.comment-input');
+        commentSection.style.display = commentSection.style.display === 'none' ? 'flex' : 'none';
     }
     if (event.target.classList.contains('post-comment-btn')) {
-      const commentInput = event.target.previousElementSibling;
-      const text = commentInput.value.trim();
-      if (text) {
-        const commentsList = event.target.closest('.comments-section').querySelector('.comments-list');
-        const announcementId = event.target.closest('.announcement-card').getAttribute('data-id');
-        const commentHtml = `
+        const commentInput = event.target.previousElementSibling;
+        const text = commentInput.value.trim();
+        if (text) {
+            const commentsList = event.target.closest('.comments-section').querySelector('.comments-list');
+            const announcementId = event.target.closest('.announcement-card').getAttribute('data-id');
+            const commentHtml = `
           <div class="comment">
             <img src="https://i.pravatar.cc/40" alt="Profile" class="profile-pic">
             <div class="comment-info">
@@ -804,36 +804,36 @@ document.addEventListener('click', function(event) {
             </div>
           </div>
         `;
-        commentsList.insertAdjacentHTML('beforeend', commentHtml);
-        commentInput.value = '';
-      }
+            commentsList.insertAdjacentHTML('beforeend', commentHtml);
+            commentInput.value = '';
+        }
     }
     if (event.target.classList.contains('edit-btn')) {
-      const announcementCard = event.target.closest('.announcement-card');
-      const announcementContent = announcementCard.querySelector('.markdown-content').innerHTML;
-      const announcementId = announcementCard.getAttribute('data-id');
-      let markdownText = announcementContent;
-      if (typeof DOMParser !== 'undefined') {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(announcementContent, 'text/html');
-        markdownText = doc.body.textContent || "";
-      }
-      document.querySelector('.announcement-composer textarea').value = markdownText;
-      document.querySelector('.post-btn').textContent = 'Update';
-      document.querySelector('.post-btn').setAttribute('data-edit-id', announcementId);
-      document.querySelector('.post-btn').disabled = false;
-      document.querySelector('.announcement-composer').scrollIntoView({ behavior: 'smooth' });
+        const announcementCard = event.target.closest('.announcement-card');
+        const announcementContent = announcementCard.querySelector('.markdown-content').innerHTML;
+        const announcementId = announcementCard.getAttribute('data-id');
+        let markdownText = announcementContent;
+        if (typeof DOMParser !== 'undefined') {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(announcementContent, 'text/html');
+            markdownText = doc.body.textContent || "";
+        }
+        document.querySelector('.announcement-composer textarea').value = markdownText;
+        document.querySelector('.post-btn').textContent = 'Update';
+        document.querySelector('.post-btn').setAttribute('data-edit-id', announcementId);
+        document.querySelector('.post-btn').disabled = false;
+        document.querySelector('.announcement-composer').scrollIntoView({ behavior: 'smooth' });
     }
     if (event.target.classList.contains('delete-btn')) {
-      if (confirm('Are you sure you want to delete this announcement?')) {
-        const announcementCard = event.target.closest('.announcement-card');
-        const announcementId = announcementCard.getAttribute('data-id');
-        announcementCard.remove();
-      }
+        if (confirm('Are you sure you want to delete this announcement?')) {
+            const announcementCard = event.target.closest('.announcement-card');
+            const announcementId = announcementCard.getAttribute('data-id');
+            announcementCard.remove();
+        }
     }
 });
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     setupDragAndDrop();
     const draftBtn = document.createElement('button');
     draftBtn.className = 'draft-list-btn';
@@ -842,22 +842,22 @@ document.addEventListener('DOMContentLoaded', function() {
       My Drafts
     `;
     document.querySelector('.composer-actions').prepend(draftBtn);
-    draftBtn.addEventListener('click', function() {
-      loadDraftsList();
-      document.querySelector('.drafts-modal').style.display = 'flex';
+    draftBtn.addEventListener('click', function () {
+        loadDraftsList();
+        document.querySelector('.drafts-modal').style.display = 'flex';
     });
-    document.querySelector('.close-drafts-btn')?.addEventListener('click', function() {
-      document.querySelector('.drafts-modal').style.display = 'none';
+    document.querySelector('.close-drafts-btn')?.addEventListener('click', function () {
+        document.querySelector('.drafts-modal').style.display = 'none';
     });
     addMarkdownToolbar();
 });
 
-  
-  // Initial load
-  loadClassroomData();
-  
-  // Add CSS for new features
-  const newStyles = document.createElement('style');
+
+// Initial load
+loadClassroomData();
+
+// Add CSS for new features
+const newStyles = document.createElement('style');
 newStyles.textContent = `
     /* Enhanced styles for composer */
     .composer-body {
