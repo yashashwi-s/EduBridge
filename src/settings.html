@@ -1,14 +1,20 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>EduBridge - Student Settings</title>
+{% extends "base.html" %}
+
+{% block title %}EduBridge - Student Settings{% endblock %}
+
+{% block content %}
     <!-- Google Fonts -->
     <link
       href="https://fonts.googleapis.com/css?family=Google+Sans:400,500,700|Roboto:300,400,500&display=swap"
       rel="stylesheet"
     />
+    <!-- MISSING FROM settings.html but present in dashboard.html -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link
+  href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap"
+  rel="stylesheet"
+/>
     <!-- Font Awesome for Icons -->
     <link
       rel="stylesheet"
@@ -16,8 +22,6 @@
     />
     <!-- External CSS -->
     <link rel="stylesheet" href="student_settings.css" />
-  </head>
-  <body>
     <!-- Navbar -->
     <div class="navbar">
       <div class="nav-left">
@@ -135,5 +139,4 @@
 
     <!-- External JS -->
     <script src="student_settings.js"></script>
-  </body>
-</html>
+{% endblock %}

@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timedelta
-from flask import Flask, send_file, redirect, url_for, request, jsonify
+from flask import Flask, send_file, redirect, url_for, request, jsonify, render_template
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from pymongo import MongoClient
 from bson import ObjectId
@@ -8,9 +8,16 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 import random
 import string
+from google import genai
+from google.genai import types
 
 load_dotenv()
-app = Flask(__name__, static_folder="src", static_url_path="")
+app = Flask(__name__, template_folder="src", static_folder="src", static_url_path="")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    raise Exception("GEMINI_API_KEY not set in .env file")
+
+gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-key")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
 jwt = JWTManager(app)
@@ -55,27 +62,101 @@ def teacher_profile():
 
 @app.route("/dashboard")
 def dashboard():
-    return send_file('src/dashboard.html')
+    return render_template('dashboard.html')
 
 @app.route("/profile")
 def profile():
-    return send_file('src/profile.html')
+    return render_template('profile.html')
 
 @app.route("/announcements")
 def announcements():
-    return send_file('src/announcements.html')
+    return render_template('announcements.html')
 
 @app.route("/courses")
 def courses():
-    return send_file('src/courses.html')
+    return render_template('courses.html')
 
 @app.route("/calendar")
 def calendar():
-    return send_file('src/calendar.html')
+    return render_template('calendar.html')
 
 @app.route("/settings")
 def settings():
-    return send_file('src/settings.html')
+    return render_template('settings.html')
+
+chat_sessions = {}
+
+@app.route("/chat", methods=["POST"])
+@jwt_required()
+def chat():
+    user_id = get_jwt_identity()
+    user = users_collection.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    user_role = user.get("userType", "student")
+    data = request.get_json()
+    if not data or "query" not in data or "function" not in data:
+        return jsonify({"error": "Invalid request. 'query' and 'function' fields are required."}), 400
+
+    query = data["query"]
+    function_type = data["function"]
+
+    if function_type == "doubt":
+        # Use a chat session for multi-turn conversation.
+        global chat_sessions
+        if user_id not in chat_sessions:
+            # Create and store a new chat session with appropriate system instructions.
+            chat_sessions[user_id] = gemini_client.chats.create(
+                model="gemini-2.0-flash",
+                config=types.GenerateContentConfig(
+                    # max_output_tokens=300,
+                    temperature=0.3,
+                    system_instruction=(
+                        "You are an AI academic assistant. Answer the user's doubt clearly and concisely."
+                        "If User asks for navigation help, give them clear instructions to switch to navigate function of the chatbot."
+                        "If User asks for non-academic help, give them clear instructions to be diligent to their studies."
+                        )
+                )
+            )
+        chat = chat_sessions[user_id]
+        try:
+            response = chat.send_message(query)
+            answer = response.text
+        except Exception as e:
+            answer = f"Error occurred: {str(e)}"
+    elif function_type == "navigate":
+        # Stateless call for navigation assistance.
+        if user_role == "student":
+            system_instruction = (
+                "You are an AI assistant helping a student navigate the website. "
+                "Provide clear instructions with clickable links (in HTML) for common actions such as 'View Courses' or 'Check Calendar'."
+            )
+        else:
+            system_instruction = (
+                "You are an AI assistant helping a teacher navigate the website. "
+                "Provide clear instructions with clickable links (in HTML) for common actions such as 'Manage Classes' or 'View Profile'."
+            )
+        config = types.GenerateContentConfig(
+            # max_output_tokens=300,
+            temperature=0.3,
+            system_instruction=system_instruction
+        )
+        try:
+            response = gemini_client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=[query],
+                config=config
+            )
+            answer = response.text
+        except Exception as e:
+            answer = f"Error occurred: {str(e)}"
+    else:
+        return jsonify({"error": "Invalid function type."}), 400
+
+    return jsonify({"answer": answer})
+
+
 
 @app.route("/api/signup", methods=["POST"])
 def api_signup():
