@@ -21,6 +21,67 @@ document.addEventListener('click', function (event) {
     }
 });
 
+// Utility function to check JWT token validity
+function checkJwtToken() {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        console.error('No JWT token found in localStorage');
+        return {
+            exists: false,
+            valid: false,
+            message: 'No token found'
+        };
+    }
+    
+    // Check token format
+    const segments = token.split('.');
+    if (segments.length !== 3) {
+        console.error('Invalid JWT token format:', token);
+        return {
+            exists: true,
+            valid: false,
+            message: 'Invalid token format (not 3 segments)'
+        };
+    }
+    
+    // Try to decode the payload (middle segment)
+    try {
+        const base64Url = segments[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(atob(base64));
+        
+        // Check expiration
+        if (payload.exp) {
+            const expirationTime = payload.exp * 1000; // Convert to milliseconds
+            const currentTime = Date.now();
+            
+            if (currentTime > expirationTime) {
+                console.error('JWT token has expired');
+                return {
+                    exists: true,
+                    valid: false,
+                    message: 'Token expired',
+                    payload: payload
+                };
+            }
+        }
+        
+        return {
+            exists: true,
+            valid: true,
+            message: 'Token is valid',
+            payload: payload
+        };
+    } catch (error) {
+        console.error('Error decoding JWT token:', error);
+        return {
+            exists: true,
+            valid: false,
+            message: 'Error decoding token: ' + error.message
+        };
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     const tabButtons = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -33,6 +94,23 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById(tabId).classList.add('active');
         });
     });
+    
+    // Debug token
+    const tokenStatus = checkJwtToken();
+    console.log('JWT Token status:', tokenStatus);
+    
+    if (!tokenStatus.valid) {
+        const errorMessage = 'Authentication error: ' + tokenStatus.message;
+        console.error(errorMessage);
+        showNotification(errorMessage, 'error');
+        
+        // Redirect to login after a short delay
+        if (!tokenStatus.exists) {
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 2000);
+        }
+    }
 });
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -46,6 +124,11 @@ let teacherAvatarGlobal = "https://i.pravatar.cc/40";
 let announcementAttachments = [];
 let announcementImages = [];
 let draftAnnouncements = {};
+
+// Quiz Management
+let quizzes = [];
+let nextQuestionId = 2; // Start with 2 since we have one question by default
+let currentEditingQuizId = null;
 
 document.addEventListener('DOMContentLoaded', function () {
     const markdownScript = document.createElement('script');
@@ -71,6 +154,11 @@ document.addEventListener('DOMContentLoaded', function () {
     
     initializeComposer();
     loadDrafts();
+    
+    // Initialize quiz functionality if the quiz tab exists
+    if (document.getElementById('quizzes')) {
+        initializeQuizzes();
+    }
 });
 
 function initializeComposer() {
@@ -1494,3 +1582,851 @@ function showNotification(message, type = 'info') {
 
 // Initial load
 loadClassroomData();
+
+function initializeQuizzes() {
+    loadQuizzes();
+    
+    // Open quiz creation modal
+    const createQuizBtn = document.getElementById('create-quiz-btn');
+    if (createQuizBtn) {
+        createQuizBtn.addEventListener('click', function() {
+            openQuizModal();
+        });
+    }
+    
+    // Close modal when clicking the close button
+    const closeModal = document.querySelector('.close-modal');
+    if (closeModal) {
+        closeModal.addEventListener('click', function() {
+            closeQuizModal();
+        });
+    }
+    
+    // Close modal when clicking cancel button
+    const cancelQuizBtn = document.querySelector('.cancel-quiz-btn');
+    if (cancelQuizBtn) {
+        cancelQuizBtn.addEventListener('click', function() {
+            closeQuizModal();
+        });
+    }
+    
+    // Add event listener for form submission
+    const quizForm = document.getElementById('quiz-form');
+    if (quizForm) {
+        quizForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveQuiz();
+        });
+    }
+    
+    // Add event listener for adding a new question
+    const addQuestionBtn = document.getElementById('add-question-btn');
+    if (addQuestionBtn) {
+        addQuestionBtn.addEventListener('click', function() {
+            addNewQuestion();
+        });
+    }
+    
+    // Add event delegation for dynamic elements
+    const questionsContainer = document.getElementById('questions-container');
+    if (questionsContainer) {
+        questionsContainer.addEventListener('click', function(e) {
+            // Handle question removal
+            if (e.target.closest('.remove-question-btn')) {
+                const questionCard = e.target.closest('.question-card');
+                if (questionCard && questionsContainer.children.length > 1) {
+                    questionCard.remove();
+                    renumberQuestions();
+                } else {
+                    showNotification('A quiz must have at least one question', 'warning');
+                }
+            }
+            
+            // Handle option removal
+            if (e.target.closest('.remove-option-btn')) {
+                const option = e.target.closest('.option');
+                const optionsContainer = option.closest('.options-container');
+                if (optionsContainer && optionsContainer.children.length > 2) {
+                    option.remove();
+                    renumberOptions(optionsContainer);
+                } else {
+                    showNotification('A question must have at least two options', 'warning');
+                }
+            }
+            
+            // Handle adding options
+            if (e.target.closest('.add-option-btn')) {
+                const questionCard = e.target.closest('.question-card');
+                const optionsContainer = questionCard.querySelector('.options-container');
+                addNewOption(optionsContainer, questionCard.dataset.questionId);
+            }
+        });
+    }
+    
+    // Set up event delegation for quiz list actions
+    const quizList = document.querySelector('.quiz-list');
+    if (quizList) {
+        quizList.addEventListener('click', function(e) {
+            // Edit quiz
+            if (e.target.closest('.edit-quiz-btn')) {
+                const quizCard = e.target.closest('.quiz-card');
+                const quizId = quizCard.dataset.quizId;
+                editQuiz(quizId);
+            }
+            
+            // View results
+            if (e.target.closest('.results-btn')) {
+                const quizCard = e.target.closest('.quiz-card');
+                const quizId = quizCard.dataset.quizId;
+                viewQuizResults(quizId);
+            }
+            
+            // Delete quiz
+            if (e.target.closest('.delete-quiz-btn')) {
+                const quizCard = e.target.closest('.quiz-card');
+                const quizId = quizCard.dataset.quizId;
+                if (confirm('Are you sure you want to delete this quiz?')) {
+                    deleteQuiz(quizId);
+                }
+            }
+        });
+    }
+    
+    // Set default start and end dates
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const startDateInput = document.getElementById('quiz-start-date');
+    const endDateInput = document.getElementById('quiz-end-date');
+    const startTimeInput = document.getElementById('quiz-start-time');
+    const endTimeInput = document.getElementById('quiz-end-time');
+    
+    if (startDateInput && endDateInput && startTimeInput && endTimeInput) {
+        startDateInput.valueAsDate = today;
+        endDateInput.valueAsDate = tomorrow;
+        
+        const hours = today.getHours().toString().padStart(2, '0');
+        const minutes = today.getMinutes().toString().padStart(2, '0');
+        startTimeInput.value = `${hours}:${minutes}`;
+        endTimeInput.value = `${hours}:${minutes}`;
+    }
+}
+
+function openQuizModal(quizData = null) {
+    const modal = document.getElementById('quiz-modal');
+    const modalHeader = modal.querySelector('.modal-header h3');
+    
+    // Reset the form
+    resetQuizForm();
+    
+    if (quizData) {
+        modalHeader.textContent = 'Edit Quiz';
+        currentEditingQuizId = quizData.id;
+        
+        // Fill the form with quiz data
+        document.getElementById('quiz-title').value = quizData.title;
+        document.getElementById('quiz-description').value = quizData.description;
+        
+        // Set dates and times
+        const startDate = new Date(quizData.startTime);
+        const endDate = new Date(quizData.endTime);
+        
+        document.getElementById('quiz-start-date').valueAsDate = startDate;
+        document.getElementById('quiz-end-date').valueAsDate = endDate;
+        
+        const startHours = startDate.getHours().toString().padStart(2, '0');
+        const startMinutes = startDate.getMinutes().toString().padStart(2, '0');
+        document.getElementById('quiz-start-time').value = `${startHours}:${startMinutes}`;
+        
+        const endHours = endDate.getHours().toString().padStart(2, '0');
+        const endMinutes = endDate.getMinutes().toString().padStart(2, '0');
+        document.getElementById('quiz-end-time').value = `${endHours}:${endMinutes}`;
+        
+        document.getElementById('quiz-duration').value = quizData.duration;
+        
+        // Add questions
+        const questionsContainer = document.getElementById('questions-container');
+        questionsContainer.innerHTML = '';
+        
+        quizData.questions.forEach((question, index) => {
+            const questionId = index + 1;
+            const questionHTML = createQuestionHTML(questionId, question.text);
+            questionsContainer.insertAdjacentHTML('beforeend', questionHTML);
+            
+            const questionCard = questionsContainer.lastElementChild;
+            const optionsContainer = questionCard.querySelector('.options-container');
+            optionsContainer.innerHTML = '';
+            
+            question.options.forEach((option, optionIndex) => {
+                const optionId = optionIndex + 1;
+                const optionHTML = createOptionHTML(questionId, optionId, option.text);
+                optionsContainer.insertAdjacentHTML('beforeend', optionHTML);
+                
+                if (option.isCorrect) {
+                    const radioInput = optionsContainer.lastElementChild.querySelector(`input[type="radio"][name="correctOption_${questionId}"]`);
+                    radioInput.checked = true;
+                }
+            });
+        });
+        
+        nextQuestionId = quizData.questions.length + 1;
+    } else {
+        modalHeader.textContent = 'Create New Quiz';
+        currentEditingQuizId = null;
+    }
+    
+    // Show the modal
+    modal.style.display = 'flex';
+    setTimeout(() => {
+        modal.classList.add('active');
+        modal.querySelector('.modal-content').style.opacity = '1';
+    }, 10);
+}
+
+function closeQuizModal() {
+    const modal = document.getElementById('quiz-modal');
+    modal.classList.remove('active');
+    modal.querySelector('.modal-content').style.opacity = '0';
+    setTimeout(() => {
+        modal.style.display = 'none';
+    }, 300);
+    
+    // Reset form
+    resetQuizForm();
+    currentEditingQuizId = null;
+}
+
+function resetQuizForm() {
+    const form = document.getElementById('quiz-form');
+    form.reset();
+    
+    // Reset questions to have just one question with two options
+    const questionsContainer = document.getElementById('questions-container');
+    questionsContainer.innerHTML = createQuestionHTML(1);
+    
+    nextQuestionId = 2;
+}
+
+function addNewQuestion() {
+    const questionsContainer = document.getElementById('questions-container');
+    const questionHTML = createQuestionHTML(nextQuestionId);
+    questionsContainer.insertAdjacentHTML('beforeend', questionHTML);
+    nextQuestionId++;
+}
+
+function createQuestionHTML(questionId, questionText = '') {
+    return `
+        <div class="question-card" data-question-id="${questionId}">
+            <div class="question-header">
+                <h5>Question ${questionId}</h5>
+                <button type="button" class="remove-question-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="form-group">
+                <label>Question Text</label>
+                <textarea class="question-text" required placeholder="Enter your question">${questionText}</textarea>
+            </div>
+            <div class="options-container">
+                <div class="option" data-option-id="1">
+                    <div class="option-row">
+                        <input type="radio" name="correctOption_${questionId}" value="1" required>
+                        <input type="text" class="option-text" placeholder="Option 1" required>
+                        <button type="button" class="remove-option-btn"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+                <div class="option" data-option-id="2">
+                    <div class="option-row">
+                        <input type="radio" name="correctOption_${questionId}" value="2" required>
+                        <input type="text" class="option-text" placeholder="Option 2" required>
+                        <button type="button" class="remove-option-btn"><i class="fas fa-times"></i></button>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="add-option-btn btn btn-small btn-outline"><i class="fas fa-plus"></i> Add Option</button>
+        </div>
+    `;
+}
+
+function addNewOption(optionsContainer, questionId) {
+    const options = optionsContainer.querySelectorAll('.option');
+    const newOptionId = options.length + 1;
+    const optionHTML = createOptionHTML(questionId, newOptionId);
+    optionsContainer.insertAdjacentHTML('beforeend', optionHTML);
+}
+
+function createOptionHTML(questionId, optionId, optionText = '') {
+    return `
+        <div class="option" data-option-id="${optionId}">
+            <div class="option-row">
+                <input type="radio" name="correctOption_${questionId}" value="${optionId}" required>
+                <input type="text" class="option-text" placeholder="Option ${optionId}" value="${optionText}" required>
+                <button type="button" class="remove-option-btn"><i class="fas fa-times"></i></button>
+            </div>
+        </div>
+    `;
+}
+
+function renumberQuestions() {
+    const questionCards = document.querySelectorAll('.question-card');
+    questionCards.forEach((card, index) => {
+        const questionId = index + 1;
+        card.dataset.questionId = questionId;
+        card.querySelector('h5').textContent = `Question ${questionId}`;
+        
+        // Update radio button names
+        const radioButtons = card.querySelectorAll('input[type="radio"]');
+        radioButtons.forEach(radio => {
+            radio.name = `correctOption_${questionId}`;
+        });
+    });
+}
+
+function renumberOptions(optionsContainer) {
+    const options = optionsContainer.querySelectorAll('.option');
+    options.forEach((option, index) => {
+        const optionId = index + 1;
+        option.dataset.optionId = optionId;
+        option.querySelector('input[type="radio"]').value = optionId;
+        const textInput = option.querySelector('input[type="text"]');
+        if (!textInput.value) {
+            textInput.placeholder = `Option ${optionId}`;
+        }
+    });
+}
+
+function saveQuiz() {
+    // Get form data
+    const title = document.getElementById('quiz-title').value;
+    const description = document.getElementById('quiz-description').value;
+    const startDate = document.getElementById('quiz-start-date').value;
+    const startTime = document.getElementById('quiz-start-time').value;
+    const endDate = document.getElementById('quiz-end-date').value;
+    const endTime = document.getElementById('quiz-end-time').value;
+    const duration = document.getElementById('quiz-duration').value;
+    
+    // Check for token first
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        console.error('No access token found - cannot save quiz');
+        showNotification('Authorization error: Please log in again', 'error');
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 2000);
+        return;
+    }
+    
+    // Create datetime objects
+    const startDateTime = new Date(`${startDate}T${startTime}`);
+    const endDateTime = new Date(`${endDate}T${endTime}`);
+    
+    // Validate dates
+    if (endDateTime <= startDateTime) {
+        showNotification('End time must be after start time', 'error');
+        return;
+    }
+    
+    // Get questions data
+    const questions = [];
+    const questionCards = document.querySelectorAll('.question-card');
+    
+    let hasError = false;
+    questionCards.forEach(card => {
+        const questionId = card.dataset.questionId;
+        const questionText = card.querySelector('.question-text').value;
+        
+        if (!questionText.trim()) {
+            showNotification(`Question ${questionId} text cannot be empty`, 'error');
+            hasError = true;
+            return;
+        }
+        
+        const options = [];
+        const optionElements = card.querySelectorAll('.option');
+        const selectedOption = card.querySelector(`input[name="correctOption_${questionId}"]:checked`);
+        
+        if (!selectedOption) {
+            showNotification(`Please select a correct answer for Question ${questionId}`, 'error');
+            hasError = true;
+            return;
+        }
+        
+        const correctOptionId = selectedOption.value;
+        
+        optionElements.forEach(optionElement => {
+            const optionId = optionElement.dataset.optionId;
+            const optionText = optionElement.querySelector('.option-text').value;
+            
+            if (!optionText.trim()) {
+                showNotification(`Option text cannot be empty in Question ${questionId}`, 'error');
+                hasError = true;
+                return;
+            }
+            
+            options.push({
+                id: optionId,
+                text: optionText
+            });
+        });
+        
+        questions.push({
+            id: questionId,
+            text: questionText,
+            options: options,
+            correctOption: correctOptionId
+        });
+    });
+    
+    if (hasError) {
+        return;
+    }
+    
+    // Create quiz object - formatting exactly as backend expects
+    const quiz = {
+        title: title,
+        description: description,
+        startTime: startDateTime.toISOString(),
+        endTime: endDateTime.toISOString(),
+        duration: parseInt(duration),
+        questions: questions.map(q => ({
+            text: q.text,
+            options: q.options,
+            correctOption: q.correctOption
+        }))
+    };
+    
+    // Show loading state
+    const saveBtn = document.querySelector('.save-quiz-btn');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    
+    // For debugging
+    console.log('Sending quiz data to server:', JSON.stringify(quiz));
+    
+    // Save to database instead of localStorage
+    const isEdit = !!currentEditingQuizId;
+    const method = isEdit ? 'PUT' : 'POST';
+    const url = isEdit 
+        ? `/api/classrooms/${classroomId}/quizzes/${currentEditingQuizId}` 
+        : `/api/classrooms/${classroomId}/quizzes`;
+    
+    fetch(url, {
+        method: method,
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(quiz)
+    })
+    .then(response => {
+        console.log('Server response status:', response.status);
+        if (response.status === 401 || response.status === 403) {
+            console.error('Authentication failed - token may be invalid or expired');
+            showNotification('Session expired. Please log in again.', 'error');
+            setTimeout(() => {
+                localStorage.removeItem('access_token');
+                window.location.href = '/login';
+            }, 2000);
+            throw new Error('Authentication failed');
+        }
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                console.error('Server error response:', errorData);
+                throw new Error(errorData.msg || 'Failed to save quiz');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Server response data:', data);
+        
+        // If this is a new quiz, update the ID
+        if (!isEdit && data.quiz && data.quiz.id) {
+            currentEditingQuizId = data.quiz.id;
+            
+            // Add to local array with complete data from server
+            const newQuiz = {
+                id: data.quiz.id,
+                title: title,
+                description: description,
+                startTime: startDateTime.toISOString(),
+                endTime: endDateTime.toISOString(),
+                duration: parseInt(duration),
+                questions: questions,
+                status: getQuizStatus(startDateTime, endDateTime)
+            };
+            quizzes.push(newQuiz);
+        } else if (isEdit) {
+            // Update local array
+            const index = quizzes.findIndex(q => q.id === currentEditingQuizId);
+            if (index !== -1) {
+                quizzes[index] = {
+                    ...quizzes[index],
+                    title: title,
+                    description: description,
+                    startTime: startDateTime.toISOString(),
+                    endTime: endDateTime.toISOString(),
+                    duration: parseInt(duration),
+                    questions: questions,
+                    status: getQuizStatus(startDateTime, endDateTime)
+                };
+            }
+        }
+        
+        // Show success message
+        showNotification(isEdit ? 'Quiz updated successfully' : 'Quiz created successfully', 'success');
+        
+        // Refresh quiz list
+        renderQuizzes();
+        
+        // Close modal
+        closeQuizModal();
+    })
+    .catch(error => {
+        console.error('Error saving quiz:', error);
+        if (error.message !== 'Authentication failed') {
+            showNotification(error.message || 'Failed to save quiz', 'error');
+        }
+    })
+    .finally(() => {
+        // Reset button state if not redirecting due to auth error
+        if (!document.querySelector('.notification.error')) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }
+    });
+}
+
+function getQuizStatus(startDateTime, endDateTime) {
+    const now = new Date();
+    
+    if (now < startDateTime) {
+        return 'scheduled';
+    } else if (now > endDateTime) {
+        return 'expired';
+    } else {
+        return 'published';
+    }
+}
+
+function loadQuizzes() {
+    // Check for token first
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        console.error('No access token found - cannot load quizzes');
+        showNotification('Authorization error: Please log in again', 'error');
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 2000);
+        return;
+    }
+    
+    console.log('Using token to fetch quizzes:', token.substring(0, 10) + '...');
+    
+    // Fetch quizzes from database instead of localStorage
+    fetch(`/api/classrooms/${classroomId}/quizzes`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        console.log('Quiz fetch status:', response.status);
+        if (response.status === 401 || response.status === 403) {
+            console.error('Authentication failed - token may be invalid or expired');
+            showNotification('Session expired. Please log in again.', 'error');
+            setTimeout(() => {
+                localStorage.removeItem('access_token');
+                window.location.href = '/login';
+            }, 2000);
+            throw new Error('Authentication failed');
+        }
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                console.error('Server error response when fetching quizzes:', errorData);
+                throw new Error(errorData.msg || 'Failed to fetch quizzes');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Received quizzes data:', data);
+        quizzes = data;
+        
+        // Process quizzes to ensure they have proper date objects
+        quizzes.forEach(quiz => {
+            // Update status for each quiz
+            quiz.status = getQuizStatus(new Date(quiz.startTime), new Date(quiz.endTime));
+        });
+        
+        renderQuizzes();
+    })
+    .catch(error => {
+        console.error('Error loading quizzes:', error);
+        if (error.message !== 'Authentication failed') {
+            showNotification('Failed to load quizzes: ' + error.message, 'error');
+            quizzes = [];
+            renderQuizzes();
+        }
+    });
+}
+
+function renderQuizzes() {
+    const quizList = document.querySelector('.quiz-list');
+    if (!quizList) return;
+    
+    // Update status for each quiz
+    quizzes.forEach(quiz => {
+        quiz.status = getQuizStatus(new Date(quiz.startTime), new Date(quiz.endTime));
+    });
+    
+    // Sort quizzes by created date (newest first), with fallback to startTime
+    quizzes.sort((a, b) => {
+        // Prefer createdAt if available for both
+        if (a.createdAt && b.createdAt) {
+            return new Date(b.createdAt) - new Date(a.createdAt);
+        }
+        // Otherwise use startTime as fallback
+        return new Date(b.startTime) - new Date(a.startTime);
+    });
+    
+    quizList.innerHTML = '';
+    
+    if (quizzes.length === 0) {
+        quizList.innerHTML = `
+            <div class="no-quizzes">
+                <p>No quizzes yet. Click "Create New Quiz" to get started.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    quizzes.forEach(quiz => {
+        const startDate = new Date(quiz.startTime);
+        const formattedDate = startDate.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+        
+        const formattedTime = startDate.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        const statusLabel = {
+            'draft': 'Draft',
+            'scheduled': 'Scheduled',
+            'published': 'Published',
+            'expired': 'Expired'
+        };
+        
+        quizList.insertAdjacentHTML('beforeend', `
+            <div class="quiz-card" data-quiz-id="${quiz.id}">
+                <div class="quiz-info">
+                    <h3>${quiz.title}</h3>
+                    <p>${quiz.description || ''}</p>
+                    <div class="quiz-meta">
+                        <span class="date"><i class="fas fa-calendar-check"></i> ${formattedDate} - ${formattedTime}</span>
+                        <span class="quiz-status ${quiz.status}">${statusLabel[quiz.status] || 'Unknown'}</span>
+                        <span class="quiz-questions"><i class="fas fa-question-circle"></i> ${quiz.questions ? quiz.questions.length : 0} Question${quiz.questions && quiz.questions.length !== 1 ? 's' : ''}</span>
+                    </div>
+                </div>
+                <div class="quiz-actions">
+                    <button class="btn btn-outline edit-quiz-btn"><i class="fas fa-edit"></i> Edit</button>
+                    <button class="btn btn-outline results-btn"><i class="fas fa-chart-bar"></i> Results</button>
+                    <button class="btn btn-outline delete-quiz-btn"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        `);
+    });
+}
+
+function editQuiz(quizId) {
+    const quiz = quizzes.find(q => q.id === quizId);
+    if (quiz) {
+        openQuizModal(quiz);
+    }
+}
+
+function deleteQuiz(quizId) {
+    // Show confirmation dialog
+    if (!confirm('Are you sure you want to delete this quiz?')) {
+        return;
+    }
+    
+    // Check for token first
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        console.error('No access token found - cannot delete quiz');
+        showNotification('Authorization error: Please log in again', 'error');
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 2000);
+        return;
+    }
+    
+    // Show loading state in the UI
+    const quizCard = document.querySelector(`.quiz-card[data-quiz-id="${quizId}"]`);
+    if (quizCard) {
+        quizCard.classList.add('deleting');
+        quizCard.innerHTML = '<div class="deleting-message"><i class="fas fa-spinner fa-spin"></i> Deleting...</div>';
+    }
+    
+    // Delete from database
+    fetch(`/api/classrooms/${classroomId}/quizzes/${quizId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        console.log('Delete quiz response status:', response.status);
+        if (response.status === 401 || response.status === 403) {
+            console.error('Authentication failed - token may be invalid or expired');
+            showNotification('Session expired. Please log in again.', 'error');
+            setTimeout(() => {
+                localStorage.removeItem('access_token');
+                window.location.href = '/login';
+            }, 2000);
+            throw new Error('Authentication failed');
+        }
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                console.error('Server error response when deleting quiz:', errorData);
+                throw new Error(errorData.msg || 'Failed to delete quiz');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Quiz deletion response:', data);
+        
+        // Remove from local array
+        quizzes = quizzes.filter(quiz => quiz.id !== quizId);
+        
+        // Update UI
+        renderQuizzes();
+        
+        // Show success message
+        showNotification('Quiz deleted successfully', 'success');
+    })
+    .catch(error => {
+        console.error('Error deleting quiz:', error);
+        // Don't show error message if redirecting due to auth issues
+        if (error.message !== 'Authentication failed') {
+            // Remove the deleting state if there was an error
+            if (quizCard) {
+                quizCard.classList.remove('deleting');
+            }
+            showNotification('Failed to delete quiz: ' + error.message, 'error');
+            // Refresh quiz list to restore proper state
+            loadQuizzes();
+        }
+    });
+}
+
+function viewQuizResults(quizId) {
+    // Show loading spinner
+    document.getElementById('results-loading').style.display = 'flex';
+    document.getElementById('results-content').style.display = 'none';
+    
+    // Show the results modal
+    const resultsModal = document.getElementById('quiz-results-modal');
+    resultsModal.style.display = 'block';
+    setTimeout(() => {
+        resultsModal.classList.add('active');
+        resultsModal.querySelector('.modal-content').style.opacity = '1';
+    }, 10);
+    
+    // Fetch quiz results from database
+    fetch(`/api/classrooms/${classroomId}/quizzes/${quizId}/results`, {
+        headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to fetch quiz results');
+        }
+        return response.json();
+    })
+    .then(results => {
+        document.getElementById('results-modal-title').textContent = `Results: ${results.quizTitle}`;
+        
+        // Update statistics
+        document.getElementById('stat-submissions').textContent = results.statistics.submissions;
+        document.getElementById('stat-average').textContent = `${results.statistics.averageScore}%`;
+        document.getElementById('stat-highest').textContent = `${results.statistics.highestScore}%`;
+        document.getElementById('stat-lowest').textContent = `${results.statistics.lowestScore}%`;
+        
+        // Update table
+        const tableBody = document.getElementById('results-table-body');
+        tableBody.innerHTML = '';
+        
+        if (results.submissions.length === 0) {
+            document.getElementById('no-submissions').style.display = 'block';
+            document.querySelector('.results-table-container').style.display = 'none';
+        } else {
+            document.getElementById('no-submissions').style.display = 'none';
+            document.querySelector('.results-table-container').style.display = 'block';
+            
+            results.submissions.forEach(submission => {
+                const row = document.createElement('tr');
+                
+                // Format submission time
+                const submissionDate = new Date(submission.submittedAt);
+                const formattedDate = submissionDate.toLocaleDateString() + ' ' + 
+                                     submissionDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                
+                row.innerHTML = `
+                    <td>${submission.studentName}</td>
+                    <td>${submission.percentage}%</td>
+                    <td>${formattedDate}</td>
+                    <td>
+                        <button class="view-detail-btn" onclick="viewStudentDetail('${quizId}', '${submission.student_id}')">
+                            View Detail
+                        </button>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+        
+        // Hide loading spinner
+        document.getElementById('results-loading').style.display = 'none';
+        document.getElementById('results-content').style.display = 'block';
+    })
+    .catch(error => {
+        console.error('Error fetching quiz results:', error);
+        showNotification('Failed to fetch quiz results', 'error');
+        
+        // Hide loading spinner
+        document.getElementById('results-loading').style.display = 'none';
+        document.getElementById('results-content').style.display = 'block';
+        document.getElementById('results-content').innerHTML = `
+            <div class="error-message">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Failed to load quiz results. Please try again.</p>
+            </div>
+        `;
+    });
+    
+    // Close button event handler
+    document.querySelector('.close-results-modal').addEventListener('click', () => {
+        resultsModal.classList.remove('active');
+        resultsModal.querySelector('.modal-content').style.opacity = '0';
+        setTimeout(() => {
+            resultsModal.style.display = 'none';
+        }, 300);
+    });
+}
+
+function viewStudentDetail(quizId, studentId) {
+    // For now, just redirect to a URL that the student would use to see their results
+    // In a production system, you'd want to create a separate view for teachers to see student details
+    const studentResultsUrl = `/quiz-results?classId=${classroomId}&quizId=${quizId}&studentId=${studentId}`;
+    window.open(studentResultsUrl, '_blank');
+}

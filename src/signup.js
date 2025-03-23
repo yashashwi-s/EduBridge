@@ -123,9 +123,13 @@ const fields = [
   { id: 'teacherName', validate: (val) => val.length >= 3 },
   { id: 'teacherOrg', validate: (val) => val.length >= 2 },
   { id: 'teacherEmail', validate: validateEmail },
+  { id: 'teacherPhone', validate: validatePhone },
+  { id: 'teacherProfileImage', validate: validateImage, optional: true },
   { id: 'studentName', validate: (val) => val.length >= 3 },
   { id: 'studentOrg', validate: (val) => val.length >= 2 },
-  { id: 'studentEmail', validate: validateEmail }
+  { id: 'studentEmail', validate: validateEmail },
+  { id: 'studentPhone', validate: validatePhone },
+  { id: 'studentProfileImage', validate: validateImage, optional: true }
 ];
 
 fields.forEach(field => {
@@ -134,8 +138,11 @@ fields.forEach(field => {
   
   el.addEventListener('input', () => {
     const formControl = el.closest('.form-control');
-    if (field.validate(el.value)) {
+    let isValid = field.validate(el.value);
+    
+    if (isValid || (field.optional && el.value === '')) {
       formControl.classList.add('valid');
+      formControl.classList.remove('invalid');
     } else {
       formControl.classList.remove('valid');
     }
@@ -143,7 +150,16 @@ fields.forEach(field => {
   
   el.addEventListener('blur', () => {
     const formControl = el.closest('.form-control');
-    if (el.value && !field.validate(el.value)) {
+    if (el.value === '' && field.optional) {
+      // Optional fields can be empty
+      formControl.classList.remove('invalid');
+      formControl.classList.remove('valid');
+      return;
+    }
+    
+    let isValid = field.validate(el.value);
+    
+    if (el.value && !isValid) {
       formControl.classList.add('invalid');
       formControl.classList.remove('valid');
     } else {
@@ -151,6 +167,25 @@ fields.forEach(field => {
     }
   });
 });
+
+// Setup image preview functionality
+setupImagePreview('teacherProfileImage', 'teacherImagePreview');
+setupImagePreview('studentProfileImage', 'studentImagePreview');
+}
+
+function validateURL(url) {
+  if (!url) return true; // URLs are optional
+  try {
+    new URL(url);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function validatePhone(phone) {
+  // Check if it contains exactly 10 digits
+  return /^\d{10}$/.test(phone);
 }
 
 function setupPasswordStrength() {
@@ -257,101 +292,197 @@ setTimeout(() => {
 }, 4000);
 }
 
-// NEW CODE: Attach event listeners to intercept teacher and student signup form submissions and call API endpoints
+// NEW CODE: Updated signup API call
 document.addEventListener('DOMContentLoaded', function() {
-const teacherForm = document.getElementById('teacherForm');
-const studentForm = document.getElementById('studentForm');
-
-teacherForm.addEventListener('submit', function(e) {
-  e.preventDefault();
-  const name = document.getElementById('teacherName').value;
-  const organization = document.getElementById('teacherOrg').value;
-  const email = document.getElementById('teacherEmail').value;
-  const password = document.getElementById('teacherPassword').value;
-
-  const data = {
-    fullName: name,
-    email: email,
-    password: password,
-    institution: organization,
-    userType: "teacher"
-  };
-
-  fetch('/api/signup', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  })
-  .then(response => response.json())
-  .then(result => {
-    if (result.msg === "Signup successful") {
-      loginUser(email, password); // Auto-login after successful signup
-    } else {
-      alert(result.msg || "Signup failed.");
+  // Setup the teacher form submission
+  const teacherForm = document.getElementById('teacherForm');
+  teacherForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    // Validate all fields
+    const name = document.getElementById('teacherName').value;
+    const email = document.getElementById('teacherEmail').value;
+    const password = document.getElementById('teacherPassword').value;
+    const institution = document.getElementById('teacherOrg').value;
+    const phoneNumber = document.getElementById('teacherPhone').value;
+    const profileImage = document.getElementById('teacherProfileImage');
+    
+    // Check if all required fields are valid
+    if (!name || !email || !password || !institution || !phoneNumber) {
+      showNotification('Please fill all required fields', 'error');
+      return;
     }
-  })
-  .catch(err => {
-    console.error(err);
-    alert("Error during signup.");
-  });
-});
-
-studentForm.addEventListener('submit', function(e) {
-  e.preventDefault();
-  const name = document.getElementById('studentName').value;
-  const organization = document.getElementById('studentOrg').value;
-  const email = document.getElementById('studentEmail').value;
-  const password = document.getElementById('studentPassword').value;
-
-  const data = {
-    fullName: name,
-    email: email,
-    password: password,
-    institution: organization,
-    userType: "student"
-  };
-
-  fetch('/api/signup', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  })
-  .then(response => response.json())
-  .then(result => {
-    if (result.msg === "Signup successful") {
-      loginUser(email, password);
-    } else {
-      alert(result.msg || "Signup failed.");
+    
+    // Validate phone number
+    if (!validatePhone(phoneNumber)) {
+      showNotification('Please enter a valid phone number', 'error');
+      return;
     }
-  })
-  .catch(err => {
-    console.error(err);
-    alert("Error during signup.");
-  });
-});
-
-function loginUser(email, password) {
-  fetch('/api/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: email, password: password })
-  })
-  .then(response => response.json())
-  .then(result => {
-    if (result.access_token) {
-      localStorage.setItem('access_token', result.access_token);
-      if (result.userType === "teacher") {
-        window.location.href = "/teacher_profile";
+    
+    try {
+      // Convert image to base64 if provided
+      const profileImageBase64 = await getBase64Image(profileImage);
+      
+      // Send signup request
+      const response = await fetch('/api/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: name,
+          email: email,
+          password: password,
+          institution: institution,
+          phone: phoneNumber,
+          profileImage: profileImageBase64,
+          userType: 'teacher'
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.user_id) {
+        // Show success and redirect to login
+        showNotification('Signup successful! Redirecting to login...', 'success');
+        setTimeout(() => window.location.href = '/login', 2000);
       } else {
-        window.location.href = "/profile";
+        showNotification(result.msg || 'Signup failed', 'error');
       }
-    } else {
-      alert(result.msg || "Login failed.");
+    } catch (err) {
+      console.error(err);
+      showNotification('Error during signup', 'error');
     }
-  })
-  .catch(err => {
-    console.error(err);
-    alert("Error during login.");
+  });
+  
+  // Setup the student form submission
+  const studentForm = document.getElementById('studentForm');
+  studentForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    // Validate all fields
+    const name = document.getElementById('studentName').value;
+    const email = document.getElementById('studentEmail').value;
+    const password = document.getElementById('studentPassword').value;
+    const institution = document.getElementById('studentOrg').value;
+    const phoneNumber = document.getElementById('studentPhone').value;
+    const profileImage = document.getElementById('studentProfileImage');
+    
+    // Check if all required fields are valid
+    if (!name || !email || !password || !institution || !phoneNumber) {
+      showNotification('Please fill all required fields', 'error');
+      return;
+    }
+    
+    // Validate phone number
+    if (!validatePhone(phoneNumber)) {
+      showNotification('Please enter a valid phone number', 'error');
+      return;
+    }
+    
+    try {
+      // Convert image to base64 if provided
+      const profileImageBase64 = await getBase64Image(profileImage);
+      
+      // Send signup request
+      const response = await fetch('/api/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: name,
+          email: email,
+          password: password,
+          institution: institution,
+          phone: phoneNumber,
+          profileImage: profileImageBase64,
+          userType: 'student'
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.user_id) {
+        // Show success and redirect to login
+        showNotification('Signup successful! Redirecting to login...', 'success');
+        setTimeout(() => window.location.href = '/login', 2000);
+      } else {
+        showNotification(result.msg || 'Signup failed', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Error during signup', 'error');
+    }
+  });
+});
+
+// Function to validate image files
+function validateImage(value) {
+  if (!value) return true; // Optional
+  
+  // If it's a DOM element (file input), check the files property
+  if (value.files && value.files[0]) {
+    const file = value.files[0];
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    
+    // Check file type and size
+    return validTypes.includes(file.type) && file.size <= maxSize;
+  }
+  
+  return false;
+}
+
+// Function to setup image preview
+function setupImagePreview(inputId, previewId) {
+  const input = document.getElementById(inputId);
+  const preview = document.getElementById(previewId);
+  
+  if (!input || !preview) return;
+  
+  input.addEventListener('change', function() {
+    // Clear previous preview
+    preview.innerHTML = '';
+    
+    if (this.files && this.files[0]) {
+      const file = this.files[0];
+      
+      // Validate file
+      if (!validateImage(this)) {
+        showNotification('Please select a valid image (JPG, PNG, GIF) under 5MB', 'error');
+        this.value = '';
+        return;
+      }
+      
+      // Create preview
+      const img = document.createElement('img');
+      img.className = 'image-preview';
+      
+      // Set up file reader to load the image
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        img.src = e.target.result;
+        preview.appendChild(img);
+      };
+      
+      // Read the file as data URL
+      reader.readAsDataURL(file);
+      
+      // Mark input as valid
+      const formControl = input.closest('.form-control');
+      formControl.classList.add('valid');
+    }
   });
 }
-});
+
+// Function to convert file to base64
+function getBase64Image(fileInput) {
+  return new Promise((resolve, reject) => {
+    if (!fileInput.files || !fileInput.files[0]) {
+      resolve(null);
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.onerror = (e) => reject(e);
+    reader.readAsDataURL(fileInput.files[0]);
+  });
+}

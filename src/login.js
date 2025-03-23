@@ -147,7 +147,21 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(response => response.json())
       .then(result => {
           if (result.access_token) {
-              localStorage.setItem('access_token', result.access_token);
+              // Validate token format before storing
+              const token = result.access_token;
+              const segments = token.split('.');
+              
+              if (segments.length !== 3) {
+                  console.error('Invalid JWT token format:', token);
+                  alert("Server returned an invalid token. Please contact support.");
+                  return;
+              }
+              
+              console.log('Token validation passed, storing token and redirecting...');
+              // Store token in both formats for compatibility
+              localStorage.setItem('access_token', token);
+              localStorage.setItem('accessToken', token);
+              
               if (result.userType === "teacher") {
                   window.location.href = "/teacher_profile";
               } else {

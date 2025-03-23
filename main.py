@@ -10,16 +10,40 @@ import random
 import string
 from google import genai
 from google.genai import types
+import json
+
+# Add a custom JSON encoder to handle ObjectId and datetime
+class MongoJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+
+# Helper function to convert MongoDB objects to JSON serializable objects
+def mongo_to_json_serializable(obj):
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    elif isinstance(obj, dict):
+        return {k: mongo_to_json_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [mongo_to_json_serializable(item) for item in obj]
+    else:
+        return obj
 
 load_dotenv()
 app = Flask(__name__, template_folder="src", static_folder="src", static_url_path="")
+app.json_encoder = MongoJSONEncoder
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     raise Exception("GEMINI_API_KEY not set in .env file")
 
 gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-key")
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=1)
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
 jwt = JWTManager(app)
 
 mongo_url = os.getenv("MONGO_URL")
@@ -83,6 +107,22 @@ def calendar():
 @app.route("/settings")
 def settings():
     return render_template('settings.html')
+
+@app.route("/quiz")
+def quiz_page():
+    return send_file('src/student_quiz.html')
+
+@app.route("/quiz-results")
+def quiz_results_page():
+    return send_file('src/student_quiz_results.html')
+
+@app.route("/quiz-details")
+def quiz_details_page():
+    return send_file('src/student_quiz_details.html')
+
+@app.route("/enrolled")
+def enrolled_students_page():
+    return send_file('src/teacher_enrolled.html')
 
 chat_sessions = {}
 
@@ -171,8 +211,6 @@ def chat():
 
     return jsonify({"answer": answer})
 
-
-
 @app.route("/api/signup", methods=["POST"])
 def api_signup():
     data = request.get_json()
@@ -181,16 +219,23 @@ def api_signup():
     email = data.get("email")
     if users_collection.find_one({"email": email}):
         return jsonify({"msg": "User already exists"}), 400
+    
+    # Validate phone number
+    phone = data.get("phone", "")
+    if not phone:
+        return jsonify({"msg": "Phone number is required"}), 400
+    
     hashed_pw = generate_password_hash(data.get("password"))
     user = {
         "fullName": data.get("fullName"),
         "email": email,
         "password": hashed_pw,
-        "phone": data.get("phone", ""),
+        "phone": phone,
         "institution": data.get("institution", ""),
         "department": data.get("department", ""),
         "title": data.get("title", ""),
         "bio": data.get("bio", ""),
+        "profileImage": data.get("profileImage", ""),
         "userType": data.get("userType"),
         "createdAt": datetime.utcnow()
     }
@@ -208,7 +253,11 @@ def api_login():
     if not user or not check_password_hash(user["password"], password):
         return jsonify({"msg": "Invalid email or password"}), 401
     access_token = create_access_token(identity=str(user["_id"]))
-    return jsonify({"msg": "Login successful", "access_token": access_token, "userType": user["userType"]}), 200
+    return jsonify({
+        "msg": "Login successful", 
+        "access_token": access_token,
+        "userType": user["userType"]
+    }), 200
 
 @app.route("/api/profile", methods=["GET"])
 @jwt_required()
@@ -217,8 +266,9 @@ def get_profile():
     user = users_collection.find_one({"_id": ObjectId(user_id)})
     if not user:
         return jsonify({"msg": "User not found"}), 404
-    user["_id"] = str(user["_id"])
     user.pop("password", None)
+    # Convert to JSON serializable format
+    user = mongo_to_json_serializable(user)
     return jsonify(user), 200
 
 @app.route("/api/profile", methods=["PUT"])
@@ -235,6 +285,11 @@ def update_profile():
         "title": data.get("title", ""),
         "bio": data.get("bio", "")
     }
+    
+    # Only update profile image if provided
+    if data.get("profileImage"):
+        update_data["profileImage"] = data.get("profileImage")
+        
     users_collection.update_one({"_id": ObjectId(user_id)}, {"$set": update_data})
     return jsonify({"msg": "Profile updated"}), 200
 
@@ -290,23 +345,19 @@ def get_classrooms():
     for c in classrooms_collection.find(query).sort("createdAt", -1):
         teacher = users_collection.find_one({"_id": c["teacher_id"]})
         c["teacherName"] = teacher["fullName"] if teacher else ""
-        c["_id"] = str(c["_id"])
-        c["teacher_id"] = str(c["teacher_id"])
-        c["createdAt"] = c["createdAt"].isoformat()
-        c["enrolled_students"] = [str(s) for s in c.get("enrolled_students", [])]
+        # Add header image before conversion
         c["headerImage"] = c.get("headerImage", random.choice(BACKGROUND_IMAGES))
+        
+        # Add commenter names for all announcements
         if "announcements" in c:
             for ann in c["announcements"]:
-                ann["announcement_id"] = str(ann["announcement_id"])
-                ann["teacher_id"] = str(ann["teacher_id"])
-                ann["postTime"] = ann["postTime"].isoformat()
                 for comment in ann.get("comments", []):
                     cid = comment["commenter_id"]
-                    comment["commenter_id"] = str(cid)
-                    comment["commentTime"] = comment["commentTime"].isoformat()
                     user_obj = users_collection.find_one({"_id": cid})
                     comment["commenterName"] = user_obj["fullName"] if user_obj else "Unknown"
-        classrooms.append(c)
+        
+        # Convert the entire classroom object to be JSON serializable
+        classrooms.append(mongo_to_json_serializable(c))
     return jsonify(classrooms), 200
 
 @app.route("/api/classrooms/<classroom_id>", methods=["GET"])
@@ -317,21 +368,18 @@ def get_classroom(classroom_id):
         return jsonify({"msg": "Classroom not found"}), 404
     teacher = users_collection.find_one({"_id": classroom["teacher_id"]})
     classroom["teacherName"] = teacher["fullName"] if teacher else ""
-    classroom["_id"] = str(classroom["_id"])
-    classroom["teacher_id"] = str(classroom["teacher_id"])
-    classroom["createdAt"] = classroom["createdAt"].isoformat()
-    classroom["enrolled_students"] = [str(s) for s in classroom.get("enrolled_students", [])]
+    classroom["headerImage"] = classroom.get("headerImage", random.choice(BACKGROUND_IMAGES))
+    
+    # Add commenter names for all announcements
     if "announcements" in classroom:
         for ann in classroom["announcements"]:
-            ann["announcement_id"] = str(ann["announcement_id"])
-            ann["teacher_id"] = str(ann["teacher_id"])
-            ann["postTime"] = ann["postTime"].isoformat()
             for comment in ann.get("comments", []):
                 cid = comment["commenter_id"]
-                comment["commenter_id"] = str(cid)
-                comment["commentTime"] = comment["commentTime"].isoformat()
                 user_obj = users_collection.find_one({"_id": cid})
                 comment["commenterName"] = user_obj["fullName"] if user_obj else "Unknown"
+    
+    # Convert the entire classroom object to be JSON serializable
+    classroom = mongo_to_json_serializable(classroom)
     return jsonify(classroom), 200
 
 @app.route("/api/classrooms/join", methods=["POST"])
@@ -461,6 +509,903 @@ def post_classroom_comment(classroom_id, announcement_id):
         comment["commenterName"] = user_obj["fullName"] if user_obj else "Unknown"
         return jsonify({"msg": "Comment added", "comment": comment}), 201
     return jsonify({"msg": "Announcement not found"}), 404
+
+# Quiz-related API routes
+@app.route("/api/classrooms/<classroom_id>/quizzes", methods=["GET"])
+@jwt_required()
+def get_classroom_quizzes(classroom_id):
+    """Get all quizzes for a classroom - for teacher view"""
+    user_id = get_jwt_identity()
+    user = users_collection.find_one({"_id": ObjectId(user_id)})
+    classroom = classrooms_collection.find_one({"_id": ObjectId(classroom_id)})
+    
+    if not classroom:
+        return jsonify({"msg": "Classroom not found"}), 404
+    
+    # Check if user is the teacher of this classroom
+    if user["userType"] != "teacher" or classroom["teacher_id"] != ObjectId(user_id):
+        return jsonify({"msg": "Unauthorized to view these quizzes"}), 403
+    
+    quizzes = classroom.get("quizzes", [])
+    processed_quizzes = []
+    
+    for quiz in quizzes:
+        # Add student names to submissions
+        if "submissions" in quiz:
+            for submission in quiz["submissions"]:
+                student = users_collection.find_one({"_id": submission["student_id"]})
+                submission["studentName"] = student["fullName"] if student else "Unknown"
+        
+        processed_quizzes.append(quiz)
+    
+    # Convert to JSON serializable format
+    processed_quizzes = mongo_to_json_serializable(processed_quizzes)
+    return jsonify(processed_quizzes), 200
+
+@app.route("/api/classrooms/<classroom_id>/quizzes", methods=["POST"])
+@jwt_required()
+def create_classroom_quiz(classroom_id):
+    """Create a new quiz for a classroom"""
+    user_id = get_jwt_identity()
+    user = users_collection.find_one({"_id": ObjectId(user_id)})
+    classroom = classrooms_collection.find_one({"_id": ObjectId(classroom_id)})
+    
+    if not classroom:
+        return jsonify({"msg": "Classroom not found"}), 404
+    
+    # Check if user is the teacher of this classroom
+    if user["userType"] != "teacher" or classroom["teacher_id"] != ObjectId(user_id):
+        return jsonify({"msg": "Unauthorized to create a quiz"}), 403
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({"msg": "Quiz data is required"}), 400
+    
+    # Validate required fields
+    required_fields = ["title", "description", "startTime", "endTime", "duration", "questions"]
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"msg": f"Missing required field: {field}"}), 400
+    
+    # Validate questions
+    questions = data["questions"]
+    if not questions or not isinstance(questions, list) or len(questions) == 0:
+        return jsonify({"msg": "At least one question is required"}), 400
+    
+    # Process and validate each question
+    processed_questions = []
+    for i, question in enumerate(questions):
+        if "text" not in question or "options" not in question or "correctOption" not in question:
+            return jsonify({"msg": f"Question {i+1} is missing required fields"}), 400
+        
+        # Process options
+        processed_options = []
+        for option in question["options"]:
+            if "text" not in option:
+                return jsonify({"msg": f"Option in question {i+1} is missing text field"}), 400
+            
+            # Add IDs to options if not present
+            option_id = option.get("id", str(ObjectId()))
+            processed_options.append({
+                "id": option_id,
+                "text": option["text"]
+            })
+        
+        # Add IDs to questions if not present
+        question_id = question.get("id", str(ObjectId()))
+        processed_questions.append({
+            "id": question_id,
+            "text": question["text"],
+            "options": processed_options,
+            "correctOption": question["correctOption"]
+        })
+    
+    # Create quiz object
+    try:
+        start_time = datetime.fromisoformat(data["startTime"])
+        end_time = datetime.fromisoformat(data["endTime"])
+    except ValueError:
+        return jsonify({"msg": "Invalid date format for startTime or endTime"}), 400
+    
+    quiz = {
+        "id": ObjectId(),
+        "title": data["title"],
+        "description": data["description"],
+        "startTime": start_time,
+        "endTime": end_time,
+        "duration": int(data["duration"]),
+        "published": data.get("published", True),
+        "questions": processed_questions,
+        "submissions": []
+    }
+    
+    # Add quiz to classroom
+    result = classrooms_collection.update_one(
+        {"_id": ObjectId(classroom_id)},
+        {"$push": {"quizzes": quiz}}
+    )
+    
+    if result.modified_count:
+        # Convert to JSON-serializable format
+        response_quiz = {
+            "id": str(quiz["id"]),
+            "title": quiz["title"],
+            "description": quiz["description"],
+            "startTime": quiz["startTime"].isoformat(),
+            "endTime": quiz["endTime"].isoformat(),
+            "duration": quiz["duration"],
+            "published": quiz.get("published", True),
+            "questions": processed_questions
+        }
+        return jsonify({"msg": "Quiz created", "quiz": response_quiz}), 201
+    
+    return jsonify({"msg": "Failed to create quiz"}), 500
+
+@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>", methods=["PUT"])
+@jwt_required()
+def update_classroom_quiz(classroom_id, quiz_id):
+    """Update an existing quiz"""
+    user_id = get_jwt_identity()
+    user = users_collection.find_one({"_id": ObjectId(user_id)})
+    classroom = classrooms_collection.find_one({"_id": ObjectId(classroom_id)})
+    
+    if not classroom:
+        return jsonify({"msg": "Classroom not found"}), 404
+    
+    # Check if user is the teacher of this classroom
+    if user["userType"] != "teacher" or classroom["teacher_id"] != ObjectId(user_id):
+        return jsonify({"msg": "Unauthorized to update this quiz"}), 403
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({"msg": "Quiz data is required"}), 400
+    
+    # Find the quiz
+    quiz_index = None
+    for i, quiz in enumerate(classroom.get("quizzes", [])):
+        if str(quiz["id"]) == quiz_id:
+            quiz_index = i
+            break
+    
+    if quiz_index is None:
+        return jsonify({"msg": "Quiz not found"}), 404
+    
+    # Handle questions update
+    if "questions" in data:
+        questions = data["questions"]
+        if not questions or not isinstance(questions, list) or len(questions) == 0:
+            return jsonify({"msg": "At least one question is required"}), 400
+        
+        # Process and validate each question
+        processed_questions = []
+        for i, question in enumerate(questions):
+            if "text" not in question or "options" not in question or "correctOption" not in question:
+                return jsonify({"msg": f"Question {i+1} is missing required fields"}), 400
+            
+            # Process options
+            processed_options = []
+            for option in question["options"]:
+                if "text" not in option:
+                    return jsonify({"msg": f"Option in question {i+1} is missing text field"}), 400
+                
+                # Add IDs to options if not present
+                option_id = option.get("id", str(ObjectId()))
+                processed_options.append({
+                    "id": option_id,
+                    "text": option["text"]
+                })
+            
+            # Add IDs to questions if not present
+            question_id = question.get("id", str(ObjectId()))
+            processed_questions.append({
+                "id": question_id,
+                "text": question["text"],
+                "options": processed_options,
+                "correctOption": question["correctOption"]
+            })
+        
+        # Update quiz with processed questions
+        data["questions"] = processed_questions
+    
+    # Update the quiz directly in the array
+    try:
+        if "startTime" in data:
+            data["startTime"] = datetime.fromisoformat(data["startTime"])
+        if "endTime" in data:
+            data["endTime"] = datetime.fromisoformat(data["endTime"])
+        if "duration" in data:
+            data["duration"] = int(data["duration"])
+    except ValueError:
+        return jsonify({"msg": "Invalid date format for startTime or endTime"}), 400
+    
+    # Create updated quiz object by combining existing data with updates
+    updated_quiz = classroom["quizzes"][quiz_index].copy()
+    
+    # Update fields that were provided
+    for field in ["title", "description", "startTime", "endTime", "duration", "published", "questions"]:
+        if field in data:
+            updated_quiz[field] = data[field]
+    
+    # Replace the quiz in the array
+    classroom["quizzes"][quiz_index] = updated_quiz
+    
+    # Update the classroom document
+    result = classrooms_collection.update_one(
+        {"_id": ObjectId(classroom_id)},
+        {"$set": {"quizzes": classroom["quizzes"]}}
+    )
+    
+    if result.modified_count:
+        # Convert to JSON-serializable format for response
+        response_quiz = {
+            "id": str(updated_quiz["id"]),
+            "title": updated_quiz["title"],
+            "description": updated_quiz["description"],
+            "startTime": updated_quiz["startTime"].isoformat(),
+            "endTime": updated_quiz["endTime"].isoformat(),
+            "duration": updated_quiz["duration"],
+            "published": updated_quiz.get("published", True),
+            "questions": updated_quiz["questions"]
+        }
+        return jsonify({"msg": "Quiz updated", "quiz": response_quiz}), 200
+    
+    return jsonify({"msg": "Failed to update quiz"}), 500
+
+@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>", methods=["DELETE"])
+@jwt_required()
+def delete_classroom_quiz(classroom_id, quiz_id):
+    """Delete a quiz"""
+    user_id = get_jwt_identity()
+    user = users_collection.find_one({"_id": ObjectId(user_id)})
+    classroom = classrooms_collection.find_one({"_id": ObjectId(classroom_id)})
+    
+    if not classroom:
+        return jsonify({"msg": "Classroom not found"}), 404
+    
+    # Check if user is the teacher of this classroom
+    if user["userType"] != "teacher" or classroom["teacher_id"] != ObjectId(user_id):
+        return jsonify({"msg": "Unauthorized to delete this quiz"}), 403
+    
+    # Find the quiz by ID
+    quiz_to_delete = None
+    for quiz in classroom.get("quizzes", []):
+        if str(quiz["id"]) == quiz_id:
+            quiz_to_delete = quiz
+            break
+    
+    if not quiz_to_delete:
+        return jsonify({"msg": "Quiz not found"}), 404
+    
+    # Delete the quiz by filtering the array
+    updated_quizzes = [quiz for quiz in classroom["quizzes"] if str(quiz["id"]) != quiz_id]
+    
+    # Update the classroom with the filtered array
+    result = classrooms_collection.update_one(
+        {"_id": ObjectId(classroom_id)},
+        {"$set": {"quizzes": updated_quizzes}}
+    )
+    
+    if result.modified_count:
+        return jsonify({"msg": "Quiz deleted successfully"}), 200
+    else:
+        return jsonify({"msg": "No changes made"}), 200
+
+@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/results", methods=["GET"])
+@jwt_required()
+def get_quiz_results(classroom_id, quiz_id):
+    """Get results for a quiz - for teacher view"""
+    user_id = get_jwt_identity()
+    user = users_collection.find_one({"_id": ObjectId(user_id)})
+    classroom = classrooms_collection.find_one({"_id": ObjectId(classroom_id)})
+    
+    if not classroom:
+        return jsonify({"msg": "Classroom not found"}), 404
+    
+    # Check if user is the teacher of this classroom
+    if user["userType"] != "teacher" or classroom["teacher_id"] != ObjectId(user_id):
+        return jsonify({"msg": "Unauthorized to view these results"}), 403
+    
+    # Find the quiz
+    quiz = None
+    for q in classroom.get("quizzes", []):
+        if str(q["id"]) == quiz_id:
+            quiz = q
+            break
+    
+    if not quiz:
+        return jsonify({"msg": "Quiz not found"}), 404
+    
+    # Process submissions data
+    submissions = []
+    for submission in quiz.get("submissions", []):
+        student = users_collection.find_one({"_id": submission["student_id"]})
+        submission_copy = submission.copy()
+        submission_copy["studentName"] = student["fullName"] if student else "Unknown"
+        submission_copy["percentage"] = round((submission["score"] / submission["maxScore"]) * 100, 1) if submission["maxScore"] > 0 else 0
+        submissions.append(submission_copy)
+    
+    # Calculate statistics
+    stats = {
+        "submissions": len(submissions),
+        "averageScore": 0,
+        "highestScore": 0,
+        "lowestScore": 100
+    }
+    
+    if submissions:
+        score_sum = sum(s["percentage"] for s in submissions)
+        stats["averageScore"] = round(score_sum / len(submissions), 1)
+        stats["highestScore"] = max(s["percentage"] for s in submissions)
+        stats["lowestScore"] = min(s["percentage"] for s in submissions)
+    
+    result = {
+        "quizTitle": quiz["title"],
+        "quizDescription": quiz["description"],
+        "totalQuestions": len(quiz["questions"]),
+        "submissions": submissions,
+        "statistics": stats
+    }
+    
+    # Convert to JSON serializable format
+    result = mongo_to_json_serializable(result)
+    return jsonify(result), 200
+
+# Student-facing quiz routes
+@app.route("/api/classrooms/<classroom_id>/quizzes/student", methods=["GET"])
+@jwt_required()
+def get_student_quizzes(classroom_id):
+    """Get all quizzes for a classroom - for student view"""
+    user_id = get_jwt_identity()
+    user = users_collection.find_one({"_id": ObjectId(user_id)})
+    classroom = classrooms_collection.find_one({"_id": ObjectId(classroom_id)})
+    
+    if not classroom:
+        return jsonify({"msg": "Classroom not found"}), 404
+    
+    # Check if user is enrolled in this classroom
+    if ObjectId(user_id) not in classroom.get("enrolled_students", []) and classroom["teacher_id"] != ObjectId(user_id):
+        return jsonify({"msg": "Unauthorized to view these quizzes"}), 403
+    
+    quizzes = classroom.get("quizzes", [])
+    processed_quizzes = []
+    
+    current_time = datetime.utcnow()
+    
+    for quiz in quizzes:
+        # Check if quiz is published
+        if not quiz.get("published", True):
+            continue
+            
+        # Determine student status for this quiz
+        quiz_start = quiz["startTime"]
+        quiz_end = quiz["endTime"]
+        
+        # Check if student has already submitted this quiz
+        has_submitted = False
+        for submission in quiz.get("submissions", []):
+            if submission["student_id"] == ObjectId(user_id):
+                has_submitted = True
+                break
+                
+        if has_submitted:
+            student_status = "submitted"
+        elif current_time < quiz_start:
+            student_status = "upcoming"
+        elif current_time > quiz_end:
+            student_status = "missed"
+        elif current_time >= quiz_start and current_time <= quiz_end:
+            student_status = "available"
+        
+        # Create a student-friendly version of the quiz (no correct answers)
+        student_quiz = {
+            "id": quiz["id"],
+            "title": quiz["title"],
+            "description": quiz["description"],
+            "startTime": quiz["startTime"],
+            "endTime": quiz["endTime"],
+            "duration": quiz["duration"],
+            "studentStatus": student_status,
+            "questions": []
+        }
+        
+        # Include questions but remove correctOption field
+        for question in quiz["questions"]:
+            student_question = {
+                "id": question["id"],
+                "text": question["text"],
+                "options": [{"id": option["id"], "text": option["text"]} for option in question["options"]]
+            }
+            student_quiz["questions"].append(student_question)
+        
+        processed_quizzes.append(student_quiz)
+    
+    # Convert to JSON serializable format
+    processed_quizzes = mongo_to_json_serializable(processed_quizzes)
+    return jsonify(processed_quizzes), 200
+
+@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/start", methods=["POST"])
+@jwt_required()
+def start_quiz(classroom_id, quiz_id):
+    """Mark a quiz as started by a student"""
+    user_id = get_jwt_identity()
+    classroom = classrooms_collection.find_one({"_id": ObjectId(classroom_id)})
+    
+    if not classroom:
+        return jsonify({"msg": "Classroom not found"}), 404
+    
+    # Check if user is enrolled in this classroom
+    if ObjectId(user_id) not in classroom.get("enrolled_students", []):
+        return jsonify({"msg": "Unauthorized to start this quiz"}), 403
+    
+    # Find the quiz
+    quiz = None
+    for q in classroom.get("quizzes", []):
+        if str(q["id"]) == quiz_id:
+            quiz = q
+            break
+    
+    if not quiz:
+        return jsonify({"msg": "Quiz not found"}), 404
+    
+    # Check if quiz is available
+    current_time = datetime.utcnow()
+    quiz_start = quiz["startTime"]
+    quiz_end = quiz["endTime"]
+    
+    if current_time < quiz_start:
+        return jsonify({"msg": "This quiz is not available yet"}), 400
+    
+    if current_time > quiz_end:
+        return jsonify({"msg": "This quiz has ended"}), 400
+    
+    # Check if student has already submitted this quiz
+    for submission in quiz.get("submissions", []):
+        if submission["student_id"] == ObjectId(user_id):
+            return jsonify({"msg": "You have already submitted this quiz"}), 400
+    
+    return jsonify({"msg": "Quiz started successfully"}), 200
+
+@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/submit", methods=["POST"])
+@jwt_required()
+def submit_quiz(classroom_id, quiz_id):
+    """Submit a quiz with student answers"""
+    user_id = get_jwt_identity()
+    classroom = classrooms_collection.find_one({"_id": ObjectId(classroom_id)})
+    
+    if not classroom:
+        return jsonify({"msg": "Classroom not found"}), 404
+    
+    # Check if user is enrolled in this classroom
+    if ObjectId(user_id) not in classroom.get("enrolled_students", []):
+        return jsonify({"msg": "Unauthorized to submit this quiz"}), 403
+    
+    # Find the quiz
+    quiz = None
+    quiz_index = -1
+    for i, q in enumerate(classroom.get("quizzes", [])):
+        if str(q["id"]) == quiz_id:
+            quiz = q
+            quiz_index = i
+            break
+    
+    if not quiz:
+        return jsonify({"msg": "Quiz not found"}), 404
+    
+    # Check if quiz is still available
+    current_time = datetime.utcnow()
+    quiz_end = quiz["endTime"]
+    
+    if current_time > quiz_end:
+        return jsonify({"msg": "This quiz has ended"}), 400
+    
+    # Check if student has already submitted this quiz
+    for submission in quiz.get("submissions", []):
+        if submission["student_id"] == ObjectId(user_id):
+            return jsonify({"msg": "You have already submitted this quiz"}), 400
+    
+    # Get submitted answers
+    data = request.get_json()
+    if not data or "answers" not in data:
+        return jsonify({"msg": "No answers provided"}), 400
+    
+    # Create a mapping of questions by ID for easy lookup
+    questions_map = {question["id"]: question for question in quiz["questions"]}
+    
+    # Score the quiz
+    total_questions = len(quiz["questions"])
+    correct_count = 0
+    scored_answers = {}
+    
+    for question_id, selected_option_id in data["answers"].items():
+        question = questions_map.get(question_id)
+        if not question:
+            continue
+        
+        # Find the selected option
+        selected_option = None
+        for option in question["options"]:
+            if option["id"] == selected_option_id:
+                selected_option = option
+                break
+        
+        is_correct = question["correctOption"] == selected_option_id if selected_option else False
+        if is_correct:
+            correct_count += 1
+        
+        scored_answers[question_id] = {
+            "selected": selected_option_id,
+            "correct": question["correctOption"],
+            "isCorrect": is_correct
+        }
+    
+    # Calculate score (1 point per correct answer)
+    score = correct_count
+    max_score = total_questions
+    
+    # Create submission object
+    submission = {
+        "student_id": ObjectId(user_id),
+        "startTime": datetime.fromisoformat(data.get("startTime")) if "startTime" in data else current_time,
+        "endTime": current_time,
+        "score": score,
+        "maxScore": max_score,
+        "answers": scored_answers
+    }
+    
+    # Add submission to quiz
+    result = classrooms_collection.update_one(
+        {"_id": ObjectId(classroom_id), "quizzes.id": ObjectId(quiz_id)},
+        {"$push": {"quizzes.$.submissions": submission}}
+    )
+    
+    if result.modified_count:
+        # Prepare results for student
+        questions_with_answers = []
+        
+        for question in quiz["questions"]:
+            question_id = question["id"]
+            answer_data = scored_answers.get(question_id, {})
+            
+            question_result = {
+                "id": question_id,
+                "text": question["text"],
+                "isCorrect": answer_data.get("isCorrect", False),
+                "options": [],
+                "userAnswer": answer_data.get("selected"),
+                "correctAnswer": answer_data.get("correct")
+            }
+            
+            for option in question["options"]:
+                option_data = {
+                    "id": option["id"],
+                    "text": option["text"],
+                    "isCorrect": option["id"] == answer_data.get("correct", None)
+                }
+                question_result["options"].append(option_data)
+            
+            questions_with_answers.append(question_result)
+        
+        results = {
+            "score": score,
+            "totalPossible": max_score,
+            "percentage": round((score / max_score) * 100, 1) if max_score > 0 else 0,
+            "correctCount": correct_count,
+            "totalQuestions": total_questions,
+            "questions": questions_with_answers
+        }
+        
+        return jsonify(results), 200
+    
+    return jsonify({"msg": "Failed to submit quiz"}), 500
+
+@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/results/student", methods=["GET"])
+@jwt_required()
+def get_student_quiz_results(classroom_id, quiz_id):
+    """Get a student's results for a specific quiz"""
+    user_id = get_jwt_identity()
+    classroom = classrooms_collection.find_one({"_id": ObjectId(classroom_id)})
+    
+    if not classroom:
+        return jsonify({"msg": "Classroom not found"}), 404
+    
+    # Check if user is enrolled in this classroom
+    if ObjectId(user_id) not in classroom.get("enrolled_students", []):
+        return jsonify({"msg": "Unauthorized to view these results"}), 403
+    
+    # Find the quiz
+    quiz = None
+    for q in classroom.get("quizzes", []):
+        if str(q["id"]) == quiz_id:
+            quiz = q
+            break
+    
+    if not quiz:
+        return jsonify({"msg": "Quiz not found"}), 404
+    
+    # Find student submission
+    submission = None
+    for sub in quiz.get("submissions", []):
+        if sub["student_id"] == ObjectId(user_id):
+            submission = sub
+            break
+    
+    if not submission:
+        return jsonify({"msg": "You have not submitted this quiz"}), 404
+    
+    # Prepare results for student
+    questions_with_answers = []
+    
+    for question in quiz["questions"]:
+        question_id = question["id"]
+        answer_data = submission["answers"].get(question_id, {})
+        
+        question_result = {
+            "id": question_id,
+            "text": question["text"],
+            "isCorrect": answer_data.get("isCorrect", False),
+            "options": [],
+            "userAnswer": answer_data.get("selected"),
+            "correctAnswer": answer_data.get("correct")
+        }
+        
+        for option in question["options"]:
+            option_data = {
+                "id": option["id"],
+                "text": option["text"],
+                "isCorrect": option["id"] == answer_data.get("correct", None)
+            }
+            question_result["options"].append(option_data)
+        
+        questions_with_answers.append(question_result)
+    
+    results = {
+        "score": submission["score"],
+        "totalPossible": submission["maxScore"],
+        "percentage": round((submission["score"] / submission["maxScore"]) * 100, 1) if submission["maxScore"] > 0 else 0,
+        "correctCount": sum(1 for q in questions_with_answers if q["isCorrect"]),
+        "totalQuestions": len(quiz["questions"]),
+        "questions": questions_with_answers
+    }
+    
+    return jsonify(results), 200
+
+@app.route("/api/enrolled-students", methods=["GET"])
+@jwt_required(optional=True)
+def get_enrolled_students():
+    """Get all students enrolled in the teacher's classrooms with their details"""
+    # Get user ID from JWT token (will be None if no valid token)
+    user_id = get_jwt_identity()
+    
+    # Log authentication status
+    if user_id:
+        print(f"User authenticated with ID: {user_id}")
+    else:
+        print("No valid authentication token provided")
+    
+    # Check request headers for debugging
+    auth_header = request.headers.get('Authorization')
+    print(f"Authorization header present: {auth_header is not None}")
+    if auth_header:
+        print(f"Authorization header starts with 'Bearer': {auth_header.startswith('Bearer ')}")
+        print(f"Authorization header length: {len(auth_header)}")
+    
+    # First try to get real data if user is authenticated
+    if user_id:
+        try:
+            user = users_collection.find_one({"_id": ObjectId(user_id)})
+            if user and user["userType"] == "teacher":
+                print(f"Fetching enrolled students for teacher: {user.get('fullName', 'Unknown')}")
+                
+                # Get all classrooms where this teacher is the owner
+                teacher_classrooms = list(classrooms_collection.find({"teacher_id": ObjectId(user_id)}))
+                print(f"Found {len(teacher_classrooms)} classrooms for this teacher")
+                
+                result = []
+                student_counts = {}
+                
+                for classroom in teacher_classrooms:
+                    classroom_data = {
+                        "id": str(classroom["_id"]),
+                        "name": classroom.get("className", "Unnamed Class"),
+                        "subject": classroom.get("subject", "General"),
+                        "section": classroom.get("section", "Main"),
+                        "students": []
+                    }
+                    
+                    # Get all enrolled students for this classroom
+                    enrolled_student_ids = classroom.get("enrolled_students", [])
+                    print(f"Classroom {classroom_data['name']} has {len(enrolled_student_ids)} enrolled students")
+                    
+                    for student_id in enrolled_student_ids:
+                        student = users_collection.find_one({"_id": student_id})
+                        if student:
+                            # Count student across all classrooms
+                            student_id_str = str(student["_id"])
+                            if student_id_str in student_counts:
+                                student_counts[student_id_str]["count"] += 1
+                            else:
+                                # Collect all available student data
+                                student_data = {
+                                    "id": student_id_str,
+                                    "name": student.get("fullName", "Unknown"),
+                                    "email": student.get("email", ""),
+                                    "institution": student.get("institution", "No institution provided"),
+                                    "department": student.get("department", "No department provided"),
+                                    "phone": student.get("phone", "No phone provided"),
+                                    "title": student.get("title", "Student"),
+                                    "bio": student.get("bio", "No bio provided"),
+                                    "joinedAt": student.get("createdAt", datetime.utcnow())
+                                }
+                                
+                                student_counts[student_id_str] = {
+                                    "count": 1,
+                                    "student": student_data
+                                }
+                            
+                            # Add student to this classroom
+                            classroom_data["students"].append({
+                                "id": student_id_str,
+                                "name": student.get("fullName", "Unknown"),
+                                "email": student.get("email", "")
+                            })
+                        else:
+                            print(f"Warning: Student with ID {student_id} not found in the database")
+                            
+                    result.append(classroom_data)
+                
+                # Get all unique students sorted by enrollment count
+                all_students = [data["student"] for _, data in sorted(
+                    student_counts.items(), 
+                    key=lambda x: x[1]["count"], 
+                    reverse=True
+                )]
+                
+                print(f"Successfully fetched data for {len(all_students)} students across {len(result)} classrooms")
+                
+                return jsonify({
+                    "classrooms": result,
+                    "students": all_students,
+                    "totalClassrooms": len(result),
+                    "totalStudents": len(all_students)
+                }), 200
+            else:
+                print("User is not a teacher or not found, using sample data")
+        except Exception as e:
+            print(f"Error getting real data: {e}")
+            # Fall back to sample data if anything fails
+    
+    # Provide sample data if not authenticated or if fetching real data failed
+    print("Using sample data for enrolled students")
+    sample_classrooms = [
+        {
+            "id": "class1",
+            "name": "Mathematics 101",
+            "subject": "Mathematics",
+            "section": "A",
+            "students": [
+                {
+                    "id": "student1",
+                    "name": "John Smith",
+                    "email": "john.smith@example.com"
+                },
+                {
+                    "id": "student2",
+                    "name": "Emily Johnson",
+                    "email": "emily.j@example.com"
+                },
+                {
+                    "id": "student3",
+                    "name": "Michael Brown",
+                    "email": "michael.b@example.com"
+                }
+            ]
+        },
+        {
+            "id": "class2",
+            "name": "Physics 202",
+            "subject": "Physics",
+            "section": "B",
+            "students": [
+                {
+                    "id": "student1",
+                    "name": "John Smith",
+                    "email": "john.smith@example.com"
+                },
+                {
+                    "id": "student4",
+                    "name": "Sarah Williams",
+                    "email": "sarah.w@example.com"
+                }
+            ]
+        },
+        {
+            "id": "class3",
+            "name": "Computer Science 301",
+            "subject": "Computer Science",
+            "section": "C",
+            "students": [
+                {
+                    "id": "student2",
+                    "name": "Emily Johnson",
+                    "email": "emily.j@example.com"
+                },
+                {
+                    "id": "student3",
+                    "name": "Michael Brown",
+                    "email": "michael.b@example.com"
+                },
+                {
+                    "id": "student5",
+                    "name": "David Miller",
+                    "email": "david.m@example.com"
+                },
+                {
+                    "id": "student6",
+                    "name": "Jessica Davis",
+                    "email": "jessica.d@example.com"
+                }
+            ]
+        }
+    ]
+    
+    # Add more sample data for better UI testing
+    sample_classrooms.append({
+        "id": "class4",
+        "name": "History 101",
+        "subject": "History",
+        "section": "D",
+        "students": [
+            {
+                "id": "student7",
+                "name": "Alex Thompson",
+                "email": "alex.t@example.com"
+            },
+            {
+                "id": "student8",
+                "name": "Olivia Wilson",
+                "email": "olivia.w@example.com"
+            }
+        ]
+    })
+    
+    # Prepare student data
+    student_counts = {}
+    
+    for classroom in sample_classrooms:
+        for student in classroom["students"]:
+            student_id = student["id"]
+            if student_id in student_counts:
+                student_counts[student_id]["count"] += 1
+            else:
+                student_counts[student_id] = {
+                    "count": 1,
+                    "student": {
+                        "id": student_id,
+                        "name": student["name"],
+                        "email": student["email"],
+                        "institution": "Sample University (PLACEHOLDER)",
+                        "department": "Sample Department (PLACEHOLDER)",
+                        "phone": "123-456-7890 (PLACEHOLDER)",
+                        "title": "Student (PLACEHOLDER)",
+                        "bio": "This is sample data. Please log in to see real student information. (PLACEHOLDER)",
+                        "joinedAt": "2023-01-15T12:00:00Z"
+                    }
+                }
+    
+    # Get all unique students sorted by enrollment count
+    all_students = [data["student"] for _, data in sorted(
+        student_counts.items(), 
+        key=lambda x: x[1]["count"], 
+        reverse=True
+    )]
+    
+    return jsonify({
+        "classrooms": sample_classrooms,
+        "students": all_students,
+        "totalClassrooms": len(sample_classrooms),
+        "totalStudents": len(all_students),
+        "isSampleData": True
+    }), 200
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
