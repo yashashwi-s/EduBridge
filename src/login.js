@@ -158,7 +158,9 @@ document.addEventListener('DOMContentLoaded', function() {
               }
               
               console.log('Token validation passed, storing token and redirecting...');
-              localStorage.setItem('access_token', result.access_token);
+              // Store token in both formats for compatibility
+              localStorage.setItem('access_token', token);
+              localStorage.setItem('accessToken', token);
               
               if (result.userType === "teacher") {
                   window.location.href = "/teacher_profile";

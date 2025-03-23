@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Enrolled Students - EduBridge</title>
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans:400,500,700|Roboto:300,400,500&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="teacher_enrolled.css">
+</head>
+<body>
+  <div class="navbar">
+    <div class="nav-left">
+      <button id="hamburger" class="hamburger"><i class="fas fa-bars"></i></button>
+      <div class="logo"><i class="fas fa-graduation-cap"></i> EduBridge</div>
+    </div>
+    <div class="nav-right">
+      <div class="profile-wrapper">
+        <img src="https://i.pravatar.cc/40" alt="Profile" class="profile-icon">
+        <div class="profile-dropdown">
+          <a href="/teacher_profile"><i class="fas fa-user-circle"></i> Show Profile</a>
+          <a href="/login"><i class="fas fa-sign-out-alt"></i> Log Out</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <ul>
+      <li><a href="/teacher_dashboard"><i class="fas fa-home"></i><span class="text">Home</span></a></li>
+      <li><a href="/calendar"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a></li>
+      <li><a href="/enrolled" class="active"><i class="fas fa-user-graduate"></i><span class="text">Enrolled</span></a></li>
+      <li><a href="/teacher_profile"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a></li>
+      <li><a href="/settings"><i class="fas fa-cog"></i><span class="text">Settings</span></a></li>
+    </ul>
+  </div>
+
+  <div class="content">
+    <div class="dashboard-header">
+      <div class="header-left">
+        <h1>Enrolled Students</h1>
+        <p class="student-count">Total Students: <span id="totalStudents">0</span></p>
+      </div>
+      <div class="header-right">
+        <div class="search-container">
+          <i class="fas fa-search search-icon"></i>
+          <input type="text" id="studentSearch" placeholder="Search students..." class="search-input">
+        </div>
+        <div class="filter-dropdown">
+          <button class="filter-btn"><i class="fas fa-filter"></i> Filter</button>
+          <div class="filter-content">
+            <label><input type="checkbox" value="all" checked> All Classes</label>
+            <div id="classFilterOptions"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dashboard-content">
+      <!-- Initial loading state -->
+      <div class="loading-state" id="initial-loading">
+        <i class="fas fa-spinner fa-pulse"></i>
+        <p>Loading student data...</p>
+      </div>
+      
+      <!-- Overview Section -->
+      <div class="overview-container" style="display: none;">
+        <div class="stats-card">
+          <div class="stats-icon"><i class="fas fa-users"></i></div>
+          <div class="stats-info">
+            <h3>Total Students</h3>
+            <p id="totalStudentsCard">0</p>
+          </div>
+        </div>
+        <div class="stats-card">
+          <div class="stats-icon"><i class="fas fa-chalkboard"></i></div>
+          <div class="stats-info">
+            <h3>Total Classes</h3>
+            <p id="totalClassesCard">0</p>
+          </div>
+        </div>
+        <div class="stats-card">
+          <div class="stats-icon"><i class="fas fa-user-graduate"></i></div>
+          <div class="stats-info">
+            <h3>Most Active</h3>
+            <p id="mostActiveCard">-</p>
+          </div>
+        </div>
+        <div class="stats-card">
+          <div class="stats-icon"><i class="fas fa-school"></i></div>
+          <div class="stats-info">
+            <h3>Top Class</h3>
+            <p id="topClassCard">-</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs-container" style="display: none;">
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="all">All Students</button>
+          <button class="tab-btn" data-tab="by-class">By Class</button>
+        </div>
+
+        <!-- All Students Tab -->
+        <div class="tab-content active" id="all-tab">
+          <div class="students-list-header">
+            <div class="student-card header">
+              <div class="student-avatar"></div>
+              <div class="student-name">Name</div>
+              <div class="student-email">Email</div>
+              <div class="student-institution">Institution</div>
+              <div class="student-classes">Classes</div>
+              <div class="student-joined">Joined</div>
+              <div class="student-actions"></div>
+            </div>
+          </div>
+          <div class="students-list" id="allStudentsList">
+            <!-- Student cards will be dynamically added here -->
+          </div>
+        </div>
+
+        <!-- By Class Tab -->
+        <div class="tab-content" id="by-class-tab">
+          <div id="classroomsContainer">
+            <!-- Class containers will be dynamically added here -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Student Details Modal -->
+  <div id="studentModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Student Details</h2>
+        <span class="close">&times;</span>
+      </div>
+      <div class="modal-body">
+        <div class="student-profile">
+          <div class="student-profile-header">
+            <div class="student-avatar-large">
+              <img id="modalStudentAvatar" src="https://i.pravatar.cc/100" alt="Student">
+            </div>
+            <div class="student-profile-info">
+              <h3 id="modalStudentName">Student Name</h3>
+              <p id="modalStudentEmail">student@example.com</p>
+              <p id="modalStudentInstitution">Institution</p>
+            </div>
+          </div>
+          <div class="student-details-section">
+            <h4>Enrolled Classes</h4>
+            <div id="modalStudentClasses" class="modal-classes-list">
+              <!-- Classes will be added here -->
+            </div>
+          </div>
+          <div class="student-details-section">
+            <h4>Performance Overview</h4>
+            <div class="performance-stats">
+              <div class="performance-stat">
+                <h5>Quiz Completion</h5>
+                <p id="modalQuizCompletion">N/A</p>
+              </div>
+              <div class="performance-stat">
+                <h5>Average Score</h5>
+                <p id="modalAverageScore">N/A</p>
+              </div>
+              <div class="performance-stat">
+                <h5>Participation</h5>
+                <p id="modalParticipation">N/A</p>
+              </div>
+            </div>
+          </div>
+          <div class="student-details-section">
+            <h4>Contact Options</h4>
+            <div class="contact-buttons">
+              <button class="contact-btn email-btn"><i class="fas fa-envelope"></i> Send Email</button>
+              <button class="contact-btn message-btn"><i class="fas fa-comment"></i> Message</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="teacher_enrolled.js"></script>
+</body>
+</html> 
