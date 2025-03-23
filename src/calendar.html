@@ -22,6 +22,7 @@
     />
     <!-- External CSS -->
     <link rel="stylesheet" href="student_calendar.css" />
+    
     <!-- Navbar -->
     <div class="navbar">
       <div class="nav-left">
@@ -45,20 +46,26 @@
     <div class="sidebar">
       <ul>
         <li>
-          <a href="/dashboard"><i class="fas fa-home"></i><span class="text">Dashboard</span></a>
+          <a href="/dashboard" id="nav-dashboard"><i class="fas fa-home"></i><span class="text">Dashboard</span></a>
         </li>
         <li>
-          <a href="/calendar" class="active"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a>
+          <a href="/calendar" id="nav-calendar"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a>
         </li>
-        <li><a href="/todo"><i class="fas fa-check-circle"></i><span class="text">To-do</span></a></li>
+        <li><a href="/todo" id="nav-todo"><i class="fas fa-check-circle"></i><span class="text">To-do</span></a></li>
         <li>
-          <a href="/profile"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a>
+          <a href="/profile" id="nav-profile"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a>
         </li>
         <li>
-          <a href="/settings"><i class="fas fa-cog"></i><span class="text">Settings</span></a>
+          <a href="/settings" id="nav-settings"><i class="fas fa-cog"></i><span class="text">Settings</span></a>
         </li>
       </ul>
     </div>
+
+    <!-- Script to set active nav item -->
+    <script>
+      // Make calendar link active
+      document.getElementById('nav-calendar').classList.add('active');
+    </script>
 
     <!-- Main Content: Calendar -->
     <div class="content">
