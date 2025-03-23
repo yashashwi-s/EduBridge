@@ -580,67 +580,185 @@ function renderImagePreviews() {
 }
 
 function renderNewAnnouncement(announcement) {
-    const attHtml = announcement.attachments && announcement.attachments.length ? `<div class="attachments">
-      ${announcement.attachments.map(att => `<a href="${att.url}" target="_blank" class="attachment-link">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-        ${att.name}
-      </a>`).join(' ')}
-    </div>` : '';
-    const imgHtml = announcement.images && announcement.images.length ? `<div class="images">
-      ${announcement.images.map(img => `<a href="${img.url}" target="_blank" class="image-link">
-        <img src="${img.url}" alt="Image" class="announcement-image">
-      </a>`).join(' ')}
-    </div>` : '';
+    const feed = document.querySelector('.announcements-feed');
     let announcementText = announcement.text;
     if (typeof marked !== 'undefined') {
         announcementText = marked.parse(announcement.text);
     }
-    const newAnnouncementHTML = `<div class="announcement-card" data-id="${announcement.announcement_id}">
-      <div class="announcement-header">
-        <img src="${teacherAvatarGlobal}" alt="Profile" class="profile-pic">
-        <div class="poster-info">
-          <span class="poster-name">${teacherNameGlobal}</span>
-          <span class="post-time">${new Date(announcement.postTime).toLocaleString()}</span>
-        </div>
-        <div class="announcement-actions">
-          <button class="edit-btn">Edit</button>
-          <button class="delete-btn">Delete</button>
-        </div>
-      </div>
-      <div class="announcement-content">
-        <div class="markdown-content">${announcementText}</div>
-        ${attHtml}
-        ${imgHtml}
-      </div>
-      <div class="announcement-footer">
-        <button class="comment-btn">Add class comment</button>
-      </div>
-      <div class="comments-section">
-        <div class="comments-list"></div>
-        <div class="comment-input" style="display:none;">
-          <textarea placeholder="Add a comment..."></textarea>
-          <button class="post-comment-btn">Post</button>
-        </div>
-      </div>
-    </div>`;
-    const feed = document.querySelector('.announcements-feed');
-    feed.insertAdjacentHTML('afterbegin', newAnnouncementHTML);
     
-    // Add new announcement to our global array and resort
-    if (window.allAnnouncements) {
-        window.allAnnouncements.push(announcement);
-        // Resort if needed based on current sort setting
-        const sortSelect = document.getElementById('sort-announcements');
-        if (sortSelect && sortSelect.value !== 'newest') {
-            // If not sorted by newest, we need to resort
-            sortAnnouncements();
-        }
+    // Store image data in the announcement object to persist through page reloads
+    if (announcementImages.length > 0) {
+        announcement.images = announcementImages.map(img => {
+            return {
+                url: img.src,
+                name: img.name || 'image'
+            };
+        });
+        
+        // Save images to database
+        fetch(`/api/classrooms/${classroomId}/announcements/${announcement.announcement_id}/images`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('access_token')
+            },
+            body: JSON.stringify({ images: announcement.images })
+        }).catch(err => console.error('Error saving images:', err));
     }
+    
+    const attHtml = announcement.attachments && announcement.attachments.length ? `<div class="attachments">
+        ${announcement.attachments.map(att => `<a href="${att.url}" target="_blank" class="attachment-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            ${att.name}
+        </a>`).join(' ')}
+    </div>` : '';
+    
+    const imgHtml = announcement.images && announcement.images.length ? `<div class="images">
+        ${announcement.images.map(img => `<a href="${img.url}" target="_blank" class="image-link">
+            <img src="${img.url}" alt="${img.name || 'Image'}" class="announcement-image">
+        </a>`).join(' ')}
+    </div>` : '';
+    
+    const annHtml = `<div class="announcement-card" data-id="${announcement.announcement_id}">
+        <div class="announcement-header">
+            <img src="${teacherAvatarGlobal}" alt="Teacher" class="profile-pic">
+            <div class="poster-info">
+                <span class="poster-name">${teacherNameGlobal}</span>
+                <span class="post-time">${new Date(announcement.postTime || Date.now()).toLocaleString()}</span>
+            </div>
+            <div class="announcement-actions">
+                <button class="edit-btn" data-id="${announcement.announcement_id}"></button>
+                <button class="delete-btn" data-id="${announcement.announcement_id}"></button>
+            </div>
+        </div>
+        <div class="announcement-content">
+            <div class="markdown-content">${announcementText}</div>
+            ${attHtml}
+            ${imgHtml}
+        </div>
+        <div class="announcement-footer">
+            <button class="comment-btn">
+                ${announcement.comments && announcement.comments.length ? `
+                Comments (${announcement.comments.length})
+                ` : 'Add class comment'}
+            </button>
+        </div>
+        <div class="comments-section">
+            <div class="comments-list">
+                ${announcement.comments && announcement.comments.map(comment => {
+                    // Parse comment text with Markdown if available
+                    let commentText = comment.text;
+                    if (typeof marked !== 'undefined') {
+                        commentText = marked.parse(commentText);
+                    }
+                    
+                    return `
+                    <div class="comment">
+                        <img src="images/image.png" alt="Profile" class="profile-pic">
+                        <div class="comment-info">
+                            <span class="commenter-name">${comment.commenterName}</span>
+                            <p>${commentText}</p>
+                            <span class="comment-time">${new Date(comment.commentTime).toLocaleString()}</span>
+                        </div>
+                    </div>
+                    `;
+                }).join('') || ''}
+            </div>
+            <div class="comment-input">
+                <textarea placeholder="Add a class comment..."></textarea>
+                <button class="post-comment-btn">Post</button>
+            </div>
+        </div>
+    </div>`;
+    
+    feed.insertAdjacentHTML('afterbegin', annHtml);
     
     // Render LaTeX if MathJax is available
     if (window.MathJax) {
         const newCard = feed.firstElementChild;
         window.MathJax.typeset([newCard.querySelector('.markdown-content')]);
+    }
+}
+
+function renderExistingAnnouncement(ann) {
+    const feed = document.querySelector('.announcements-feed');
+    let announcementText = ann.text;
+    if (typeof marked !== 'undefined') {
+        announcementText = marked.parse(ann.text);
+    }
+    
+    const attHtml = ann.attachments && ann.attachments.length ? `<div class="attachments">
+        ${ann.attachments.map(att => `<a href="${att.url}" target="_blank" class="attachment-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+            ${att.name}
+        </a>`).join(' ')}
+    </div>` : '';
+    
+    // Ensure ann.images exists and has expected format
+    const imgHtml = ann.images && ann.images.length ? `<div class="images">
+        ${ann.images.map(img => `<a href="${img.url || img}" target="_blank" class="image-link">
+            <img src="${img.url || img}" alt="${img.name || 'Image'}" class="announcement-image">
+        </a>`).join(' ')}
+    </div>` : '';
+    
+    const annHtml = `<div class="announcement-card" data-id="${ann.announcement_id}">
+        <div class="announcement-header">
+            <img src="${teacherAvatarGlobal}" alt="Teacher" class="profile-pic">
+            <div class="poster-info">
+                <span class="poster-name">${teacherNameGlobal}</span>
+                <span class="post-time">${new Date(ann.postTime).toLocaleString()}</span>
+            </div>
+            <div class="announcement-actions">
+                <button class="edit-btn" data-id="${ann.announcement_id}"></button>
+                <button class="delete-btn" data-id="${ann.announcement_id}"></button>
+            </div>
+        </div>
+        <div class="announcement-content">
+            <div class="markdown-content">${announcementText}</div>
+            ${attHtml}
+            ${imgHtml}
+        </div>
+        <div class="announcement-footer">
+            <button class="comment-btn">
+                ${ann.comments && ann.comments.length ? `
+                Comments (${ann.comments.length})
+                ` : 'Add class comment'}
+            </button>
+        </div>
+        <div class="comments-section">
+            <div class="comments-list">
+                ${ann.comments && ann.comments.map(comment => {
+                    // Parse comment text with Markdown if available
+                    let commentText = comment.text;
+                    if (typeof marked !== 'undefined') {
+                        commentText = marked.parse(commentText);
+                    }
+                    
+                    return `
+                    <div class="comment">
+                        <img src="images/image.png" alt="Profile" class="profile-pic">
+                        <div class="comment-info">
+                            <span class="commenter-name">${comment.commenterName}</span>
+                            <p>${commentText}</p>
+                            <span class="comment-time">${new Date(comment.commentTime).toLocaleString()}</span>
+                        </div>
+                    </div>
+                    `;
+                }).join('') || ''}
+            </div>
+            <div class="comment-input">
+                <textarea placeholder="Add a class comment..."></textarea>
+                <button class="post-comment-btn">Post</button>
+            </div>
+        </div>
+    </div>`;
+    
+    feed.insertAdjacentHTML('beforeend', annHtml);
+    
+    // Render LaTeX if MathJax is available
+    if (window.MathJax) {
+        const markdownContent = feed.lastElementChild.querySelector('.markdown-content');
+        window.MathJax.typeset([markdownContent]);
     }
 }
 
@@ -656,8 +774,30 @@ function loadClassroomData() {
         .then(resp => resp.json())
         .then(data => {
             teacherNameGlobal = data.teacherName || "Teacher Name";
+            
+            // Update classroom header
+            const header = document.querySelector('.classroom-header');
             document.querySelector('.classroom-header h1').textContent = data.className || "Course Name";
             document.querySelector('.classroom-header p').textContent = `${data.section || "Section"} - ${data.subject || "Subject"}`;
+            
+            // Set classroom background image from the database
+            if (data.classImage) {
+                // Try to use the image URL from the database
+                const img = new Image();
+                img.onload = function() {
+                    // Image loaded successfully, use it
+                    header.style.backgroundImage = `url('${data.classImage}')`;
+                };
+                img.onerror = function() {
+                    // Image failed to load, use subject-based fallback
+                    useSubjectBasedImage(data.subject, header);
+                };
+                img.src = data.classImage;
+            } else {
+                // No image in database, use subject-based fallback
+                useSubjectBasedImage(data.subject, header);
+            }
+            
             document.getElementById('teacher-name').textContent = teacherNameGlobal;
             const feed = document.querySelector('.announcements-feed');
             
@@ -817,70 +957,6 @@ function sortAnnouncements() {
         // Otherwise just sort all announcements
         sortAnnouncementsByDate(sortOrder);
     }
-}
-
-// Function to render an existing announcement (extracted from loadClassroomData)
-function renderExistingAnnouncement(ann) {
-    const feed = document.querySelector('.announcements-feed');
-    let announcementText = ann.text;
-    if (typeof marked !== 'undefined') {
-        announcementText = marked.parse(ann.text);
-    }
-    const attHtml = ann.attachments && ann.attachments.length ? `<div class="attachments">
-      ${ann.attachments.map(att => `<a href="${att.url}" target="_blank" class="attachment-link">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-        ${att.name}
-      </a>`).join(' ')}
-    </div>` : '';
-    const imgHtml = ann.images && ann.images.length ? `<div class="images">
-      ${ann.images.map(img => `<a href="${img.url}" target="_blank" class="image-link">
-        <img src="${img.url}" alt="Image" class="announcement-image">
-      </a>`).join(' ')}
-    </div>` : '';
-    const annHtml = `<div class="announcement-card" data-id="${ann.announcement_id}">
-      <div class="announcement-header">
-        <img src="${teacherAvatarGlobal}" alt="Profile" class="profile-pic">
-        <div class="poster-info">
-          <span class="poster-name">${teacherNameGlobal}</span>
-          <span class="post-time">${new Date(ann.postTime).toLocaleString()}</span>
-        </div>
-        <div class="announcement-actions">
-          <button class="edit-btn">Edit</button>
-          <button class="delete-btn">Delete</button>
-        </div>
-      </div>
-      <div class="announcement-content">
-        <div class="markdown-content">${announcementText}</div>
-        ${attHtml}
-        ${imgHtml}
-      </div>
-      <div class="announcement-footer">
-        <button class="comment-btn">
-          ${ann.comments && ann.comments.length 
-            ? `Comments (${ann.comments.length})` 
-            : 'Add class comment'}
-        </button>
-      </div>
-      <div class="comments-section">
-        <div class="comments-list">
-          ${ann.comments && ann.comments.map(comment => `
-            <div class="comment">
-              <img src="images/image.png" alt="Profile" class="profile-pic">
-              <div class="comment-info">
-                <span class="commenter-name">${comment.commenterName}</span>
-                <p>${comment.text}</p>
-                <span class="comment-time">${new Date(comment.commentTime).toLocaleString()}</span>
-              </div>
-            </div>
-          `).join('') || ''}
-        </div>
-        <div class="comment-input" style="display:none;">
-          <textarea placeholder="Add a comment..."></textarea>
-          <button class="post-comment-btn">Post</button>
-        </div>
-      </div>
-    </div>`;
-    feed.insertAdjacentHTML('beforeend', annHtml);
 }
 
 function saveDraft() {
@@ -2429,4 +2505,11 @@ function viewStudentDetail(quizId, studentId) {
     // In a production system, you'd want to create a separate view for teachers to see student details
     const studentResultsUrl = `/quiz-results?classId=${classroomId}&quizId=${quizId}&studentId=${studentId}`;
     window.open(studentResultsUrl, '_blank');
+}
+
+// Helper function to set background image based on subject
+function useSubjectBasedImage(subject, headerElement) {
+    const subjectLower = (subject || '').toLowerCase();
+    let themeImage = 'https://gstatic.com/classroom/themes/Physics.jpg'; // Default
+    headerElement.style.backgroundImage = `url('${themeImage}')`;
 }

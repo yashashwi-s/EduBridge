@@ -203,6 +203,7 @@
   </style>
 </head>
 <body>
+  <!-- Navbar -->
   <div class="navbar">
     <div class="nav-left">
       <button id="hamburger" class="hamburger" aria-label="Menu"><i class="fas fa-bars"></i></button>
@@ -212,22 +213,30 @@
       <div class="profile-wrapper">
         <img src="images/image.png" alt="Profile" class="profile-icon">
         <div class="profile-dropdown">
-          <a href="/profile"><i class="fas fa-user-circle"></i> Show Profile</a>
+          <a href="/profile"><i class="fas fa-user-circle"></i> My Profile</a>
+          <a href="/settings"><i class="fas fa-cog"></i> Settings</a>
           <a href="/login"><i class="fas fa-sign-out-alt"></i> Log Out</a>
         </div>
       </div>
     </div>
   </div>
   
+  <!-- Sidebar (standardized) -->
   <div class="sidebar">
     <ul>
-      <li><a href="/dashboard"><i class="fas fa-home"></i><span class="text">Home</span></a></li>
-      <li><a href="/calendar"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a></li>
-      <li><a href="/courses" class="active"><i class="fas fa-book"></i><span class="text">My Courses</span></a></li>
-      <li><a href="/profile"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a></li>
-      <li><a href="/settings"><i class="fas fa-cog"></i><span class="text">Settings</span></a></li>
+      <li><a href="/dashboard" id="nav-dashboard"><i class="fas fa-home"></i><span class="text">Dashboard</span></a></li>
+      <li><a href="/calendar" id="nav-calendar"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a></li>
+      <li><a href="/todo" id="nav-todo"><i class="fas fa-check-circle"></i><span class="text">To-do</span></a></li>
+      <li><a href="/profile" id="nav-profile"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a></li>
+      <li><a href="/settings" id="nav-settings"><i class="fas fa-cog"></i><span class="text">Settings</span></a></li>
     </ul>
   </div>
+  
+  <!-- Script to set active nav item -->
+  <script>
+    // Make dashboard link active since quizzes are part of courses/dashboard
+    document.getElementById('nav-dashboard').classList.add('active');
+  </script>
   
   <div class="content">
     <div id="error-container"></div>

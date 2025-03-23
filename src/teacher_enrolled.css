@@ -154,7 +154,7 @@ body {
 .sidebar ul li a {
   display: flex;
   align-items: center;
-  padding: 12px 24px 12px 24px;
+  padding: 14px 24px 14px 24px;
   text-decoration: none;
   color: #5f6368;
   font-size: 14px;

@@ -15,43 +15,50 @@
     />
     <!-- External CSS -->
     <link rel="stylesheet" href="courses_page.css" />
-    <!-- Navbar (copied exactly from dashboard) -->
+    
+    <!-- Navbar -->
     <div class="navbar">
-        <div class="nav-left">
-          <button id="hamburger" class="hamburger">
-            <i class="fas fa-bars"></i>
-          </button>
-          <div class="logo"><i class="fas fa-graduation-cap"></i> EduBridge</div>
-        </div>
-        <div class="nav-right">
-          <div class="profile-wrapper">
-            <img src="images/image.png" alt="Profile" class="profile-icon" />
-            <div class="profile-dropdown">
-              <a href="/profile"><i class="fas fa-user-circle"></i> Show Profile</a>
-              <a href="/login"><i class="fas fa-sign-out-alt"></i> Log Out</a>
-            </div>
+      <div class="nav-left">
+        <button id="hamburger" class="hamburger">
+          <i class="fas fa-bars"></i>
+        </button>
+        <div class="logo"><i class="fas fa-graduation-cap"></i> EduBridge</div>
+      </div>
+      <div class="nav-right">
+        <div class="profile-wrapper">
+          <img src="images/image.png" alt="Profile" class="profile-icon" />
+          <div class="profile-dropdown">
+            <a href="/profile"><i class="fas fa-user-circle"></i> Show Profile</a>
+            <a href="/login"><i class="fas fa-sign-out-alt"></i> Log Out</a>
           </div>
         </div>
       </div>
+    </div>
 
-    <!-- Sidebar (using updated order) -->
+    <!-- Sidebar (updated order) -->
     <div class="sidebar">
       <ul>
         <li>
-          <a href="/dashboard" class="active"><i class="fas fa-home"></i><span class="text">Dashboard</span></a>
+          <a href="/dashboard" id="nav-dashboard"><i class="fas fa-home"></i><span class="text">Dashboard</span></a>
         </li>
         <li>
-          <a href="/calendar"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a>
+          <a href="/calendar" id="nav-calendar"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a>
         </li>
-        <li><a href="/todo"><i class="fas fa-check-circle"></i><span class="text">To-do</span></a></li>
+        <li><a href="/todo" id="nav-todo"><i class="fas fa-check-circle"></i><span class="text">To-do</span></a></li>
         <li>
-          <a href="/profile"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a>
+          <a href="/profile" id="nav-profile"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a>
         </li>
         <li>
-          <a href="/settings"><i class="fas fa-cog"></i><span class="text">Settings</span></a>
+          <a href="/settings" id="nav-settings"><i class="fas fa-cog"></i><span class="text">Settings</span></a>
         </li>
       </ul>
     </div>
+
+    <!-- Script to set active nav item -->
+    <script>
+      // Make dashboard link active
+      document.getElementById('nav-dashboard').classList.add('active');
+    </script>
 
     <!-- Main Content: Courses -->
     <div class="content">

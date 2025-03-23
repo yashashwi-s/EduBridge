@@ -36,12 +36,11 @@ document.addEventListener('DOMContentLoaded', () => {
       authStatus.style.top = '70px';
       authStatus.style.right = '10px';
       authStatus.style.padding = '5px 10px';
-      authStatus.style.backgroundColor = '#4CAF50';
+      authStatus.style.backgroundColor = '#f5f5f5';
       authStatus.style.color = 'white';
       authStatus.style.borderRadius = '3px';
       authStatus.style.fontSize = '12px';
       authStatus.style.zIndex = '1000';
-      authStatus.textContent = 'Authenticated';
       document.body.appendChild(authStatus);
       
       return true;
