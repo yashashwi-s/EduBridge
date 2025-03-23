@@ -120,7 +120,7 @@ if (!classroomId) {
 }
 
 let teacherNameGlobal = "";
-let teacherAvatarGlobal = "https://i.pravatar.cc/40";
+let teacherAvatarGlobal = "images/image.png";
 let announcementAttachments = [];
 let announcementImages = [];
 let draftAnnouncements = {};
@@ -865,7 +865,7 @@ function renderExistingAnnouncement(ann) {
         <div class="comments-list">
           ${ann.comments && ann.comments.map(comment => `
             <div class="comment">
-              <img src="https://i.pravatar.cc/40" alt="Profile" class="profile-pic">
+              <img src="images/image.png" alt="Profile" class="profile-pic">
               <div class="comment-info">
                 <span class="commenter-name">${comment.commenterName}</span>
                 <p>${comment.text}</p>
@@ -1367,7 +1367,7 @@ document.addEventListener('click', function (event) {
                 if (data.comment) {
                     const commentHtml = `
                       <div class="comment">
-                        <img src="https://i.pravatar.cc/40" alt="Profile" class="profile-pic">
+                        <img src="images/image.png" alt="Profile" class="profile-pic">
                         <div class="comment-info">
                           <span class="commenter-name">${data.comment.commenterName}</span>
                           <p>${data.comment.text}</p>

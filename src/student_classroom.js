@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // Global variables
   let classroomId;
   let teacherNameGlobal;
-  let teacherAvatarGlobal = 'https://i.pravatar.cc/40';
+  let teacherAvatarGlobal = 'images/image.png';
 
   // Initialize MathJax for LaTeX support
   if (window.MathJax) {
@@ -309,7 +309,7 @@ document.addEventListener('DOMContentLoaded', function () {
     announcementElement.innerHTML = `
       <div class="announcement-header">
         <div class="announcement-author">
-          <img src="${announcement.authorAvatar || 'https://i.pravatar.cc/40'}" alt="${announcement.authorName}" class="author-avatar">
+          <img src="${announcement.authorAvatar || 'images/image.png'}" alt="${announcement.authorName}" class="author-avatar">
           <div class="author-info">
             <span class="author-name">${announcement.authorName}</span>
             <span class="announcement-date">${formatDate(announcement.date)}</span>
@@ -334,7 +334,7 @@ document.addEventListener('DOMContentLoaded', function () {
           ${(announcement.comments || []).map(comment => `
             <div class="comment">
               <div class="comment-header">
-                <img src="${comment.authorAvatar || 'https://i.pravatar.cc/30'}" alt="${comment.authorName}" class="comment-avatar">
+                <img src="${comment.authorAvatar || 'images/image.png'}" alt="${comment.authorName}" class="comment-avatar">
                 <div class="comment-info">
                   <span class="comment-author">${comment.authorName}</span>
                   <span class="comment-date">${formatDate(comment.date)}</span>
@@ -411,7 +411,7 @@ document.addEventListener('DOMContentLoaded', function () {
             
             return `
             <div class="comment">
-              <img src="https://i.pravatar.cc/40" alt="Profile" class="profile-pic">
+              <img src="images/image.png" alt="Profile" class="profile-pic">
               <div class="comment-info">
                 <span class="commenter-name">${comment.commenterName}</span>
                 <p class="markdown-comment">${commentText}</p>
@@ -791,7 +791,7 @@ document.addEventListener('DOMContentLoaded', function () {
             
             const commentHtml = `
               <div class="comment">
-                <img src="https://i.pravatar.cc/40" alt="Profile" class="profile-pic">
+                <img src="images/image.png" alt="Profile" class="profile-pic">
                 <div class="comment-info">
                   <span class="commenter-name">${data.comment.commenterName}</span>
                   <p class="markdown-comment">${commentText}</p>
@@ -1539,7 +1539,7 @@ document.addEventListener('DOMContentLoaded', function () {
       commentElement.className = 'comment';
       commentElement.innerHTML = `
         <div class="comment-header">
-          <img src="${data.authorAvatar || 'https://i.pravatar.cc/30'}" alt="${data.authorName}" class="comment-avatar">
+          <img src="${data.authorAvatar || 'images/image.png'}" alt="${data.authorName}" class="comment-avatar">
           <div class="comment-info">
             <span class="comment-author">${data.authorName}</span>
             <span class="comment-date">${formatDate(data.date)}</span>
