@@ -2511,20 +2511,5 @@ function viewStudentDetail(quizId, studentId) {
 function useSubjectBasedImage(subject, headerElement) {
     const subjectLower = (subject || '').toLowerCase();
     let themeImage = 'https://gstatic.com/classroom/themes/Physics.jpg'; // Default
-    
-    if (subjectLower.includes('math')) {
-        themeImage = 'https://gstatic.com/classroom/themes/Math.jpg';
-    } else if (subjectLower.includes('sci') || subjectLower.includes('bio') || subjectLower.includes('physics') || subjectLower.includes('chem')) {
-        themeImage = 'https://gstatic.com/classroom/themes/Science.jpg';
-    } else if (subjectLower.includes('art') || subjectLower.includes('music') || subjectLower.includes('design')) {
-        themeImage = 'https://gstatic.com/classroom/themes/Arts.jpg';
-    } else if (subjectLower.includes('eng') || subjectLower.includes('lit')) {
-        themeImage = 'https://gstatic.com/classroom/themes/English.jpg';
-    } else if (subjectLower.includes('hist') || subjectLower.includes('geo') || subjectLower.includes('social')) {
-        themeImage = 'https://gstatic.com/classroom/themes/SocialStudies.jpg';
-    } else if (subjectLower.includes('comp') || subjectLower.includes('program') || subjectLower.includes('code')) {
-        themeImage = 'https://gstatic.com/classroom/themes/Computing.jpg';
-    }
-    
     headerElement.style.backgroundImage = `url('${themeImage}')`;
 }
