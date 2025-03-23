@@ -74,8 +74,148 @@
           </div>
         </div>
         <div class="tab-content" id="quizzes">
+          <div class="quiz-header">
+            <h2>Quizzes & Exams</h2>
+            <div class="quiz-filters">
+              <select id="quiz-status-filter">
+                <option value="all">All Quizzes</option>
+                <option value="available">Available Now</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="completed">Completed</option>
+                <option value="missed">Missed</option>
+              </select>
+            </div>
+          </div>
+          
           <div class="quiz-list">
+            <!-- Quizzes will be loaded here dynamically -->
             <div class="no-quizzes">Loading quizzes & exams...</div>
+          </div>
+          
+          <!-- Quiz Instructions Modal -->
+          <div id="quiz-instructions-modal" class="modal">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h3>Quiz Instructions</h3>
+                <button class="close-modal">&times;</button>
+              </div>
+              <div class="modal-body">
+                <div class="quiz-info-display">
+                  <h4 id="quiz-title-display">Quiz Title</h4>
+                  <p id="quiz-description-display">Quiz description will appear here.</p>
+                  
+                  <div class="quiz-meta-info">
+                    <div class="meta-item">
+                      <i class="fas fa-clock"></i>
+                      <span>Duration: <span id="quiz-duration-display">0</span> minutes</span>
+                    </div>
+                    <div class="meta-item">
+                      <i class="fas fa-question-circle"></i>
+                      <span>Questions: <span id="quiz-questions-count">0</span></span>
+                    </div>
+                    <div class="meta-item">
+                      <i class="fas fa-calendar-check"></i>
+                      <span>Available until: <span id="quiz-end-time">N/A</span></span>
+                    </div>
+                  </div>
+                  
+                  <div class="instructions-section">
+                    <h5>Instructions:</h5>
+                    <ul>
+                      <li>Once started, the quiz timer cannot be paused.</li>
+                      <li>Do not refresh or navigate away from the page during the quiz.</li>
+                      <li>Answer all questions before submitting. You can navigate between questions freely.</li>
+                      <li>Your answers are saved as you progress.</li>
+                      <li>The quiz will auto-submit when the time expires.</li>
+                    </ul>
+                  </div>
+                </div>
+                
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-outline cancel-quiz-btn">Cancel</button>
+                  <button type="button" class="btn btn-primary start-quiz-btn">Start Quiz</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Quiz Taking Modal -->
+          <div id="quiz-taking-modal" class="modal fullscreen-modal">
+            <div class="modal-content quiz-taking-content">
+              <div class="quiz-taking-header">
+                <h3 id="taking-quiz-title">Quiz Title</h3>
+                <div class="quiz-timer">
+                  <i class="fas fa-clock"></i>
+                  <span id="time-remaining">00:00</span>
+                </div>
+              </div>
+              
+              <div class="quiz-taking-body">
+                <div class="question-navigation">
+                  <div id="question-nav-buttons">
+                    <!-- Question navigation buttons will be generated here -->
+                  </div>
+                </div>
+                
+                <div class="question-container">
+                  <!-- Current question will be displayed here -->
+                  <div id="current-question-display">
+                    <h4 id="question-number">Question 1</h4>
+                    <p id="question-text">Question text will appear here.</p>
+                    
+                    <div id="options-container">
+                      <!-- Options will be generated here -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="quiz-taking-footer">
+                <div class="navigation-controls">
+                  <button id="prev-question" class="btn btn-outline" disabled>
+                    <i class="fas fa-chevron-left"></i> Previous
+                  </button>
+                  <button id="next-question" class="btn btn-outline">
+                    Next <i class="fas fa-chevron-right"></i>
+                  </button>
+                </div>
+                <button id="submit-quiz" class="btn btn-primary">Submit Quiz</button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Quiz Results Modal -->
+          <div id="quiz-results-modal" class="modal">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h3>Quiz Results</h3>
+                <button class="close-modal">&times;</button>
+              </div>
+              <div class="modal-body">
+                <div class="results-summary">
+                  <div class="score-display">
+                    <div class="score-circle">
+                      <span id="score-percentage">0%</span>
+                    </div>
+                    <div class="score-details">
+                      <p>You scored <span id="points-scored">0</span> out of <span id="total-points">0</span> points</p>
+                      <p><span id="correct-answers">0</span> out of <span id="total-questions">0</span> questions answered correctly</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="results-details">
+                  <h4>Detailed Results</h4>
+                  <div id="detailed-results">
+                    <!-- Detailed question results will be displayed here -->
+                  </div>
+                </div>
+                
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-primary close-results-btn">Close</button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="tab-content" id="performance">
