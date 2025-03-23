@@ -141,7 +141,6 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    text-fill-color: transparent;
     background-size: 200% auto;
     animation: gradientShift 5s ease infinite;
     display: inline-block;
