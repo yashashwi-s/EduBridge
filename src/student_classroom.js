@@ -79,8 +79,30 @@ document.addEventListener('DOMContentLoaded', function () {
       .then(resp => resp.json())
       .then(data => {
         teacherNameGlobal = data.teacherName || "Teacher Name";
+        teacherAvatarGlobal = data.teacherAvatar || "images/image.png";
+        
+        // Update classroom header
+        const header = document.querySelector('.classroom-header');
         document.querySelector('.classroom-header h1').textContent = data.className || "Course Name";
         document.querySelector('.classroom-header p').textContent = `${data.section || "Section"} - ${data.subject || "Subject"}`;
+        
+        // Set classroom background image from the database
+        if (data.classImage) {
+          // Try to use the image URL from the database
+          const img = new Image();
+          img.onload = function() {
+            // Image loaded successfully, use it
+            header.style.backgroundImage = `url('${data.classImage}')`;
+          };
+          img.onerror = function() {
+            // Image failed to load, use subject-based fallback
+            useSubjectBasedImage(data.subject, header);
+          };
+          img.src = data.classImage;
+        } else {
+          // No image in database, use subject-based fallback
+          useSubjectBasedImage(data.subject, header);
+        }
         
         // Add controls for search and sort
         const feed = document.querySelector('.announcements-feed');
@@ -115,6 +137,28 @@ document.addEventListener('DOMContentLoaded', function () {
         console.error(err);
         showNotification('Error loading classroom data.', 'error');
       });
+  }
+
+  // Helper function to set background image based on subject
+  function useSubjectBasedImage(subject, headerElement) {
+    const subjectLower = (subject || '').toLowerCase();
+    let themeImage = 'https://gstatic.com/classroom/themes/Physics.jpg'; // Default
+    
+    if (subjectLower.includes('math')) {
+      themeImage = 'https://gstatic.com/classroom/themes/Math.jpg';
+    } else if (subjectLower.includes('sci') || subjectLower.includes('bio') || subjectLower.includes('physics') || subjectLower.includes('chem')) {
+      themeImage = 'https://gstatic.com/classroom/themes/Science.jpg';
+    } else if (subjectLower.includes('art') || subjectLower.includes('music') || subjectLower.includes('design')) {
+      themeImage = 'https://gstatic.com/classroom/themes/Arts.jpg';
+    } else if (subjectLower.includes('eng') || subjectLower.includes('lit')) {
+      themeImage = 'https://gstatic.com/classroom/themes/English.jpg';
+    } else if (subjectLower.includes('hist') || subjectLower.includes('geo') || subjectLower.includes('social')) {
+      themeImage = 'https://gstatic.com/classroom/themes/SocialStudies.jpg';
+    } else if (subjectLower.includes('comp') || subjectLower.includes('program') || subjectLower.includes('code')) {
+      themeImage = 'https://gstatic.com/classroom/themes/Computing.jpg';
+    }
+    
+    headerElement.style.backgroundImage = `url('${themeImage}')`;
   }
 
   // Function to sort announcements by date
@@ -363,80 +407,95 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // Function to render an announcement
-  function renderAnnouncement(ann) {
+  function renderAnnouncement(announcement) {
     const feed = document.querySelector('.announcements-feed');
-    let announcementText = ann.text;
-    if (typeof marked !== 'undefined') {
-      announcementText = marked.parse(ann.text);
-    }
-    const attHtml = ann.attachments && ann.attachments.length ? `<div class="attachments">
-      ${ann.attachments.map(att => `<a href="${att.url}" target="_blank" class="attachment-link">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-        ${att.name}
-      </a>`).join(' ')}
-    </div>` : '';
-    const imgHtml = ann.images && ann.images.length ? `<div class="images">
-      ${ann.images.map(img => `<a href="${img.url}" target="_blank" class="image-link">
-        <img src="${img.url}" alt="Image" class="announcement-image">
-      </a>`).join(' ')}
-    </div>` : '';
-    const annHtml = `<div class="announcement-card" data-id="${ann.announcement_id}">
-      <div class="announcement-header">
-        <img src="${teacherAvatarGlobal}" alt="Profile" class="profile-pic">
-        <div class="poster-info">
-          <span class="poster-name">${teacherNameGlobal}</span>
-          <span class="post-time">${new Date(ann.postTime).toLocaleString()}</span>
-        </div>
-      </div>
-      <div class="announcement-content">
-        <div class="markdown-content tex2jax_process">${announcementText}</div>
-        ${attHtml}
-        ${imgHtml}
-      </div>
-      <div class="announcement-footer">
-        <button class="comment-btn">
-          ${ann.comments && ann.comments.length 
-            ? `Comments (${ann.comments.length})` 
-            : 'Add class comment'}
-        </button>
-      </div>
-      <div class="comments-section">
-        <div class="comments-list">
-          ${ann.comments && ann.comments.map(comment => {
-            // Parse comment text with Markdown if available
-            let commentText = comment.text;
-            if (typeof marked !== 'undefined') {
-              commentText = marked.parse(commentText);
-            }
-            
-            return `
-            <div class="comment">
-              <img src="images/image.png" alt="Profile" class="profile-pic">
-              <div class="comment-info">
-                <span class="commenter-name">${comment.commenterName}</span>
-                <p class="markdown-comment">${commentText}</p>
-                <span class="comment-time">${new Date(comment.commentTime).toLocaleString()}</span>
-              </div>
-            </div>
-          `}).join('') || ''}
-        </div>
-        <div class="comment-input" style="display:none;">
-          <textarea placeholder="Add a class comment..."></textarea>
-          <button class="post-comment-btn">Post</button>
-        </div>
-      </div>
-    </div>`;
-    feed.insertAdjacentHTML('beforeend', annHtml);
     
-    // Process LaTeX in the newly added announcement immediately
+    let announcementText = announcement.text;
+    if (typeof marked !== 'undefined') {
+        announcementText = marked.parse(announcement.text);
+    }
+    
+    const attHtml = announcement.attachments && announcement.attachments.length ? 
+        `<div class="attachments">
+            ${announcement.attachments.map(att => 
+                `<a href="${att.url}" target="_blank" class="attachment-link">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    ${att.name}
+                </a>`
+            ).join(' ')}
+        </div>` : '';
+    
+    // Ensure proper handling of images in different formats
+    const imgHtml = announcement.images && announcement.images.length ? 
+        `<div class="images">
+            ${announcement.images.map(img => 
+                `<a href="${img.url || img}" target="_blank" class="image-link">
+                    <img src="${img.url || img}" alt="${img.name || 'Image'}" class="announcement-image">
+                </a>`
+            ).join(' ')}
+        </div>` : '';
+    
+    const announcementHtml = `
+        <div class="announcement-card" data-id="${announcement.announcement_id}">
+            <div class="announcement-header">
+                <img src="${teacherAvatarGlobal}" alt="Teacher" class="profile-pic">
+                <div class="poster-info">
+                    <span class="poster-name">${teacherNameGlobal}</span>
+                    <span class="post-time">${new Date(announcement.postTime).toLocaleString()}</span>
+                </div>
+            </div>
+            <div class="announcement-content">
+                <div class="markdown-content tex2jax_process">${announcementText}</div>
+                ${attHtml}
+                ${imgHtml}
+            </div>
+            <div class="announcement-footer">
+                <button class="comment-btn">
+                    ${announcement.comments && announcement.comments.length ? 
+                        `Comments (${announcement.comments.length})` : 
+                        'Add class comment'}
+                </button>
+            </div>
+            <div class="comments-section">
+                <div class="comments-list">
+                    ${announcement.comments && announcement.comments.map(comment => {
+                        // Parse comment text with Markdown if available
+                        let commentText = comment.text;
+                        if (typeof marked !== 'undefined') {
+                            commentText = marked.parse(commentText);
+                        }
+                        
+                        return `
+                        <div class="comment">
+                            <img src="images/image.png" alt="Profile" class="profile-pic">
+                            <div class="comment-info">
+                                <span class="commenter-name">${comment.commenterName}</span>
+                                <p class="markdown-comment">${commentText}</p>
+                                <span class="comment-time">${new Date(comment.commentTime).toLocaleString()}</span>
+                            </div>
+                        </div>
+                        `;
+                    }).join('') || ''}
+                </div>
+                <div class="comment-input" style="display:none;">
+                    <textarea placeholder="Add a comment..."></textarea>
+                    <button class="post-comment-btn">Post</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    feed.insertAdjacentHTML('beforeend', announcementHtml);
+    
+    // Render LaTeX if MathJax is available
     if (window.MathJax) {
-      const latestAnnouncement = feed.lastElementChild;
-      if (latestAnnouncement) {
-        const markdownContent = latestAnnouncement.querySelector('.markdown-content');
-        if (markdownContent) {
-          window.MathJax.typeset([markdownContent]);
+        const latestAnnouncement = feed.lastElementChild;
+        if (latestAnnouncement) {
+            const markdownContent = latestAnnouncement.querySelector('.markdown-content');
+            if (markdownContent) {
+                window.MathJax.typeset([markdownContent]);
+            }
         }
-      }
     }
   }
 

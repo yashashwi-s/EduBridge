@@ -240,19 +240,52 @@ body {
     margin-left: 256px;
 }
 
+/* Classroom Header Styling - Google Classroom style */
 .classroom-header {
     margin-bottom: 24px;
+    background-color: var(--primary-color);
+    background-size: cover;
+    background-position: center;
+    color: white;
+    border-radius: var(--border-radius);
+    padding: 32px;
+    position: relative;
+    height: 160px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+    background-image: url('https://gstatic.com/classroom/themes/Physics.jpg');
+}
+
+.classroom-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.6));
+    border-radius: var(--border-radius);
+    z-index: 1;
+}
+
+.classroom-header h1, .classroom-header p {
+    position: relative;
+    z-index: 2;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
 }
 
 .classroom-header h1 {
     font-size: 28px;
     font-weight: 500;
-    color: var(--text-color);
+    margin-bottom: 8px;
 }
 
 .classroom-header p {
     font-size: 14px;
-    color: var(--secondary-color);
+    opacity: 0.9;
 }
 
 /* Tabs Styling */
@@ -1062,6 +1095,11 @@ body {
     .tab-buttons {
         flex-direction: column;
     }
+
+    .classroom-header {
+        padding: 20px;
+        height: 120px;
+    }
 }
 
 .composer-body {
@@ -1591,7 +1629,7 @@ body {
 }
 
 /* Dark mode support (if implemented in the application) */
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
     .markdown-preview {
         background-color: #2a2a2a;
         color: #f0f0f0;
@@ -1599,7 +1637,7 @@ body {
 
     .markdown-preview code,
     .markdown-preview pre {
-        background-color: #333;
+        background-color: #fffcfc;
     }
 
     .file-card,
@@ -1610,7 +1648,7 @@ body {
     .draft-card:hover {
         background-color: #333;
     }
-}
+} */
 
 /* Notifications */
 .notification {
@@ -1703,12 +1741,13 @@ body {
 .MathJax {
     overflow-x: auto;
     max-width: 100%;
+    color: var(--text-color) !important;
 }
 
 /* Dark mode override for MathJax */
 @media (prefers-color-scheme: dark) {
     .MathJax {
-        color: #e8eaed !important;
+        color: black !important;
     }
 }
 

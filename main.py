@@ -284,7 +284,8 @@ BACKGROUND_IMAGES = [
     'https://www.gstatic.com/classroom/themes/img_bookclub.jpg',
     'https://www.gstatic.com/classroom/themes/img_breakfast.jpg',
     'https://www.gstatic.com/classroom/themes/img_reachout.jpg',
-    'https://www.gstatic.com/classroom/themes/img_learnlanguage.jpg'
+    'https://www.gstatic.com/classroom/themes/img_learnlanguage.jpg',
+    'https://gstatic.com/classroom/themes/Physics.jpg'
 ]
 
 def generate_class_code(length=6):
