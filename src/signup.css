@@ -446,3 +446,77 @@
     color: #333;
   }
   
+  /* Phone number input - SIMPLIFIED */
+  input[type="tel"] { 
+    width: 100%; 
+    padding: 0.9rem 1rem 0.9rem 2.8rem; 
+    border: 1px solid #e0e0e0; 
+    border-radius: 8px; 
+    font-size: 1rem; 
+    background: var(--input-bg);
+    transition: all 0.3s;
+  }
+  
+  input[type="tel"]:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(30,136,229,0.1);
+    background: white;
+    outline: none;
+  }
+  
+  .form-control.valid input[type="tel"] {
+    border-color: #4CAF50;
+    padding-right: 2.5rem;
+  }
+  
+  /* File upload styling */
+  .form-control.file-upload input[type="file"] {
+    width: 0.1px;
+    height: 0.1px;
+    opacity: 0;
+    overflow: hidden;
+    position: absolute;
+    z-index: -1;
+  }
+  
+  .file-upload-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 0.9rem 1rem;
+    border: 2px dashed #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    background: var(--input-bg);
+    transition: all 0.3s;
+    cursor: pointer;
+    color: #555;
+  }
+  
+  .file-upload-label:hover, .file-upload-label:focus {
+    border-color: var(--primary-color);
+    background: white;
+  }
+  
+  .file-upload-label i {
+    font-size: 1.2rem;
+    color: var(--primary-color);
+  }
+  
+  .preview-container {
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+  }
+  
+  .image-preview {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid white;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  }
+  

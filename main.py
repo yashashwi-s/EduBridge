@@ -204,16 +204,23 @@ def api_signup():
     email = data.get("email")
     if users_collection.find_one({"email": email}):
         return jsonify({"msg": "User already exists"}), 400
+    
+    # Validate phone number
+    phone = data.get("phone", "")
+    if not phone:
+        return jsonify({"msg": "Phone number is required"}), 400
+    
     hashed_pw = generate_password_hash(data.get("password"))
     user = {
         "fullName": data.get("fullName"),
         "email": email,
         "password": hashed_pw,
-        "phone": data.get("phone", ""),
+        "phone": phone,
         "institution": data.get("institution", ""),
         "department": data.get("department", ""),
         "title": data.get("title", ""),
         "bio": data.get("bio", ""),
+        "profileImage": data.get("profileImage", ""),
         "userType": data.get("userType"),
         "createdAt": datetime.utcnow()
     }
@@ -263,6 +270,11 @@ def update_profile():
         "title": data.get("title", ""),
         "bio": data.get("bio", "")
     }
+    
+    # Only update profile image if provided
+    if data.get("profileImage"):
+        update_data["profileImage"] = data.get("profileImage")
+        
     users_collection.update_one({"_id": ObjectId(user_id)}, {"$set": update_data})
     return jsonify({"msg": "Profile updated"}), 200
 

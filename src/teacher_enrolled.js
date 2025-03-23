@@ -301,7 +301,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Generate initial for student avatar
+  // Generate avatar - either profile image or initials
+  function generateAvatar(student, size = 'medium') {
+    if (student.profileImage) {
+      return `<img src="${student.profileImage}" alt="${student.name}" class="student-profile-img ${size}">`;
+    } else {
+      // Create avatar with initials
+      const initials = getInitials(student.name);
+      return `<div class="student-avatar ${size}" style="background-color: ${getAvatarColor(student.id)}">
+        ${initials}
+      </div>`;
+    }
+  }
+
+  // Generate initials for student avatar
   function getInitials(name) {
     if (!name) return '?';
     return name.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -374,13 +387,11 @@ document.addEventListener('DOMContentLoaded', () => {
       studentCard.className = 'student-card';
       studentCard.dataset.studentId = student.id;
       
-      // Create avatar with initials
-      const initials = getInitials(student.name);
+      // Generate avatar (profile image or initials)
+      const avatar = generateAvatar(student);
       
       studentCard.innerHTML = `
-        <div class="student-avatar" style="background-color: ${getAvatarColor(student.id)}">
-          ${initials}
-        </div>
+        ${avatar}
         <div class="student-name">${student.name}</div>
         <div class="student-email">${student.email}</div>
         <div class="student-institution">${student.institution || 'Not specified'}</div>
@@ -497,13 +508,11 @@ document.addEventListener('DOMContentLoaded', () => {
         studentCard.className = 'class-student-card';
         studentCard.dataset.studentId = classStudent.id;
         
-        // Create avatar with initials
-        const initials = getInitials(classStudent.name);
+        // Generate avatar (profile image or initials)
+        const avatar = generateAvatar(fullStudent, 'small');
         
         studentCard.innerHTML = `
-          <div class="student-avatar" style="background-color: ${getAvatarColor(classStudent.id)}">
-            ${initials}
-          </div>
+          ${avatar}
           <div class="student-name">${classStudent.name}</div>
           <div class="student-email">${classStudent.email}</div>
           <div class="class-student-actions">
@@ -555,11 +564,18 @@ document.addEventListener('DOMContentLoaded', () => {
       institutionElement.classList.add('placeholder-data');
     }
     
-    // Set avatar
-    const initials = getInitials(student.name);
-    const avatarColor = getAvatarColor(student.id);
+    // Set avatar - show profile image if available
     const avatarElement = document.getElementById('modalStudentAvatar');
-    avatarElement.style.display = 'none';
+    if (student.profileImage) {
+      avatarElement.innerHTML = `<img src="${student.profileImage}" alt="${student.name}" class="modal-profile-img">`;
+      avatarElement.style.display = 'block';
+    } else {
+      // Use initials avatar
+      const initials = getInitials(student.name);
+      const avatarColor = getAvatarColor(student.id);
+      avatarElement.innerHTML = `<div class="student-avatar large" style="background-color: ${avatarColor}">${initials}</div>`;
+      avatarElement.style.display = 'block';
+    }
     
     // Create additional info section if it doesn't exist
     let additionalInfoSection = document.getElementById('modalStudentAdditionalInfo');
