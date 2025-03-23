@@ -124,12 +124,10 @@ const fields = [
   { id: 'teacherOrg', validate: (val) => val.length >= 2 },
   { id: 'teacherEmail', validate: validateEmail },
   { id: 'teacherPhone', validate: validatePhone },
-  { id: 'teacherProfileImage', validate: validateImage, optional: true },
   { id: 'studentName', validate: (val) => val.length >= 3 },
   { id: 'studentOrg', validate: (val) => val.length >= 2 },
   { id: 'studentEmail', validate: validateEmail },
-  { id: 'studentPhone', validate: validatePhone },
-  { id: 'studentProfileImage', validate: validateImage, optional: true }
+  { id: 'studentPhone', validate: validatePhone }
 ];
 
 fields.forEach(field => {
@@ -167,10 +165,6 @@ fields.forEach(field => {
     }
   });
 });
-
-// Setup image preview functionality
-setupImagePreview('teacherProfileImage', 'teacherImagePreview');
-setupImagePreview('studentProfileImage', 'studentImagePreview');
 }
 
 function validateURL(url) {
@@ -296,193 +290,111 @@ setTimeout(() => {
 document.addEventListener('DOMContentLoaded', function() {
   // Setup the teacher form submission
   const teacherForm = document.getElementById('teacherForm');
-  teacherForm.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    // Validate all fields
-    const name = document.getElementById('teacherName').value;
-    const email = document.getElementById('teacherEmail').value;
-    const password = document.getElementById('teacherPassword').value;
-    const institution = document.getElementById('teacherOrg').value;
-    const phoneNumber = document.getElementById('teacherPhone').value;
-    const profileImage = document.getElementById('teacherProfileImage');
-    
-    // Check if all required fields are valid
-    if (!name || !email || !password || !institution || !phoneNumber) {
-      showNotification('Please fill all required fields', 'error');
-      return;
-    }
-    
-    // Validate phone number
-    if (!validatePhone(phoneNumber)) {
-      showNotification('Please enter a valid phone number', 'error');
-      return;
-    }
-    
-    try {
-      // Convert image to base64 if provided
-      const profileImageBase64 = await getBase64Image(profileImage);
+  
+  if (teacherForm) {
+    teacherForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
       
-      // Send signup request
-      const response = await fetch('/api/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: name,
-          email: email,
-          password: password,
-          institution: institution,
-          phone: phoneNumber,
-          profileImage: profileImageBase64,
-          userType: 'teacher'
-        })
-      });
+      // Get form data
+      const name = document.getElementById('teacherName').value;
+      const organization = document.getElementById('teacherOrg').value;
+      const phone = document.getElementById('teacherPhone').value;
+      const email = document.getElementById('teacherEmail').value;
+      const password = document.getElementById('teacherPassword').value;
       
-      const result = await response.json();
-      
-      if (result.user_id) {
-        // Show success and redirect to login
-        showNotification('Signup successful! Redirecting to login...', 'success');
-        setTimeout(() => window.location.href = '/login', 2000);
-      } else {
-        showNotification(result.msg || 'Signup failed', 'error');
+      try {
+        // Show loading state
+        document.querySelector('#teacher .submit-btn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing Up...';
+        document.querySelector('#teacher .submit-btn').disabled = true;
+        
+        // Prepare payload
+        const payload = {
+          name,
+          organization,
+          phone,
+          email,
+          password,
+          role: 'teacher'
+        };
+        
+        // API call
+        const response = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        const result = await response.json();
+        
+        if (result.user_id) {
+          // Show success and redirect to login
+          showNotification('Signup successful! Redirecting to login...', 'success');
+          setTimeout(() => window.location.href = '/login', 2000);
+        } else {
+          showNotification(result.msg || 'Signup failed', 'error');
+        }
+      } catch (err) {
+        console.error(err);
+        showNotification('Error during signup', 'error');
+      } finally {
+        document.querySelector('#teacher .submit-btn').innerHTML = 'Sign Up';
+        document.querySelector('#teacher .submit-btn').disabled = false;
       }
-    } catch (err) {
-      console.error(err);
-      showNotification('Error during signup', 'error');
-    }
-  });
+    });
+  }
   
   // Setup the student form submission
   const studentForm = document.getElementById('studentForm');
-  studentForm.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    // Validate all fields
-    const name = document.getElementById('studentName').value;
-    const email = document.getElementById('studentEmail').value;
-    const password = document.getElementById('studentPassword').value;
-    const institution = document.getElementById('studentOrg').value;
-    const phoneNumber = document.getElementById('studentPhone').value;
-    const profileImage = document.getElementById('studentProfileImage');
-    
-    // Check if all required fields are valid
-    if (!name || !email || !password || !institution || !phoneNumber) {
-      showNotification('Please fill all required fields', 'error');
-      return;
-    }
-    
-    // Validate phone number
-    if (!validatePhone(phoneNumber)) {
-      showNotification('Please enter a valid phone number', 'error');
-      return;
-    }
-    
-    try {
-      // Convert image to base64 if provided
-      const profileImageBase64 = await getBase64Image(profileImage);
-      
-      // Send signup request
-      const response = await fetch('/api/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: name,
-          email: email,
-          password: password,
-          institution: institution,
-          phone: phoneNumber,
-          profileImage: profileImageBase64,
-          userType: 'student'
-        })
-      });
-      
-      const result = await response.json();
-      
-      if (result.user_id) {
-        // Show success and redirect to login
-        showNotification('Signup successful! Redirecting to login...', 'success');
-        setTimeout(() => window.location.href = '/login', 2000);
-      } else {
-        showNotification(result.msg || 'Signup failed', 'error');
-      }
-    } catch (err) {
-      console.error(err);
-      showNotification('Error during signup', 'error');
-    }
-  });
-});
-
-// Function to validate image files
-function validateImage(value) {
-  if (!value) return true; // Optional
   
-  // If it's a DOM element (file input), check the files property
-  if (value.files && value.files[0]) {
-    const file = value.files[0];
-    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    
-    // Check file type and size
-    return validTypes.includes(file.type) && file.size <= maxSize;
+  if (studentForm) {
+    studentForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      // Get form data
+      const name = document.getElementById('studentName').value;
+      const organization = document.getElementById('studentOrg').value;
+      const phone = document.getElementById('studentPhone').value;
+      const email = document.getElementById('studentEmail').value;
+      const password = document.getElementById('studentPassword').value;
+      
+      try {
+        // Show loading state
+        document.querySelector('#student .submit-btn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing Up...';
+        document.querySelector('#student .submit-btn').disabled = true;
+        
+        // Prepare payload
+        const payload = {
+          name,
+          organization,
+          phone,
+          email,
+          password,
+          role: 'student'
+        };
+        
+        // API call
+        const response = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        const result = await response.json();
+        
+        if (result.user_id) {
+          // Show success and redirect to login
+          showNotification('Signup successful! Redirecting to login...', 'success');
+          setTimeout(() => window.location.href = '/login', 2000);
+        } else {
+          showNotification(result.msg || 'Signup failed', 'error');
+        }
+      } catch (err) {
+        console.error(err);
+        showNotification('Error during signup', 'error');
+      } finally {
+        document.querySelector('#student .submit-btn').innerHTML = 'Sign Up';
+        document.querySelector('#student .submit-btn').disabled = false;
+      }
+    });
   }
-  
-  return false;
-}
-
-// Function to setup image preview
-function setupImagePreview(inputId, previewId) {
-  const input = document.getElementById(inputId);
-  const preview = document.getElementById(previewId);
-  
-  if (!input || !preview) return;
-  
-  input.addEventListener('change', function() {
-    // Clear previous preview
-    preview.innerHTML = '';
-    
-    if (this.files && this.files[0]) {
-      const file = this.files[0];
-      
-      // Validate file
-      if (!validateImage(this)) {
-        showNotification('Please select a valid image (JPG, PNG, GIF) under 5MB', 'error');
-        this.value = '';
-        return;
-      }
-      
-      // Create preview
-      const img = document.createElement('img');
-      img.className = 'image-preview';
-      
-      // Set up file reader to load the image
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        img.src = e.target.result;
-        preview.appendChild(img);
-      };
-      
-      // Read the file as data URL
-      reader.readAsDataURL(file);
-      
-      // Mark input as valid
-      const formControl = input.closest('.form-control');
-      formControl.classList.add('valid');
-    }
-  });
-}
-
-// Function to convert file to base64
-function getBase64Image(fileInput) {
-  return new Promise((resolve, reject) => {
-    if (!fileInput.files || !fileInput.files[0]) {
-      resolve(null);
-      return;
-    }
-    
-    const reader = new FileReader();
-    reader.onload = (e) => resolve(e.target.result);
-    reader.onerror = (e) => reject(e);
-    reader.readAsDataURL(fileInput.files[0]);
-  });
-}
+});

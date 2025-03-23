@@ -15,8 +15,6 @@ document.addEventListener('DOMContentLoaded', function () {
     .then((user) => {
       document.getElementById('studentName').value = user.fullName || '';
       document.getElementById('studentEmail').value = user.email || '';
-      // Assuming you store profilePicture in the user's document.
-      document.getElementById('profilePicture').value = user.profilePicture || '';
       // Optionally, if you have phone/institution fields, populate them here.
       // e.g., document.getElementById('studentPhone').value = user.phone || '';
     })
@@ -46,7 +44,6 @@ document.addEventListener('DOMContentLoaded', function () {
     e.preventDefault();
 
     const fullName = document.getElementById('studentName').value;
-    const profilePicture = document.getElementById('profilePicture').value;
     const currentPassword = document.getElementById('currentPassword').value;
     const newPassword = document.getElementById('newPassword').value;
     const confirmPassword = document.getElementById('confirmPassword').value;
@@ -57,8 +54,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     const payload = {
-      fullName: fullName,
-      profilePicture: profilePicture
+      fullName: fullName
       // Add other fields if needed (e.g., phone, institution)
     };
 
