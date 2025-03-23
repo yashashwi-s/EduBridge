@@ -6,15 +6,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Initialize MathJax for LaTeX support
   if (window.MathJax) {
-    window.MathJax = {
-      tex: {
-        inlineMath: [['$', '$'], ['\\(', '\\)']],
-        displayMath: [['$$', '$$'], ['\\[', '\\]']]
-      },
-      svg: {
-        fontCache: 'global'
-      }
-    };
+    console.log("MathJax is available - initializing");
+  } else {
+    console.log("MathJax not found - will attempt to load dynamically");
+    // MathJax configuration is already in HTML, no need to reconfigure here
   }
 
   // Basic UI functionality
@@ -151,11 +146,15 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     
     // Render LaTeX in all announcements if MathJax is available
-    if (window.MathJax) {
-      const markdownElements = document.querySelectorAll('.markdown-content');
+    if (window.MathJax && window.MathJax.typeset) {
+      console.log("Typesetting all LaTeX content");
+      // Process LaTeX in all announcement content divs with class tex2jax_process
+      const markdownElements = document.querySelectorAll('.tex2jax_process');
       if (markdownElements.length > 0) {
         window.MathJax.typeset(Array.from(markdownElements));
       }
+    } else {
+      console.warn("MathJax not fully loaded or typeset function unavailable");
     }
   }
 
@@ -163,64 +162,104 @@ document.addEventListener('DOMContentLoaded', function () {
   function filterAnnouncements() {
     if (!window.allAnnouncements) return;
     
-    const searchTerm = document.getElementById('announcement-search').value.toLowerCase().trim();
+    const searchInput = document.getElementById('announcement-search');
+    const searchTerm = searchInput.value.toLowerCase().trim();
     const sortOrder = document.getElementById('sort-announcements').value;
     const feed = document.querySelector('.announcements-feed');
-    feed.innerHTML = '';
     
-    if (!searchTerm) {
-      // If no search term, just sort and display all
-      sortAnnouncementsByDate(sortOrder);
-      return;
-    }
+    // Add loading state to search container
+    const searchContainer = document.querySelector('.search-container');
+    searchContainer.classList.add('searching');
     
-    // Filter and sort the announcements
-    const filteredAnnouncements = window.allAnnouncements.filter(ann => {
-      const announcementText = ann.text.toLowerCase();
-      const hasMatchingComments = ann.comments && ann.comments.some(comment => 
-        comment.text.toLowerCase().includes(searchTerm) || 
-        comment.commenterName.toLowerCase().includes(searchTerm)
-      );
+    // Clear the feed with a small delay to show loading state
+    setTimeout(() => {
+      feed.innerHTML = '';
       
-      return announcementText.includes(searchTerm) || hasMatchingComments;
-    });
-    
-    // Apply sorting to filtered results
-    if (sortOrder === 'newest') {
-      filteredAnnouncements.sort((a, b) => new Date(b.postTime) - new Date(a.postTime));
-    } else if (sortOrder === 'oldest') {
-      filteredAnnouncements.sort((a, b) => new Date(a.postTime) - new Date(b.postTime));
-    } else if (sortOrder === 'comments') {
-      filteredAnnouncements.sort((a, b) => (b.comments?.length || 0) - (a.comments?.length || 0));
-    }
-    
-    if (filteredAnnouncements.length === 0) {
-      feed.innerHTML = '<div class="no-results">No announcements match your search</div>';
-      return;
-    }
-    
-    // Render the filtered and sorted announcements
-    filteredAnnouncements.forEach(ann => {
-      renderAnnouncement(ann);
-    });
-    
-    // Highlight search terms in the rendered announcements
-    if (searchTerm) {
-      highlightSearchTerms(searchTerm);
-    }
-    
-    // Render LaTeX in filtered announcements
-    if (window.MathJax) {
-      const markdownElements = document.querySelectorAll('.markdown-content');
-      if (markdownElements.length > 0) {
-        window.MathJax.typeset(Array.from(markdownElements));
+      if (!searchTerm) {
+        // If no search term, just sort and display all
+        sortAnnouncementsByDate(sortOrder);
+        searchContainer.classList.remove('searching');
+        return;
       }
-    }
+      
+      // Filter and sort the announcements
+      const filteredAnnouncements = window.allAnnouncements.filter(ann => {
+        const announcementText = ann.text.toLowerCase();
+        const hasMatchingComments = ann.comments && ann.comments.some(comment => 
+          comment.text.toLowerCase().includes(searchTerm) || 
+          comment.commenterName.toLowerCase().includes(searchTerm)
+        );
+        
+        return announcementText.includes(searchTerm) || hasMatchingComments;
+      });
+      
+      // Apply sorting to filtered results
+      if (sortOrder === 'newest') {
+        filteredAnnouncements.sort((a, b) => new Date(b.postTime) - new Date(a.postTime));
+      } else if (sortOrder === 'oldest') {
+        filteredAnnouncements.sort((a, b) => new Date(a.postTime) - new Date(b.postTime));
+      } else if (sortOrder === 'comments') {
+        filteredAnnouncements.sort((a, b) => (b.comments?.length || 0) - (a.comments?.length || 0));
+      }
+      
+      if (filteredAnnouncements.length === 0) {
+        feed.innerHTML = `
+          <div class="no-results">
+            <i class="fas fa-search"></i>
+            <p>No announcements match your search "${searchTerm}"</p>
+            <button class="clear-search-btn">Clear Search</button>
+          </div>`;
+        
+        document.querySelector('.clear-search-btn').addEventListener('click', () => {
+          searchInput.value = '';
+          filterAnnouncements();
+        });
+        
+        searchContainer.classList.remove('searching');
+        return;
+      }
+      
+      // Show search result count
+      feed.insertAdjacentHTML('beforebegin', `
+        <div class="search-results-info">
+          Found ${filteredAnnouncements.length} announcement${filteredAnnouncements.length !== 1 ? 's' : ''} 
+          matching "${searchTerm}"
+          <button class="clear-search-btn">Clear</button>
+        </div>
+      `);
+      
+      document.querySelector('.clear-search-btn').addEventListener('click', () => {
+        searchInput.value = '';
+        document.querySelector('.search-results-info').remove();
+        filterAnnouncements();
+      });
+      
+      // Render the filtered and sorted announcements
+      filteredAnnouncements.forEach(ann => {
+        renderAnnouncement(ann);
+      });
+      
+      // Highlight search terms in the rendered announcements
+      if (searchTerm) {
+        highlightSearchTerms(searchTerm);
+      }
+      
+      // Render LaTeX in filtered announcements
+      if (window.MathJax && window.MathJax.typeset) {
+        // Process LaTeX in all announcement content divs with class tex2jax_process
+        const markdownElements = document.querySelectorAll('.tex2jax_process');
+        if (markdownElements.length > 0) {
+          window.MathJax.typeset(Array.from(markdownElements));
+        }
+      }
+      
+      searchContainer.classList.remove('searching');
+    }, 300);
   }
 
   // Function to highlight search terms in the rendered announcements
   function highlightSearchTerms(searchTerm) {
-    const contentElements = document.querySelectorAll('.markdown-content, .comment p');
+    const contentElements = document.querySelectorAll('.markdown-content, .markdown-comment');
     
     contentElements.forEach(element => {
       const originalHTML = element.innerHTML;
@@ -246,7 +285,84 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // Render announcement
+  // Function to render announcement content
+  function renderAnnouncementContent(content) {
+    // First convert markdown to HTML
+    const htmlContent = marked.parse(content);
+    // Then process LaTeX in the HTML content
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = htmlContent;
+    tempDiv.classList.add('tex2jax_process');
+    return tempDiv.innerHTML;
+  }
+
+  // Function to render comment content
+  function renderCommentContent(content) {
+    // Only convert markdown to HTML, no LaTeX processing
+    return marked.parse(content);
+  }
+
+  // Function to create announcement element
+  function createAnnouncementElement(announcement) {
+    const announcementElement = document.createElement('div');
+    announcementElement.className = 'announcement';
+    announcementElement.innerHTML = `
+      <div class="announcement-header">
+        <div class="announcement-author">
+          <img src="${announcement.authorAvatar || 'https://i.pravatar.cc/40'}" alt="${announcement.authorName}" class="author-avatar">
+          <div class="author-info">
+            <span class="author-name">${announcement.authorName}</span>
+            <span class="announcement-date">${formatDate(announcement.date)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="announcement-content markdown-content tex2jax_process">
+        ${renderAnnouncementContent(announcement.content)}
+      </div>
+      <div class="announcement-actions">
+        <button class="like-btn" data-announcement-id="${announcement.id}">
+          <i class="fas fa-heart"></i>
+          <span class="like-count">${announcement.likes || 0}</span>
+        </button>
+        <button class="comment-btn" data-announcement-id="${announcement.id}">
+          <i class="fas fa-comment"></i>
+          <span class="comment-count">${announcement.comments?.length || 0}</span>
+        </button>
+      </div>
+      <div class="comments-section" style="display: none;">
+        <div class="comments-list">
+          ${(announcement.comments || []).map(comment => `
+            <div class="comment">
+              <div class="comment-header">
+                <img src="${comment.authorAvatar || 'https://i.pravatar.cc/30'}" alt="${comment.authorName}" class="comment-avatar">
+                <div class="comment-info">
+                  <span class="comment-author">${comment.authorName}</span>
+                  <span class="comment-date">${formatDate(comment.date)}</span>
+                </div>
+              </div>
+              <div class="markdown-comment">
+                ${renderCommentContent(comment.content)}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="comment-input">
+          <textarea placeholder="Write a comment..." data-announcement-id="${announcement.id}"></textarea>
+          <button class="post-comment-btn" data-announcement-id="${announcement.id}">Post</button>
+        </div>
+      </div>
+    `;
+
+    // Process LaTeX in the announcement content
+    const announcementContent = announcementElement.querySelector('.announcement-content');
+    if (announcementContent) {
+      MathJax.typesetPromise([announcementContent]).catch((err) => console.error('Error processing LaTeX:', err));
+    }
+
+    return announcementElement;
+  }
+
+  // Function to render an announcement
   function renderAnnouncement(ann) {
     const feed = document.querySelector('.announcements-feed');
     let announcementText = ann.text;
@@ -273,7 +389,7 @@ document.addEventListener('DOMContentLoaded', function () {
         </div>
       </div>
       <div class="announcement-content">
-        <div class="markdown-content">${announcementText}</div>
+        <div class="markdown-content tex2jax_process">${announcementText}</div>
         ${attHtml}
         ${imgHtml}
       </div>
@@ -286,24 +402,42 @@ document.addEventListener('DOMContentLoaded', function () {
       </div>
       <div class="comments-section">
         <div class="comments-list">
-          ${ann.comments && ann.comments.map(comment => `
+          ${ann.comments && ann.comments.map(comment => {
+            // Parse comment text with Markdown if available
+            let commentText = comment.text;
+            if (typeof marked !== 'undefined') {
+              commentText = marked.parse(commentText);
+            }
+            
+            return `
             <div class="comment">
               <img src="https://i.pravatar.cc/40" alt="Profile" class="profile-pic">
               <div class="comment-info">
                 <span class="commenter-name">${comment.commenterName}</span>
-                <p>${comment.text}</p>
+                <p class="markdown-comment">${commentText}</p>
                 <span class="comment-time">${new Date(comment.commentTime).toLocaleString()}</span>
               </div>
             </div>
-          `).join('') || ''}
+          `}).join('') || ''}
         </div>
         <div class="comment-input" style="display:none;">
-          <textarea placeholder="Add a comment..."></textarea>
+          <textarea placeholder="Add a class comment..."></textarea>
           <button class="post-comment-btn">Post</button>
         </div>
       </div>
     </div>`;
     feed.insertAdjacentHTML('beforeend', annHtml);
+    
+    // Process LaTeX in the newly added announcement immediately
+    if (window.MathJax) {
+      const latestAnnouncement = feed.lastElementChild;
+      if (latestAnnouncement) {
+        const markdownContent = latestAnnouncement.querySelector('.markdown-content');
+        if (markdownContent) {
+          window.MathJax.typeset([markdownContent]);
+        }
+      }
+    }
   }
 
   // Load assignments
@@ -587,9 +721,33 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // Set up event listeners for search and sort
-  document.getElementById('announcement-search').addEventListener('input', filterAnnouncements);
-  document.getElementById('search-btn').addEventListener('click', filterAnnouncements);
+  document.getElementById('announcement-search').addEventListener('input', debounce(filterAnnouncements, 300));
+  document.getElementById('search-btn').addEventListener('click', function(e) {
+    e.preventDefault();
+    filterAnnouncements();
+  });
   document.getElementById('sort-announcements').addEventListener('change', sortAnnouncements);
+
+  // Add keypress event for search input
+  document.getElementById('announcement-search').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      filterAnnouncements();
+    }
+  });
+
+  // Debounce function to prevent excessive filtering during typing
+  function debounce(func, wait) {
+    let timeout;
+    return function() {
+      const context = this;
+      const args = arguments;
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        func.apply(context, args);
+      }, wait);
+    };
+  }
 
   // Toggle comment section and handle comment posting
   document.addEventListener('click', function(event) {
@@ -625,12 +783,18 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(response => response.json())
         .then(data => {
           if (data.comment) {
+            // Parse comment text with Markdown if available
+            let commentText = data.comment.text;
+            if (typeof marked !== 'undefined') {
+              commentText = marked.parse(commentText);
+            }
+            
             const commentHtml = `
               <div class="comment">
                 <img src="https://i.pravatar.cc/40" alt="Profile" class="profile-pic">
                 <div class="comment-info">
                   <span class="commenter-name">${data.comment.commenterName}</span>
-                  <p>${data.comment.text}</p>
+                  <p class="markdown-comment">${commentText}</p>
                   <span class="comment-time">${new Date(data.comment.commentTime).toLocaleString()}</span>
                 </div>
               </div>
@@ -643,6 +807,17 @@ document.addEventListener('DOMContentLoaded', function () {
             const commentButton = announcementCard.querySelector('.comment-btn');
             const commentCount = commentsList.querySelectorAll('.comment').length;
             commentButton.textContent = `Comments (${commentCount})`;
+            
+            // Process LaTeX in the newly added comment
+            if (window.MathJax) {
+              const newComment = commentsList.lastElementChild;
+              if (newComment) {
+                const commentText = newComment.querySelector('.markdown-comment');
+                if (commentText) {
+                  window.MathJax.typeset([commentText]);
+                }
+              }
+            }
             
             // Update the comment in our global array for sorting purposes
             if (window.allAnnouncements) {
@@ -1335,4 +1510,82 @@ document.addEventListener('DOMContentLoaded', function () {
       modal.style.display = 'none';
     }, 300);
   }
+
+  // Function to handle posting a new comment
+  function handlePostComment(announcementId, commentContent) {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      showNotification('Please log in to post a comment', 'error');
+      return;
+    }
+
+    fetch('/api/announcements/' + announcementId + '/comments', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ content: commentContent })
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Failed to post comment');
+      }
+      return response.json();
+    })
+    .then(data => {
+      // Create new comment element
+      const commentElement = document.createElement('div');
+      commentElement.className = 'comment';
+      commentElement.innerHTML = `
+        <div class="comment-header">
+          <img src="${data.authorAvatar || 'https://i.pravatar.cc/30'}" alt="${data.authorName}" class="comment-avatar">
+          <div class="comment-info">
+            <span class="comment-author">${data.authorName}</span>
+            <span class="comment-date">${formatDate(data.date)}</span>
+          </div>
+        </div>
+        <div class="markdown-comment">
+          ${renderCommentContent(data.content)}
+        </div>
+      `;
+
+      // Add the new comment to the comments list
+      const commentsList = document.querySelector(`[data-announcement-id="${announcementId}"]`)
+        .closest('.announcement')
+        .querySelector('.comments-list');
+      commentsList.appendChild(commentElement);
+
+      // Update comment count
+      const commentCount = document.querySelector(`[data-announcement-id="${announcementId}"]`)
+        .closest('.announcement')
+        .querySelector('.comment-count');
+      commentCount.textContent = parseInt(commentCount.textContent) + 1;
+
+      // Clear the comment input
+      const commentInput = document.querySelector(`textarea[data-announcement-id="${announcementId}"]`);
+      commentInput.value = '';
+
+      showNotification('Comment posted successfully', 'success');
+    })
+    .catch(error => {
+      console.error('Error posting comment:', error);
+      showNotification('Failed to post comment', 'error');
+    });
+  }
+
+  // Event listener for post comment buttons
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('post-comment-btn')) {
+      const announcementId = e.target.dataset.announcementId;
+      const commentInput = document.querySelector(`textarea[data-announcement-id="${announcementId}"]`);
+      const commentContent = commentInput.value.trim();
+      
+      if (commentContent) {
+        handlePostComment(announcementId, commentContent);
+      } else {
+        showNotification('Please enter a comment', 'error');
+      }
+    }
+  });
 }); 
