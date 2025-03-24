@@ -115,8 +115,8 @@ document.addEventListener('DOMContentLoaded', function () {
     visitBtn.addEventListener('click', function () {
       // Retrieve class id from data attribute and redirect.
       const classId = card.getAttribute('data-id');
-      // Redirect to student_classroom.html instead of announcements
-      window.location.href = `/student_classroom.html?classId=${classId}`;
+      // Redirect to student_classroom 
+      window.location.href = `/student_classroom?classId=${classId}`;
     });
     
     cardsContainer.appendChild(card);
