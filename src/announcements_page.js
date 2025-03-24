@@ -2,11 +2,11 @@
 // It remains here for backward compatibility
 
 document.addEventListener('DOMContentLoaded', function() {
-  // Redirect to student_classroom.html with the same classId
+  // Redirect to student_classroom with the same classId
   const urlParams = new URLSearchParams(window.location.search);
   const classId = urlParams.get('classId');
   if (classId) {
-    window.location.href = `/student_classroom.html?classId=${classId}`;
+    window.location.href = `/student_classroom?classId=${classId}`;
   } else {
     // If no classId is provided, redirect to dashboard
     window.location.href = '/dashboard';

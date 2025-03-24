@@ -1,115 +1,51 @@
-{% extends "base.html" %}
+{% extends "student_base.html" %}
 
 {% block title %}EduBridge - Student Calendar{% endblock %}
 
+{% block styles %}
+  <link rel="stylesheet" href="student_calendar.css" />
+{% endblock %}
+
 {% block content %}
-    <!-- Google Fonts -->
-    <link
-      href="https://fonts.googleapis.com/css?family=Montserrat:400,500,600,700|Google+Sans:400,500,700|Roboto:300,400,500&display=swap"
-      rel="stylesheet"
-    />
-    <!-- MISSING FROM settings.html but present in dashboard.html -->
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link
-  href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap"
-  rel="stylesheet"
-/>
-    <!-- Font Awesome for Icons -->
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    />
-    <!-- External CSS -->
-    <link rel="stylesheet" href="student_calendar.css" />
-    
-    <!-- Navbar -->
-    <div class="navbar">
-      <div class="nav-left">
-        <button id="hamburger" class="hamburger">
-          <i class="fas fa-bars"></i>
-        </button>
-        <div class="logo"><i class="fas fa-graduation-cap"></i> EduBridge</div>
+  <!-- Main Content: Calendar -->
+  <div class="content">
+    <div class="calendar-header">
+      <div class="calendar-header-left">
+        <button id="prevMonth" class="nav-btn"><i class="fas fa-chevron-left"></i></button>
+        <h2 id="monthYear"></h2>
+        <button id="nextMonth" class="nav-btn"><i class="fas fa-chevron-right"></i></button>
       </div>
-      <div class="nav-right">
-        <div class="profile-wrapper">
-          <img src="images/image.png" alt="Profile" class="profile-icon" />
-          <div class="profile-dropdown">
-            <a href="/profile"><i class="fas fa-user-circle"></i> Show Profile</a>
-            <a href="/login"><i class="fas fa-sign-out-alt"></i> Log Out</a>
-          </div>
-        </div>
+      <div class="calendar-header-right">
+        <button id="todayBtn" class="nav-btn">Today</button>
       </div>
     </div>
+    
+    <div class="calendar-grid">
+      <div class="day-name">Sun</div>
+      <div class="day-name">Mon</div>
+      <div class="day-name">Tue</div>
+      <div class="day-name">Wed</div>
+      <div class="day-name">Thu</div>
+      <div class="day-name">Fri</div>
+      <div class="day-name">Sat</div>
+      <!-- Calendar days will be populated dynamically -->
+    </div>
+  </div>
+  
+  <!-- Modal for Day Events -->
+  <div id="dayModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modalDate"></h2>
+        <span id="closeDayModal" class="close">&times;</span>
+      </div>
+      <div id="eventsList">
+        <!-- Events for the day will be listed here -->
+      </div>
+    </div>
+  </div>
+{% endblock %}
 
-    <!-- Sidebar (updated order) -->
-    <div class="sidebar">
-      <ul>
-        <li>
-          <a href="/dashboard" id="nav-dashboard"><i class="fas fa-home"></i><span class="text">Dashboard</span></a>
-        </li>
-        <li>
-          <a href="/calendar" id="nav-calendar"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a>
-        </li>
-        <li><a href="/todo" id="nav-todo"><i class="fas fa-check-circle"></i><span class="text">To-do</span></a></li>
-        <li>
-          <a href="/profile" id="nav-profile"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a>
-        </li>
-        <li>
-          <a href="/settings" id="nav-settings"><i class="fas fa-cog"></i><span class="text">Settings</span></a>
-        </li>
-      </ul>
-    </div>
-
-    <!-- Script to set active nav item -->
-    <script>
-      // Make calendar link active
-      document.getElementById('nav-calendar').classList.add('active');
-    </script>
-
-    <!-- Main Content: Calendar -->
-    <div class="content">
-      <div class="calendar-header">
-        <div class="calendar-header-left">
-          <button id="prevMonth" class="nav-btn"><i class="fas fa-chevron-left"></i></button>
-          <h2 id="monthYear"></h2>
-          <button id="nextMonth" class="nav-btn"><i class="fas fa-chevron-right"></i></button>
-        </div>
-        <div class="calendar-header-right">
-          <button id="todayBtn" class="nav-btn">Today</button>
-        </div>
-      </div>
-      
-      <div class="calendar-grid">
-        <div class="day-name">Sun</div>
-        <div class="day-name">Mon</div>
-        <div class="day-name">Tue</div>
-        <div class="day-name">Wed</div>
-        <div class="day-name">Thu</div>
-        <div class="day-name">Fri</div>
-        <div class="day-name">Sat</div>
-        <!-- Calendar days will be populated dynamically -->
-      </div>
-    </div>
-    
-    <!-- Modal for Day Events -->
-    <div id="dayModal" class="modal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2 id="modalDate"></h2>
-          <span id="closeDayModal" class="close">&times;</span>
-        </div>
-        <div id="eventsList">
-          <!-- Events for the day will be listed here -->
-        </div>
-      </div>
-    </div>
-    
-    <!-- Floating Chatbot Icon -->
-    <div class="chatbot-icon">
-      <i class="fas fa-comment-dots"></i>
-    </div>
-    
-    <!-- External JS -->
-    <script src="student_calendar.js"></script>
+{% block scripts %}
+  <script src="student_calendar.js"></script>
 {% endblock %}
