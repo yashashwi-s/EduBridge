@@ -568,9 +568,23 @@ document.addEventListener('DOMContentLoaded', function () {
     quizzes.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
     
     quizzes.forEach(quiz => {
+      // Create Date objects from ISO strings
       const startTime = new Date(quiz.startTime);
       const endTime = quiz.endTime ? new Date(quiz.endTime) : null;
       const now = new Date();
+      
+      // Format dates in user-friendly format with timezone consideration
+      const formatOptions = { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true
+      };
+      
+      const formattedStartTime = startTime.toLocaleString(undefined, formatOptions);
+      const formattedEndTime = endTime ? endTime.toLocaleString(undefined, formatOptions) : '';
       
       let status;
       let statusClass;
@@ -587,24 +601,23 @@ document.addEventListener('DOMContentLoaded', function () {
       }
       
       const quizHtml = `
-        <div class="quiz-card" data-id="${quiz.quiz_id}">
-          <div class="quiz-header">
-            <h3>${quiz.title}</h3>
-            <div class="quiz-status ${statusClass}">${status}</div>
-          </div>
-          <div class="quiz-content">
-            <p>${quiz.description}</p>
-          </div>
-          <div class="quiz-footer">
-            <div class="quiz-time">
-              <i class="fas fa-calendar-check"></i> 
-              ${startTime.toLocaleString()} ${endTime ? ' - ' + endTime.toLocaleString() : ''}
+        <div class="quiz-card" data-id="${quiz.id}">
+          <div class="quiz-card-header">
+            <div class="quiz-card-title">
+              <h3>${quiz.title}</h3>
+              <p>${quiz.description}</p>
             </div>
-            <div class="quiz-actions">
-              ${status === 'In Progress' ? '<button class="take-quiz-btn">Take Quiz</button>' : ''}
-              ${status === 'Completed' ? '<button class="view-result-btn">View Results</button>' : ''}
-              ${status === 'Upcoming' ? '<button class="view-details-btn">View Details</button>' : ''}
-            </div>
+          </div>
+          <div class="quiz-card-meta">
+            <span class="meta-item"><i class="fas fa-calendar-check"></i> ${formattedStartTime} - ${formattedEndTime}</span>
+            <span class="meta-item"><i class="fas fa-clock"></i> ${quiz.duration} minutes</span>
+            <span class="meta-item"><i class="fas fa-question-circle"></i> ${quiz.questions.length} Questions</span>
+            <span class="quiz-status-badge status-${quiz.studentStatus === 'submitted' ? 'completed' : quiz.studentStatus}">${status}</span>
+          </div>
+          <div class="quiz-card-actions">
+            ${status === 'In Progress' ? '<button class="take-quiz-btn">Take Quiz</button>' : ''}
+            ${status === 'Completed' ? '<button class="view-result-btn">View Results</button>' : ''}
+            ${status === 'Upcoming' ? '<button class="view-details-btn">View Details</button>' : ''}
           </div>
         </div>
       `;
@@ -1079,7 +1092,14 @@ document.addEventListener('DOMContentLoaded', function () {
     let filteredQuizzes = [...availableQuizzes];
     
     if (filterValue !== 'all') {
-      filteredQuizzes = availableQuizzes.filter(quiz => quiz.studentStatus === filterValue);
+      if (filterValue === 'completed') {
+        // Handle both 'completed' and 'submitted' statuses for the completed filter
+        filteredQuizzes = availableQuizzes.filter(quiz => 
+          quiz.studentStatus === 'completed' || quiz.studentStatus === 'submitted'
+        );
+      } else {
+        filteredQuizzes = availableQuizzes.filter(quiz => quiz.studentStatus === filterValue);
+      }
     }
     
     if (filteredQuizzes.length === 0) {
@@ -1090,7 +1110,7 @@ document.addEventListener('DOMContentLoaded', function () {
     quizList.innerHTML = '';
     
     // Sort quizzes: available first, then upcoming, then completed, then missed
-    const statusOrder = { 'available': 0, 'upcoming': 1, 'completed': 2, 'missed': 3 };
+    const statusOrder = { 'available': 0, 'upcoming': 1, 'completed': 2, 'submitted': 3, 'missed': 4 };
     
     filteredQuizzes.sort((a, b) => {
       // First sort by status
@@ -1098,7 +1118,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (statusDiff !== 0) return statusDiff;
       
       // Then by date (newest first for available, oldest first for upcoming)
-      if (a.studentStatus === 'available' || a.studentStatus === 'completed') {
+      if (a.studentStatus === 'available' || a.studentStatus === 'completed' || a.studentStatus === 'submitted') {
         return new Date(b.startTime) - new Date(a.startTime);
       } else {
         return new Date(a.startTime) - new Date(b.startTime);
@@ -1124,6 +1144,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'available': 'Available Now',
         'upcoming': 'Upcoming',
         'completed': 'Completed',
+        'submitted': 'Completed',
         'missed': 'Missed'
       };
       
@@ -1133,7 +1154,7 @@ document.addEventListener('DOMContentLoaded', function () {
         actionButton = `<button class="take-quiz-btn" data-quiz-id="${quiz.id}"><i class="fas fa-play"></i> Take Quiz</button>`;
       } else if (quiz.studentStatus === 'upcoming') {
         actionButton = `<button class="take-quiz-btn disabled-btn" disabled><i class="fas fa-clock"></i> Not Available Yet</button>`;
-      } else if (quiz.studentStatus === 'completed') {
+      } else if (quiz.studentStatus === 'completed' || quiz.studentStatus === 'submitted') {
         actionButton = `<button class="view-results-btn" data-quiz-id="${quiz.id}"><i class="fas fa-chart-bar"></i> View Results</button>`;
       } else if (quiz.studentStatus === 'missed') {
         actionButton = `<button class="view-results-btn disabled-btn" disabled><i class="fas fa-times-circle"></i> Missed</button>`;
@@ -1151,7 +1172,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <span class="meta-item"><i class="fas fa-calendar-check"></i> ${formattedDate} - ${formattedTime}</span>
             <span class="meta-item"><i class="fas fa-clock"></i> ${quiz.duration} minutes</span>
             <span class="meta-item"><i class="fas fa-question-circle"></i> ${quiz.questions.length} Questions</span>
-            <span class="quiz-status-badge status-${quiz.studentStatus}">${statusLabels[quiz.studentStatus]}</span>
+            <span class="quiz-status-badge status-${quiz.studentStatus === 'submitted' ? 'completed' : quiz.studentStatus}">${statusLabels[quiz.studentStatus]}</span>
           </div>
           <div class="quiz-card-actions">
             ${actionButton}
@@ -1184,6 +1205,15 @@ document.addEventListener('DOMContentLoaded', function () {
   function openQuizInstructions(quizId) {
     const quiz = availableQuizzes.find(q => q.id === quizId);
     if (!quiz) return;
+    
+    // Double check that quiz is available
+    if (quiz.studentStatus !== 'available') {
+      // Quiz is not available, show an error message
+      showNotification(`This quiz is not available for taking. Status: ${quiz.studentStatus}`, 'error');
+      // Refresh quiz list to ensure we have the latest status
+      loadStudentQuizzes();
+      return;
+    }
     
     // Set current quiz
     currentQuiz = quiz;
@@ -1246,10 +1276,36 @@ document.addEventListener('DOMContentLoaded', function () {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+      },
+      body: JSON.stringify({})
+    })
+    .then(response => {
+      if (!response.ok) {
+        return response.json().then(data => {
+          throw new Error(data.msg || `Failed to start quiz: ${response.status}`);
+        });
       }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Quiz started successfully:', data);
     })
     .catch(error => {
-      console.error('Error marking quiz as started:', error);
+      console.error('Error starting quiz:', error);
+      
+      // Close the quiz taking modal
+      closeModal(document.getElementById('quiz-taking-modal'));
+      
+      // Stop the timer if it's running
+      if (quizTimer) {
+        clearInterval(quizTimer);
+      }
+      
+      // Show the error message to the user
+      showNotification(error.message || 'There was an issue starting the quiz.', 'error');
+      
+      // Reload quizzes to refresh their status
+      loadStudentQuizzes();
     });
   }
 

@@ -8,245 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="student_classroom.css">
-  <style>
-    .results-container {
-      max-width: 900px;
-      margin: 40px auto;
-      padding: 20px;
-      background-color: #fff;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    }
-    
-    .results-header {
-      border-bottom: 1px solid #eee;
-      padding-bottom: 20px;
-      margin-bottom: 20px;
-    }
-    
-    .quiz-title {
-      font-size: 24px;
-      font-weight: 500;
-      margin-bottom: 10px;
-    }
-    
-    .results-summary {
-      background-color: #f8f9fa;
-      padding: 20px;
-      border-radius: 8px;
-      margin-bottom: 30px;
-    }
-    
-    .score {
-      font-size: 48px;
-      font-weight: 700;
-      color: #1a73e8;
-      margin-bottom: 10px;
-      text-align: center;
-    }
-    
-    .score-label {
-      text-align: center;
-      color: #5f6368;
-      margin-bottom: 20px;
-    }
-    
-    .results-meta {
-      display: flex;
-      justify-content: space-around;
-      flex-wrap: wrap;
-      gap: 20px;
-    }
-    
-    .meta-item {
-      text-align: center;
-    }
-    
-    .meta-value {
-      font-size: 20px;
-      font-weight: 500;
-      color: #202124;
-      margin-bottom: 5px;
-    }
-    
-    .meta-label {
-      color: #5f6368;
-      font-size: 14px;
-    }
-    
-    .results-details {
-      margin-top: 30px;
-    }
-    
-    .details-title {
-      font-size: 18px;
-      font-weight: 500;
-      margin-bottom: 20px;
-      color: #202124;
-    }
-    
-    .question-card {
-      border: 1px solid #dadce0;
-      border-radius: 8px;
-      margin-bottom: 20px;
-      overflow: hidden;
-    }
-    
-    .question-header {
-      padding: 15px 20px;
-      background-color: #f8f9fa;
-      border-bottom: 1px solid #dadce0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    
-    .question-status {
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-      font-weight: 500;
-    }
-    
-    .question-status.correct {
-      background-color: #e6f4ea;
-      color: #137333;
-    }
-    
-    .question-status.incorrect {
-      background-color: #fce8e6;
-      color: #c5221f;
-    }
-    
-    .question-body {
-      padding: 20px;
-    }
-    
-    .question-text {
-      font-size: 16px;
-      margin-bottom: 15px;
-    }
-    
-    .options-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    
-    .option {
-      padding: 10px 15px;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-    }
-    
-    .option.selected {
-      background-color: #e8f0fe;
-      border: 1px solid #4285f4;
-    }
-    
-    .option.correct {
-      background-color: #e6f4ea;
-      border: 1px solid #34a853;
-    }
-    
-    .option.incorrect {
-      background-color: #fce8e6;
-      border: 1px solid #ea4335;
-    }
-    
-    .option i {
-      margin-right: 10px;
-    }
-    
-    .option.correct i {
-      color: #34a853;
-    }
-    
-    .option.incorrect i {
-      color: #ea4335;
-    }
-    
-    .option-text {
-      flex-grow: 1;
-    }
-    
-    .explanation {
-      margin-top: 15px;
-      padding: 15px;
-      background-color: #f8f9fa;
-      border-radius: 4px;
-      font-size: 14px;
-      color: #5f6368;
-    }
-    
-    .btn {
-      padding: 10px 16px;
-      border-radius: 4px;
-      border: none;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    
-    .btn-primary {
-      background-color: #1a73e8;
-      color: white;
-    }
-    
-    .btn-primary:hover {
-      background-color: #0b57d0;
-    }
-    
-    .btn-outline {
-      background-color: white;
-      border: 1px solid #dadce0;
-      color: #1a73e8;
-    }
-    
-    .btn-outline:hover {
-      background-color: #f8f9fa;
-    }
-    
-    .actions {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 30px;
-    }
-    
-    #error-container {
-      background-color: #fdeded;
-      border: 1px solid #f5c2c7;
-      color: #842029;
-      padding: 15px;
-      border-radius: 4px;
-      margin-bottom: 20px;
-      display: none;
-    }
-    
-    .loading-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 40px;
-    }
-    
-    .spinner {
-      border: 4px solid rgba(0, 0, 0, 0.1);
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      border-left-color: #1a73e8;
-      animation: spin 1s linear infinite;
-      margin-bottom: 20px;
-    }
-    
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-  </style>
+  <link rel="stylesheet" href="quiz-common.css">
 </head>
 <body>
   <div class="navbar">
@@ -258,7 +20,8 @@
       <div class="profile-wrapper">
         <img src="images/image.png" alt="Profile" class="profile-icon">
         <div class="profile-dropdown">
-          <a href="/profile"><i class="fas fa-user-circle"></i> Show Profile</a>
+          <a href="/profile"><i class="fas fa-user-circle"></i> My Profile</a>
+          <a href="/settings"><i class="fas fa-cog"></i> Settings</a>
           <a href="/login"><i class="fas fa-sign-out-alt"></i> Log Out</a>
         </div>
       </div>
@@ -267,7 +30,7 @@
   
   <div class="sidebar">
     <ul>
-      <li><a href="/dashboard"><i class="fas fa-home"></i><span class="text">Home</span></a></li>
+      <li><a href="/dashboard"><i class="fas fa-home"></i><span class="text">Dashboard</span></a></li>
       <li><a href="/calendar"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a></li>
       <li><a href="/courses" class="active"><i class="fas fa-book"></i><span class="text">My Courses</span></a></li>
       <li><a href="/profile"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a></li>
@@ -280,182 +43,450 @@
     
     <div id="loading-container" class="loading-container">
       <div class="spinner"></div>
-      <p>Loading results...</p>
+      <p>Loading your results...</p>
     </div>
     
-    <div id="results-container" class="results-container" style="display: none;">
-      <div class="results-header">
-        <h1 class="quiz-title" id="quiz-title">Quiz Title</h1>
-        <p class="quiz-description" id="quiz-description">Quiz description will appear here.</p>
+    <div id="results-container" class="quiz-container results-container" style="display: none;">
+      <div class="quiz-header">
+        <h1 class="quiz-title" id="quiz-title">Quiz Results</h1>
+        <p class="quiz-description" id="quiz-description">Your quiz results are shown below.</p>
       </div>
       
       <div class="results-summary">
-        <div class="score" id="score">0%</div>
-        <div class="score-label" id="score-label">Your Score</div>
+        <div class="score-display">
+          <div class="score-circle" id="score-circle">
+            <div class="score-value" id="score-value">0%</div>
+          </div>
+          <div class="score-label">Your Score</div>
+        </div>
         
         <div class="results-meta">
           <div class="meta-item">
-            <div class="meta-value" id="correct-count">0</div>
-            <div class="meta-label">Correct</div>
+            <i class="fas fa-check-circle"></i>
+            <span class="meta-label">Correct:</span>
+            <span class="meta-value" id="correct-count">0</span>
           </div>
           <div class="meta-item">
-            <div class="meta-value" id="incorrect-count">0</div>
-            <div class="meta-label">Incorrect</div>
+            <i class="fas fa-times-circle"></i>
+            <span class="meta-label">Incorrect:</span>
+            <span class="meta-value" id="incorrect-count">0</span>
           </div>
           <div class="meta-item">
-            <div class="meta-value" id="total-questions">0</div>
-            <div class="meta-label">Total Questions</div>
+            <i class="fas fa-minus-circle"></i>
+            <span class="meta-label">Unanswered:</span>
+            <span class="meta-value" id="unanswered-count">0</span>
+          </div>
+          <div class="meta-item">
+            <i class="fas fa-clock"></i>
+            <span class="meta-label">Time Taken:</span>
+            <span class="meta-value" id="time-taken">0 minutes</span>
           </div>
         </div>
       </div>
       
-      <div class="results-details">
-        <h2 class="details-title">Question Details</h2>
-        <div id="questions-container"></div>
+      <h2 class="section-title">Detailed Results</h2>
+      <div id="questions-container" class="questions-container">
+        <!-- Questions will be rendered here -->
       </div>
       
-      <div class="actions">
-        <button id="back-to-classroom" class="btn btn-outline">Back to Classroom</button>
+      <div class="quiz-navigation">
+        <button class="btn btn-primary" id="back-to-class">
+          <i class="fas fa-arrow-left"></i> Back to Classroom
+        </button>
       </div>
     </div>
   </div>
   
+  <script src="quiz-common.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      // Get query parameters
-      const urlParams = new URLSearchParams(window.location.search);
-      const classId = urlParams.get('classId');
-      const quizId = urlParams.get('quizId');
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize page
+      if (!EduQuiz.initQuizPage()) return;
       
-      // Check if we have valid parameters
-      if (!classId || !quizId || quizId === 'undefined') {
-        showError('Invalid quiz parameters. Please go back to your classroom.');
-        return;
-      }
-      
-      // Load quiz results
-      loadQuizResults();
-      
-      // Event listeners
-      document.getElementById('back-to-classroom').addEventListener('click', () => {
-        window.location.href = `/courses?classId=${classId}`;
+      // Set up event listeners
+      document.getElementById('back-to-class').addEventListener('click', function() {
+        window.location.href = `/dashboard?classId=${classroomId}`;
       });
       
-      // Toggle sidebar
-      document.getElementById('hamburger').addEventListener('click', () => {
-        document.querySelector('.sidebar').classList.toggle('active');
-      });
+      // Fetch quiz results
+      EduQuiz.fetchQuizResults(displayResults);
+    });
+    
+    function displayResults(results) {
+      // Set quiz title and description
+      document.getElementById('quiz-title').textContent = `${results.quiz.title} - Results`;
+      document.getElementById('quiz-description').textContent = results.quiz.description;
       
-      // Function to show error message
-      function showError(message) {
-        const errorContainer = document.getElementById('error-container');
-        errorContainer.textContent = message;
-        errorContainer.style.display = 'block';
-        document.getElementById('loading-container').style.display = 'none';
+      // Calculate and display score
+      const score = Math.round((results.score / results.totalPoints) * 100);
+      document.getElementById('score-value').textContent = `${score}%`;
+      
+      // Set score circle color based on score
+      const scoreCircle = document.getElementById('score-circle');
+      if (score >= 80) {
+        scoreCircle.classList.add('high-score');
+      } else if (score >= 60) {
+        scoreCircle.classList.add('medium-score');
+      } else {
+        scoreCircle.classList.add('low-score');
       }
       
-      // Function to load quiz results
-      async function loadQuizResults() {
-        try {
-          const response = await fetch(`/api/classrooms/${classId}/quizzes/${quizId}/results/student`, {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-            }
-          });
-          
-          if (!response.ok) {
-            const error = await response.json();
-            showError(error.msg || 'Failed to load quiz results.');
-            return;
-          }
-          
-          const results = await response.json();
-          displayResults(results);
-        } catch (err) {
-          console.error('Error loading quiz results:', err);
-          showError('An error occurred while loading the quiz results. Please try again.');
-        }
-      }
+      // Display meta information
+      document.getElementById('correct-count').textContent = results.correctCount;
+      document.getElementById('incorrect-count').textContent = results.incorrectCount;
+      document.getElementById('unanswered-count').textContent = results.unansweredCount;
+      document.getElementById('time-taken').textContent = formatDuration(results.timeTaken);
       
-      // Function to display results
-      function displayResults(results) {
-        // Set quiz details
-        document.getElementById('quiz-title').textContent = results.quizTitle;
-        document.getElementById('quiz-description').textContent = results.quizDescription || '';
+      // Render questions and answers
+      renderQuestions(results.questions, results.answers);
+      
+      // Show results container
+      EduQuiz.showLoading(false);
+    }
+    
+    function renderQuestions(questions, answers) {
+      const container = document.getElementById('questions-container');
+      container.innerHTML = '';
+      
+      questions.forEach((question, index) => {
+        const userAnswer = answers.find(a => a.questionId === question.id);
+        const isCorrect = userAnswer && userAnswer.isCorrect;
+        const isUnanswered = !userAnswer || !userAnswer.selectedOptionId;
         
-        // Set summary stats
-        document.getElementById('score').textContent = `${results.score}%`;
-        document.getElementById('correct-count').textContent = results.correctCount;
-        document.getElementById('incorrect-count').textContent = results.totalQuestions - results.correctCount;
-        document.getElementById('total-questions').textContent = results.totalQuestions;
+        const questionElement = document.createElement('div');
+        questionElement.className = `question-result ${isCorrect ? 'correct' : isUnanswered ? 'unanswered' : 'incorrect'}`;
         
-        // Determine score color
-        const scoreElement = document.getElementById('score');
-        if (results.score >= 80) {
-          scoreElement.style.color = '#34a853'; // Green
-        } else if (results.score >= 60) {
-          scoreElement.style.color = '#fbbc04'; // Yellow
-        } else {
-          scoreElement.style.color = '#ea4335'; // Red
-        }
+        // Question header
+        const questionHeader = document.createElement('div');
+        questionHeader.className = 'question-result-header';
+        questionHeader.innerHTML = `
+          <div class="question-number">Question ${index + 1}</div>
+          <div class="question-status">
+            ${isUnanswered ? 
+              '<i class="fas fa-minus-circle"></i> Unanswered' : 
+              isCorrect ? 
+                '<i class="fas fa-check-circle"></i> Correct' : 
+                '<i class="fas fa-times-circle"></i> Incorrect'}
+          </div>
+        `;
         
-        // Display questions
-        const questionsContainer = document.getElementById('questions-container');
-        questionsContainer.innerHTML = '';
+        // Question text
+        const questionText = document.createElement('div');
+        questionText.className = 'question-text';
+        questionText.textContent = question.text;
         
-        results.questions.forEach((question, index) => {
-          const isCorrect = question.isCorrect;
-          const statusClass = isCorrect ? 'correct' : 'incorrect';
-          const statusText = isCorrect ? 'Correct' : 'Incorrect';
+        // Options
+        const optionsContainer = document.createElement('div');
+        optionsContainer.className = 'answer-options';
+        
+        question.options.forEach(option => {
+          const isSelected = userAnswer && userAnswer.selectedOptionId === option.id;
+          const isCorrectOption = option.id === question.correctOptionId;
           
-          let optionsHtml = '';
-          question.options.forEach(option => {
-            let optionClass = '';
-            let iconHtml = '';
-            
-            if (option.id === question.selectedOptionId && isCorrect) {
-              optionClass = 'correct selected';
-              iconHtml = '<i class="fas fa-check-circle"></i>';
-            } else if (option.id === question.selectedOptionId && !isCorrect) {
-              optionClass = 'incorrect selected';
-              iconHtml = '<i class="fas fa-times-circle"></i>';
-            } else if (option.id === question.correctOptionId) {
-              optionClass = 'correct';
-              iconHtml = '<i class="fas fa-check-circle"></i>';
-            }
-            
-            optionsHtml += `
-              <div class="option ${optionClass}">
-                ${iconHtml}
-                <div class="option-text">${option.text}</div>
-              </div>
-            `;
-          });
+          const optionElement = document.createElement('div');
+          optionElement.className = `option-result ${isSelected ? 'selected' : ''} ${isCorrectOption ? 'correct-option' : ''}`;
           
-          const questionHtml = `
-            <div class="question-card">
-              <div class="question-header">
-                <div>Question ${index + 1}</div>
-                <div class="question-status ${statusClass}">${statusText}</div>
-              </div>
-              <div class="question-body">
-                <div class="question-text">${question.text}</div>
-                <div class="options-list">
-                  ${optionsHtml}
-                </div>
-                ${question.explanation ? `<div class="explanation">${question.explanation}</div>` : ''}
-              </div>
-            </div>
+          optionElement.innerHTML = `
+            <span class="option-text">${option.text}</span>
+            ${isSelected && isCorrect ? '<i class="fas fa-check"></i>' : ''}
+            ${isSelected && !isCorrect ? '<i class="fas fa-times"></i>' : ''}
+            ${!isSelected && isCorrectOption ? '<i class="fas fa-check"></i>' : ''}
           `;
           
-          questionsContainer.insertAdjacentHTML('beforeend', questionHtml);
+          optionsContainer.appendChild(optionElement);
         });
         
-        // Show results container
-        document.getElementById('loading-container').style.display = 'none';
-        document.getElementById('results-container').style.display = 'block';
+        // Explanation if available
+        if (question.explanation) {
+          const explanation = document.createElement('div');
+          explanation.className = 'question-explanation';
+          explanation.innerHTML = `
+            <div class="explanation-title"><i class="fas fa-info-circle"></i> Explanation</div>
+            <div class="explanation-text">${question.explanation}</div>
+          `;
+          questionElement.appendChild(explanation);
+        }
+        
+        // Assemble question
+        questionElement.appendChild(questionHeader);
+        questionElement.appendChild(questionText);
+        questionElement.appendChild(optionsContainer);
+        
+        container.appendChild(questionElement);
+      });
+    }
+    
+    function formatDuration(milliseconds) {
+      const minutes = Math.floor(milliseconds / 60000);
+      const seconds = Math.floor((milliseconds % 60000) / 1000);
+      
+      if (minutes === 0) {
+        return `${seconds} seconds`;
+      } else if (minutes === 1) {
+        return `1 minute ${seconds > 0 ? `and ${seconds} seconds` : ''}`;
+      } else {
+        return `${minutes} minutes ${seconds > 0 ? `and ${seconds} seconds` : ''}`;
       }
-    });
+    }
   </script>
+  
+  <style>
+    .results-summary {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 2rem;
+      background-color: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .score-display {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+    
+    .score-circle {
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--grey-100);
+      margin-bottom: 1rem;
+      border: 8px solid var(--grey-300);
+    }
+    
+    .score-circle.high-score {
+      border-color: var(--success);
+    }
+    
+    .score-circle.medium-score {
+      border-color: var(--warning);
+    }
+    
+    .score-circle.low-score {
+      border-color: var(--error);
+    }
+    
+    .score-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--grey-900);
+    }
+    
+    .score-label {
+      font-size: 1.2rem;
+      color: var(--grey-700);
+    }
+    
+    .results-meta {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+      width: 100%;
+      max-width: 600px;
+    }
+    
+    .meta-item {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem;
+      background-color: var(--grey-50);
+      border-radius: 8px;
+    }
+    
+    .meta-item i {
+      margin-right: 0.5rem;
+      font-size: 1.2rem;
+    }
+    
+    .meta-item .fa-check-circle {
+      color: var(--success);
+    }
+    
+    .meta-item .fa-times-circle {
+      color: var(--error);
+    }
+    
+    .meta-item .fa-minus-circle {
+      color: var(--grey-500);
+    }
+    
+    .meta-item .fa-clock {
+      color: var(--primary);
+    }
+    
+    .meta-label {
+      font-weight: 500;
+      margin-right: 0.5rem;
+      color: var(--grey-800);
+    }
+    
+    .meta-value {
+      font-weight: 700;
+      color: var(--grey-900);
+    }
+    
+    .section-title {
+      margin: 2rem 0 1rem;
+      color: var(--grey-900);
+      font-size: 1.5rem;
+    }
+    
+    .questions-container {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .question-result {
+      background-color: white;
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: var(--shadow-sm);
+      border-left: 4px solid var(--grey-300);
+    }
+    
+    .question-result.correct {
+      border-left-color: var(--success);
+    }
+    
+    .question-result.incorrect {
+      border-left-color: var(--error);
+    }
+    
+    .question-result.unanswered {
+      border-left-color: var(--grey-500);
+    }
+    
+    .question-result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--grey-200);
+    }
+    
+    .question-number {
+      font-weight: 600;
+      color: var(--grey-800);
+    }
+    
+    .question-status {
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .question-status i {
+      font-size: 1rem;
+    }
+    
+    .correct .question-status {
+      color: var(--success);
+    }
+    
+    .incorrect .question-status {
+      color: var(--error);
+    }
+    
+    .unanswered .question-status {
+      color: var(--grey-500);
+    }
+    
+    .answer-options {
+      margin-top: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    
+    .option-result {
+      position: relative;
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      border: 1px solid var(--grey-200);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: var(--grey-50);
+    }
+    
+    .option-result.selected {
+      background-color: var(--grey-100);
+      border-color: var(--grey-400);
+    }
+    
+    .option-result.correct-option {
+      background-color: rgba(var(--success-rgb), 0.1);
+      border-color: var(--success);
+    }
+    
+    .option-result.selected:not(.correct-option) {
+      background-color: rgba(var(--error-rgb), 0.1);
+      border-color: var(--error);
+    }
+    
+    .option-result i {
+      font-size: 1rem;
+    }
+    
+    .option-result .fa-check {
+      color: var(--success);
+    }
+    
+    .option-result .fa-times {
+      color: var(--error);
+    }
+    
+    .question-explanation {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background-color: rgba(var(--primary-rgb), 0.05);
+      border-radius: 6px;
+      border-left: 3px solid var(--primary);
+    }
+    
+    .explanation-title {
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .explanation-text {
+      color: var(--grey-800);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+    
+    @media (min-width: 768px) {
+      .results-summary {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        padding: 2.5rem;
+      }
+      
+      .score-display {
+        margin-bottom: 0;
+        margin-right: 2rem;
+      }
+      
+      .results-meta {
+        margin-left: auto;
+      }
+    }
+  </style>
 </body>
 </html> 

@@ -1804,20 +1804,14 @@ function openQuizModal(quizData = null) {
         document.getElementById('quiz-title').value = quizData.title;
         document.getElementById('quiz-description').value = quizData.description;
         
-        // Set dates and times
+        // Set date and time for start only
         const startDate = new Date(quizData.startTime);
-        const endDate = new Date(quizData.endTime);
         
         document.getElementById('quiz-start-date').valueAsDate = startDate;
-        document.getElementById('quiz-end-date').valueAsDate = endDate;
         
         const startHours = startDate.getHours().toString().padStart(2, '0');
         const startMinutes = startDate.getMinutes().toString().padStart(2, '0');
         document.getElementById('quiz-start-time').value = `${startHours}:${startMinutes}`;
-        
-        const endHours = endDate.getHours().toString().padStart(2, '0');
-        const endMinutes = endDate.getMinutes().toString().padStart(2, '0');
-        document.getElementById('quiz-end-time').value = `${endHours}:${endMinutes}`;
         
         document.getElementById('quiz-duration').value = quizData.duration;
         
@@ -1976,8 +1970,6 @@ function saveQuiz() {
     const description = document.getElementById('quiz-description').value;
     const startDate = document.getElementById('quiz-start-date').value;
     const startTime = document.getElementById('quiz-start-time').value;
-    const endDate = document.getElementById('quiz-end-date').value;
-    const endTime = document.getElementById('quiz-end-time').value;
     const duration = document.getElementById('quiz-duration').value;
     
     // Check for token first
@@ -1991,15 +1983,24 @@ function saveQuiz() {
         return;
     }
     
-    // Create datetime objects
-    const startDateTime = new Date(`${startDate}T${startTime}`);
-    const endDateTime = new Date(`${endDate}T${endTime}`);
-    
-    // Validate dates
-    if (endDateTime <= startDateTime) {
-        showNotification('End time must be after start time', 'error');
+    // Validate inputs
+    if (!title || !startDate || !startTime || !duration) {
+        showNotification('Please fill in all required fields', 'error');
         return;
     }
+    
+    // Create ISO 8601 formatted datetime string that Python can properly parse
+    // Format as YYYY-MM-DDTHH:MM:SS
+    const formattedStartDateTime = `${startDate}T${startTime}:00`;
+    const startDateTime = new Date(formattedStartDateTime);
+    
+    // Calculate end time based on start time + duration
+    const endDateTime = new Date(startDateTime.getTime() + (parseInt(duration) * 60000));
+    
+    // Log times for debugging
+    console.log('Start date string:', formattedStartDateTime);
+    console.log('Start time (local):', startDateTime.toLocaleString());
+    console.log('End time (calculated):', endDateTime.toLocaleString());
     
     // Get questions data
     const questions = [];
@@ -2060,8 +2061,7 @@ function saveQuiz() {
     const quiz = {
         title: title,
         description: description,
-        startTime: startDateTime.toISOString(),
-        endTime: endDateTime.toISOString(),
+        startTime: formattedStartDateTime, // Use the formatted string directly
         duration: parseInt(duration),
         questions: questions.map(q => ({
             text: q.text,
@@ -2108,7 +2108,9 @@ function saveQuiz() {
         if (!response.ok) {
             return response.json().then(errorData => {
                 console.error('Server error response:', errorData);
-                throw new Error(errorData.msg || 'Failed to save quiz');
+                const errorMsg = errorData.msg || 'Failed to save quiz';
+                console.error('Error creating quiz:', errorMsg);
+                throw new Error(errorMsg);
             });
         }
         return response.json();
@@ -2125,8 +2127,7 @@ function saveQuiz() {
                 id: data.quiz.id,
                 title: title,
                 description: description,
-                startTime: startDateTime.toISOString(),
-                endTime: endDateTime.toISOString(),
+                startTime: formattedStartDateTime,
                 duration: parseInt(duration),
                 questions: questions,
                 status: getQuizStatus(startDateTime, endDateTime)
@@ -2140,8 +2141,7 @@ function saveQuiz() {
                     ...quizzes[index],
                     title: title,
                     description: description,
-                    startTime: startDateTime.toISOString(),
-                    endTime: endDateTime.toISOString(),
+                    startTime: formattedStartDateTime,
                     duration: parseInt(duration),
                     questions: questions,
                     status: getQuizStatus(startDateTime, endDateTime)
@@ -2161,7 +2161,13 @@ function saveQuiz() {
     .catch(error => {
         console.error('Error saving quiz:', error);
         if (error.message !== 'Authentication failed') {
-            showNotification(error.message || 'Failed to save quiz', 'error');
+            // Extract and display the specific error message
+            let errorMessage = error.message || 'Failed to save quiz';
+            // Check if it's a startTime format error and make the message more user-friendly
+            if (errorMessage.includes('Invalid date format for startTime')) {
+                errorMessage = 'Invalid date format. Please check the start date and time.';
+            }
+            showNotification(errorMessage, 'error');
         }
     })
     .finally(() => {

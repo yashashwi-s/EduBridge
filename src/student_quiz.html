@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EduBridge - Student Quiz</title>
+  <title>EduBridge - Quiz</title>
   <link href="https://fonts.googleapis.com/css?family=Google+Sans:400,500,700|Roboto:300,400,500&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="student_classroom.css">
+  <link rel="stylesheet" href="quiz-common.css">
   <style>
     .quiz-container {
       max-width: 900px;
@@ -107,6 +108,7 @@
     
     .quiz-navigation {
       display: flex;
+      justify-content: space-between;
       gap: 10px;
       margin-top: 20px;
     }
@@ -168,6 +170,15 @@
       background-color: #f8f9fa;
     }
     
+    .btn-success {
+      background-color: #0f9d58;
+      color: white;
+    }
+    
+    .btn-success:hover {
+      background-color: #0b8043;
+    }
+    
     #error-container {
       background-color: #fdeded;
       border: 1px solid #f5c2c7;
@@ -200,6 +211,44 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    
+    /* Modal styles */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    
+    .modal-content {
+      background-color: white;
+      padding: 24px;
+      border-radius: 8px;
+      max-width: 480px;
+      width: 100%;
+    }
+    
+    .modal-content h2 {
+      margin-top: 0;
+      color: #202124;
+    }
+    
+    .modal-content p {
+      margin-bottom: 24px;
+      color: #5f6368;
+    }
+    
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
   </style>
 </head>
 <body>
@@ -221,23 +270,18 @@
     </div>
   </div>
   
-  <!-- Sidebar (standardized) -->
+  <!-- Sidebar -->
   <div class="sidebar">
     <ul>
-      <li><a href="/dashboard" id="nav-dashboard"><i class="fas fa-home"></i><span class="text">Dashboard</span></a></li>
-      <li><a href="/calendar" id="nav-calendar"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a></li>
-      <li><a href="/todo" id="nav-todo"><i class="fas fa-check-circle"></i><span class="text">To-do</span></a></li>
-      <li><a href="/profile" id="nav-profile"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a></li>
-      <li><a href="/settings" id="nav-settings"><i class="fas fa-cog"></i><span class="text">Settings</span></a></li>
+      <li><a href="/dashboard"><i class="fas fa-home"></i><span class="text">Dashboard</span></a></li>
+      <li><a href="/calendar"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a></li>
+      <li><a href="/courses" class="active"><i class="fas fa-book"></i><span class="text">My Courses</span></a></li>
+      <li><a href="/profile"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a></li>
+      <li><a href="/settings"><i class="fas fa-cog"></i><span class="text">Settings</span></a></li>
     </ul>
   </div>
   
-  <!-- Script to set active nav item -->
-  <script>
-    // Make dashboard link active since quizzes are part of courses/dashboard
-    document.getElementById('nav-dashboard').classList.add('active');
-  </script>
-  
+  <!-- Main Content -->
   <div class="content">
     <div id="error-container"></div>
     
@@ -252,288 +296,230 @@
         <p class="quiz-description" id="quiz-description">Quiz description will appear here.</p>
         
         <div class="quiz-meta">
-          <span><i class="fas fa-clock"></i> <span id="quiz-duration">60</span> minutes</span>
-          <span><i class="fas fa-question-circle"></i> <span id="quiz-question-count">0</span> questions</span>
+          <span><i class="fas fa-clock"></i> Time Remaining: <span class="timer-display">--:--</span></span>
         </div>
         
         <div class="quiz-timer">
-          <i class="fas fa-hourglass-half"></i> Time Remaining: <span id="timer">Loading...</span>
-        </div>
-        
-        <div class="question-indicator" id="question-indicator">
-          <!-- Question indicators will be added dynamically -->
+          <i class="fas fa-hourglass-half"></i>
+          <span id="timer">--:--</span>
         </div>
       </div>
       
+      <div id="question-navigation"></div>
+      
       <div id="question-container" class="question-container">
-        <h3 class="question-text" id="question-text">Question text will appear here.</h3>
-        <div class="question-options" id="question-options">
-          <!-- Options will be added dynamically -->
-        </div>
+        <!-- Question content will be dynamically inserted here -->
       </div>
       
       <div class="quiz-navigation">
-        <button id="prev-question" class="btn btn-outline">Previous</button>
-        <button id="next-question" class="btn btn-outline">Next</button>
-        <button id="submit-quiz" class="btn btn-primary">Submit Quiz</button>
+        <button id="prev-question" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Previous</button>
+        <button id="next-question" class="btn btn-outline">Next <i class="fas fa-arrow-right"></i></button>
+        <button id="submit-quiz" class="btn btn-success">Submit Quiz</button>
+      </div>
+    </div>
+    
+    <div id="confirm-modal" class="modal">
+      <div class="modal-content">
+        <h2>Submit Quiz</h2>
+        <p>Are you sure you want to submit your quiz? This action cannot be undone.</p>
+        <div class="modal-actions">
+          <button id="cancel-submit" class="btn btn-outline">Cancel</button>
+          <button id="confirm-submit" class="btn btn-success">Submit</button>
+        </div>
       </div>
     </div>
   </div>
   
+  <script src="quiz-common.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      // Get query parameters
-      const urlParams = new URLSearchParams(window.location.search);
-      const classId = urlParams.get('classId');
-      const quizId = urlParams.get('quizId');
+    document.addEventListener('DOMContentLoaded', function() {
+      // Global variables for this page
+      window.userAnswers = {};
+      window.quizData = null;
+      window.currentQuestion = 0;
       
-      // Check if we have valid parameters
-      if (!classId || !quizId || quizId === 'undefined') {
-        showError('Invalid quiz parameters. Please go back to your classroom and try again.');
+      // Initialize the quiz page
+      if (!EduQuiz.initQuizPage()) return;
+      
+      // Set up submit button
+      const submitButton = document.getElementById('submit-quiz');
+      if (submitButton) {
+        submitButton.addEventListener('click', function() {
+          if (confirm('Are you sure you want to submit this quiz? You cannot change your answers after submission.')) {
+            EduQuiz.submitQuizAnswers();
+          }
+        });
+      }
+      
+      // Fetch the quiz data
+      EduQuiz.fetchQuizData(function(quiz) {
+        window.quizData = quiz;
+        setupQuiz(quiz);
+      });
+    });
+    
+    function setupQuiz(quiz) {
+      console.log('Setting up quiz:', quiz);
+      
+      // Set quiz title and description
+      document.getElementById('quiz-title').textContent = quiz.title;
+      document.getElementById('quiz-description').textContent = quiz.description || '';
+      
+      // Set up question navigation
+      setupQuestionNavigation(quiz.questions);
+      
+      // Display first question
+      displayQuestion(0);
+      
+      // Start the timer
+      const endTimeStr = quiz.endTime;
+      const endTime = new Date(endTimeStr);
+      console.log('Starting timer with end time:', endTime);
+      
+      EduQuiz.startQuizTimer(endTime);
+      
+      // Show the quiz container
+      document.getElementById('quiz-container').style.display = 'block';
+      EduQuiz.showLoading(false);
+    }
+    
+    function setupQuestionNavigation(questions) {
+      const navigationContainer = document.getElementById('question-navigation');
+      navigationContainer.innerHTML = '';
+      
+      // Add navigation buttons for each question
+      const questionIndicator = document.createElement('div');
+      questionIndicator.className = 'question-indicator';
+      
+      for (let i = 0; i < questions.length; i++) {
+        const questionNumber = document.createElement('div');
+        questionNumber.className = 'question-number';
+        questionNumber.textContent = i + 1;
+        questionNumber.dataset.index = i;
+        
+        if (i === 0) {
+          questionNumber.classList.add('current');
+        }
+        
+        questionNumber.addEventListener('click', function() {
+          displayQuestion(parseInt(this.dataset.index));
+        });
+        
+        questionIndicator.appendChild(questionNumber);
+      }
+      
+      navigationContainer.appendChild(questionIndicator);
+      
+      // Set up next/prev buttons
+      const prevButton = document.getElementById('prev-question');
+      const nextButton = document.getElementById('next-question');
+      
+      prevButton.addEventListener('click', function() {
+        if (currentQuestion > 0) {
+          displayQuestion(currentQuestion - 1);
+        }
+      });
+      
+      nextButton.addEventListener('click', function() {
+        if (currentQuestion < questions.length - 1) {
+          displayQuestion(currentQuestion + 1);
+        }
+      });
+    }
+    
+    function displayQuestion(index) {
+      if (!window.quizData || !window.quizData.questions) {
+        console.error('No quiz data available');
         return;
       }
       
-      let quiz = null;
-      let currentQuestionIndex = 0;
-      let answers = {};
-      let timerInterval = null;
-      let endTime = null;
-      
-      // Fetch the quiz data and start the quiz
-      startQuiz();
-      
-      // Event listeners
-      document.getElementById('prev-question').addEventListener('click', () => navigateQuestion(-1));
-      document.getElementById('next-question').addEventListener('click', () => navigateQuestion(1));
-      document.getElementById('submit-quiz').addEventListener('click', submitQuiz);
-      
-      // Function to show error message
-      function showError(message) {
-        const errorContainer = document.getElementById('error-container');
-        errorContainer.textContent = message;
-        errorContainer.style.display = 'block';
-        document.getElementById('loading-container').style.display = 'none';
+      const questions = window.quizData.questions;
+      if (index < 0 || index >= questions.length) {
+        console.error('Question index out of bounds:', index);
+        return;
       }
       
-      // Function to start the quiz
-      async function startQuiz() {
-        try {
-          // First, make a POST request to mark the quiz as started
-          const startResponse = await fetch(`/api/classrooms/${classId}/quizzes/${quizId}/start`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-            }
+      // Update current question index
+      window.currentQuestion = index;
+      
+      const question = questions[index];
+      const questionContainer = document.getElementById('question-container');
+      
+      // Clear previous question
+      questionContainer.innerHTML = '';
+      
+      // Create question text
+      const questionText = document.createElement('div');
+      questionText.className = 'question-text';
+      questionText.textContent = question.text;
+      questionContainer.appendChild(questionText);
+      
+      // Create options
+      const optionsContainer = document.createElement('div');
+      optionsContainer.className = 'question-options';
+      
+      question.options.forEach(option => {
+        const optionElement = document.createElement('div');
+        optionElement.className = 'option';
+        optionElement.dataset.optionId = option.id;
+        optionElement.textContent = option.text;
+        
+        // Check if this option is already selected
+        if (window.userAnswers[question.id] === option.id) {
+          optionElement.classList.add('selected');
+        }
+        
+        optionElement.addEventListener('click', function() {
+          // Remove selected class from all options
+          optionsContainer.querySelectorAll('.option').forEach(opt => {
+            opt.classList.remove('selected');
           });
           
-          if (!startResponse.ok) {
-            const error = await startResponse.json();
-            showError(error.msg || 'Failed to start the quiz.');
-            return;
-          }
+          // Add selected class to clicked option
+          this.classList.add('selected');
           
-          // Then fetch the quiz data
-          const response = await fetch(`/api/classrooms/${classId}/quizzes/student`, {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-            }
-          });
+          // Save the answer
+          window.userAnswers[question.id] = this.dataset.optionId;
           
-          if (!response.ok) {
-            const error = await response.json();
-            showError(error.msg || 'Failed to load quiz data.');
-            return;
-          }
-          
-          const quizzes = await response.json();
-          quiz = quizzes.find(q => q.id === quizId);
-          
-          if (!quiz) {
-            showError('Quiz not found.');
-            return;
-          }
-          
-          // Initialize the quiz interface
-          initializeQuiz(quiz);
-        } catch (err) {
-          console.error('Error starting quiz:', err);
-          showError('An error occurred while loading the quiz. Please try again.');
-        }
-      }
-      
-      // Function to initialize the quiz interface
-      function initializeQuiz(quiz) {
-        // Set quiz details
-        document.getElementById('quiz-title').textContent = quiz.title;
-        document.getElementById('quiz-description').textContent = quiz.description;
-        document.getElementById('quiz-duration').textContent = quiz.duration;
-        document.getElementById('quiz-question-count').textContent = quiz.questions.length;
-        
-        // Setup the question indicators
-        const indicatorContainer = document.getElementById('question-indicator');
-        quiz.questions.forEach((_, index) => {
-          const indicator = document.createElement('div');
-          indicator.className = 'question-number';
-          indicator.textContent = index + 1;
-          indicator.addEventListener('click', () => displayQuestion(index));
-          indicatorContainer.appendChild(indicator);
+          // Update question indicator to show it's answered
+          updateQuestionIndicator();
         });
         
-        // Display the first question
-        displayQuestion(0);
-        
-        // Start the timer
-        startTimer(quiz.duration);
-        
-        // Show the quiz container
-        document.getElementById('loading-container').style.display = 'none';
-        document.getElementById('quiz-container').style.display = 'block';
-      }
-      
-      // Function to display a question
-      function displayQuestion(index) {
-        if (!quiz || index < 0 || index >= quiz.questions.length) return;
-        
-        currentQuestionIndex = index;
-        const question = quiz.questions[index];
-        
-        // Update question text
-        document.getElementById('question-text').textContent = question.text;
-        
-        // Clear and rebuild options
-        const optionsContainer = document.getElementById('question-options');
-        optionsContainer.innerHTML = '';
-        
-        question.options.forEach(option => {
-          const optionElement = document.createElement('div');
-          optionElement.className = 'option';
-          if (answers[question.id] === option.id) {
-            optionElement.classList.add('selected');
-          }
-          optionElement.textContent = option.text;
-          optionElement.addEventListener('click', () => selectOption(option.id));
-          optionsContainer.appendChild(optionElement);
-        });
-        
-        // Update question indicators
-        const indicators = document.querySelectorAll('.question-number');
-        indicators.forEach((indicator, idx) => {
-          indicator.classList.remove('current');
-          if (idx === index) {
-            indicator.classList.add('current');
-          }
-          if (answers[quiz.questions[idx].id]) {
-            indicator.classList.add('answered');
-          } else {
-            indicator.classList.remove('answered');
-          }
-        });
-        
-        // Update navigation buttons
-        document.getElementById('prev-question').disabled = index === 0;
-        document.getElementById('next-question').disabled = index === quiz.questions.length - 1;
-      }
-      
-      // Function to navigate between questions
-      function navigateQuestion(direction) {
-        const newIndex = currentQuestionIndex + direction;
-        if (newIndex >= 0 && newIndex < quiz.questions.length) {
-          displayQuestion(newIndex);
-        }
-      }
-      
-      // Function to select an option
-      function selectOption(optionId) {
-        const questionId = quiz.questions[currentQuestionIndex].id;
-        answers[questionId] = optionId;
-        
-        // Update the selected option UI
-        const options = document.querySelectorAll('.option');
-        options.forEach(option => option.classList.remove('selected'));
-        
-        const selectedOption = Array.from(options).find(option => 
-          option.textContent === quiz.questions[currentQuestionIndex].options.find(o => o.id === optionId).text
-        );
-        
-        if (selectedOption) {
-          selectedOption.classList.add('selected');
-        }
-        
-        // Update the question indicator
-        const indicators = document.querySelectorAll('.question-number');
-        indicators[currentQuestionIndex].classList.add('answered');
-      }
-      
-      // Function to start the timer
-      function startTimer(duration) {
-        const now = new Date();
-        endTime = new Date(now.getTime() + duration * 60000); // Convert minutes to milliseconds
-        
-        updateTimerDisplay();
-        timerInterval = setInterval(updateTimerDisplay, 1000);
-      }
-      
-      // Function to update the timer display
-      function updateTimerDisplay() {
-        const now = new Date();
-        let timeRemaining = endTime - now;
-        
-        if (timeRemaining <= 0) {
-          clearInterval(timerInterval);
-          submitQuiz(true); // Auto-submit
-          return;
-        }
-        
-        // Convert to minutes and seconds
-        const minutes = Math.floor(timeRemaining / 60000);
-        const seconds = Math.floor((timeRemaining % 60000) / 1000);
-        
-        document.getElementById('timer').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-      }
-      
-      // Function to submit the quiz
-      async function submitQuiz(isAutoSubmit = false) {
-        if (isAutoSubmit || confirm('Are you sure you want to submit your quiz? This action cannot be undone.')) {
-          try {
-            clearInterval(timerInterval);
-            
-            const submissionData = {
-              answers: Object.entries(answers).map(([questionId, optionId]) => ({
-                questionId,
-                selectedOptionId: optionId
-              }))
-            };
-            
-            const response = await fetch(`/api/classrooms/${classId}/quizzes/${quizId}/submit`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-              },
-              body: JSON.stringify(submissionData)
-            });
-            
-            if (!response.ok) {
-              const error = await response.json();
-              showError(error.msg || 'Failed to submit quiz.');
-              return;
-            }
-            
-            // Redirect to results page
-            window.location.href = `/quiz-results?classId=${classId}&quizId=${quizId}`;
-          } catch (err) {
-            console.error('Error submitting quiz:', err);
-            showError('An error occurred while submitting your quiz. Please try again.');
-          }
-        }
-      }
-      
-      // Toggle sidebar
-      document.getElementById('hamburger').addEventListener('click', () => {
-        document.querySelector('.sidebar').classList.toggle('active');
+        optionsContainer.appendChild(optionElement);
       });
-    });
+      
+      questionContainer.appendChild(optionsContainer);
+      
+      // Update question indicator
+      updateQuestionIndicator();
+      
+      // Update next/prev button states
+      const prevButton = document.getElementById('prev-question');
+      const nextButton = document.getElementById('next-question');
+      
+      prevButton.disabled = index === 0;
+      nextButton.disabled = index === questions.length - 1;
+    }
+    
+    function updateQuestionIndicator() {
+      const indicators = document.querySelectorAll('.question-number');
+      
+      indicators.forEach((indicator, index) => {
+        // Remove all classes first
+        indicator.classList.remove('current', 'answered');
+        
+        // Add current class if this is the current question
+        if (index === currentQuestion) {
+          indicator.classList.add('current');
+        }
+        
+        // Add answered class if this question has been answered
+        const questionId = window.quizData.questions[index].id;
+        if (window.userAnswers[questionId]) {
+          indicator.classList.add('answered');
+        }
+      });
+    }
   </script>
 </body>
 </html> 
