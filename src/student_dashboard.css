@@ -14,13 +14,15 @@
   --card-bg: #ffffff;
   --border-color: #e0e0e0;
   --hover-color: #f1f3f4;
-  --shadow-sm: 0 1px 2px rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
-  --shadow-md: 0 1px 3px rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
-  --transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+  --shadow-sm: 0 1px 2px rgba(60, 64, 67, 0.3),
+    0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  --shadow-md: 0 1px 3px rgba(60, 64, 67, 0.3),
+    0 4px 8px 3px rgba(60, 64, 67, 0.15);
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 body {
-  font-family: 'Montserrat', 'Google Sans', 'Roboto', sans-serif;
+  font-family: "Montserrat", "Google Sans", "Roboto", sans-serif;
   background-color: var(--bg-color);
   color: var(--text-color);
   line-height: 1.5;
@@ -41,7 +43,8 @@ body {
   z-index: 100;
 }
 
-.nav-left, .nav-right {
+.nav-left,
+.nav-right {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -63,7 +66,7 @@ body {
 }
 
 .hamburger:hover {
-  background-color: rgba(95,99,104,0.1);
+  background-color: rgba(95, 99, 104, 0.1);
 }
 
 .logo {
@@ -143,7 +146,7 @@ body {
   background-color: var(--card-bg);
   border-right: 1px solid var(--border-color);
   overflow: hidden;
-  transition: width 0.3s cubic-bezier(0.4,0,0.2,1);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 90;
 }
 
@@ -213,7 +216,7 @@ body {
 .content {
   margin-left: 72px;
   padding: 24px;
-  transition: margin-left 0.3s cubic-bezier(0.4,0,0.2,1);
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   padding-top: 88px;
   min-height: 100vh;
   background-color: var(--bg-color);
@@ -251,7 +254,7 @@ body {
   align-items: center;
   gap: 8px;
   transition: background-color 0.2s, box-shadow 0.2s, transform 0.2s;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .add-card-btn i {
@@ -260,7 +263,7 @@ body {
 
 .add-card-btn:hover {
   background-color: #0d64d0;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   transform: translateY(-1px);
 }
 
@@ -305,7 +308,7 @@ body {
   color: white;
   font-size: 24px;
   font-weight: 500;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
 .card-content {
@@ -359,7 +362,7 @@ body {
 .visit-btn:hover {
   background-color: #0d64d0;
   transform: translateY(-2px);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 /* Modal Styles */
@@ -372,7 +375,7 @@ body {
   width: 100%;
   height: 100%;
   overflow: auto;
-  background-color: rgba(0,0,0,0.4);
+  background-color: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
   opacity: 0;
@@ -456,7 +459,7 @@ body {
 .form-group input:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 1px 2px rgba(60,64,67,0.3);
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.3);
 }
 
 .modal-footer {
@@ -466,7 +469,8 @@ body {
   margin-top: 24px;
 }
 
-.submit-btn, .cancel-btn {
+.submit-btn,
+.cancel-btn {
   padding: 10px 16px;
   border-radius: 4px;
   font-size: 14px;
@@ -498,8 +502,14 @@ body {
 
 /* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Responsive Design */
@@ -507,21 +517,21 @@ body {
   .sidebar {
     width: 0;
   }
-  
+
   .sidebar.expanded {
     width: 256px;
   }
-  
+
   .content {
     margin-left: 0;
     padding: 24px 16px;
     padding-top: 88px;
   }
-  
+
   .sidebar.expanded ~ .content {
     margin-left: 0;
   }
-  
+
   .cards-container {
     grid-template-columns: 1fr;
   }

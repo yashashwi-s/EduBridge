@@ -484,6 +484,10 @@ def calendar():
 def settings():
     return render_template('settings.html')
 
+@app.route("/student_classroom")
+def student_classroom():
+    return render_template('student_classroom.html')
+
 @app.route("/quiz")
 def quiz_page():
     return send_file('src/student_quiz.html')
