@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduBridge - Teacher Settings</title>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css?family=Montserrat:400,500,600,700|Google+Sans:400,500,700|Roboto:300,400,500&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+  <!-- Font Awesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- External CSS -->
+  <link rel="stylesheet" href="teacher_settings.css">
+</head>
+<body>
+  <!-- Navbar -->
+  <div class="navbar">
+    <div class="nav-left">
+      <button id="hamburger" class="hamburger">
+        <i class="fas fa-bars"></i>
+      </button>
+      <div class="logo"><i class="fas fa-graduation-cap"></i> EduBridge</div>
+    </div>
+    <div class="nav-right">
+      <div class="profile-wrapper">
+        <img src="images/image.png" alt="Profile" class="profile-icon" />
+        <div class="profile-dropdown">
+          <a href="/teacher_profile"><i class="fas fa-user-circle"></i> Show Profile</a>
+          <a href="/login"><i class="fas fa-sign-out-alt"></i> Log Out</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar (updated for teacher) -->
+  <div class="sidebar">
+    <ul>
+      <li>
+        <a href="/teacher_dashboard"><i class="fas fa-home"></i><span class="text">Home</span></a>
+      </li>
+      <li>
+        <a href="/teacher_calendar"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a>
+      </li>
+      <li>
+        <a href="/enrolled"><i class="fas fa-user-graduate"></i><span class="text">Enrolled</span></a>
+      </li>
+      <li>
+        <a href="/teacher_profile"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a>
+      </li>
+      <li>
+        <a href="/teacher_settings" class="active"><i class="fas fa-cog"></i><span class="text">Settings</span></a>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Main Content: Settings -->
+  <div class="content">
+    <div class="settings-header">
+      <h1>Settings</h1>
+      <div class="settings-info">
+        <p>Personalize your account and teaching experience</p>
+      </div>
+    </div>
+    
+    <div class="settings-grid">
+      <!-- Profile Settings Section -->
+      <div class="settings-section profile-settings">
+        <div class="section-header">
+          <div class="section-icon">
+            <i class="fas fa-user-circle"></i>
+          </div>
+          <h2>Profile Settings</h2>
+        </div>
+        <form id="profileSettingsForm">
+          <div class="form-group">
+            <label for="teacherName">Full Name</label>
+            <input type="text" id="teacherName" name="teacherName" placeholder="Enter your full name" />
+          </div>
+          <div class="form-group">
+            <label for="teacherEmail">Email</label>
+            <input type="email" id="teacherEmail" name="teacherEmail" value="teacher@example.com" readonly />
+            <div class="input-info">Your email is used for login and cannot be changed</div>
+          </div>
+          <div class="form-divider">
+            <span>Password Management</span>
+          </div>
+          <div class="form-info">
+            <p>To update your profile or change your password, your current password is required.</p>
+          </div>
+          <div class="form-group password-group">
+            <label for="currentPassword">Current Password</label>
+            <div class="password-input-wrapper">
+              <input type="password" id="currentPassword" name="currentPassword" placeholder="Enter current password" />
+              <button type="button" class="toggle-password"><i class="fas fa-eye"></i></button>
+            </div>
+            <div class="input-info">For testing: use "password123"</div>
+          </div>
+          <div class="form-group password-group">
+            <label for="newPassword">New Password</label>
+            <div class="password-input-wrapper">
+              <input type="password" id="newPassword" name="newPassword" placeholder="Enter new password" />
+              <button type="button" class="toggle-password"><i class="fas fa-eye"></i></button>
+            </div>
+            <div class="input-info">Leave blank to keep your current password</div>
+          </div>
+          <div class="form-group password-group">
+            <label for="confirmPassword">Confirm New Password</label>
+            <div class="password-input-wrapper">
+              <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Confirm new password" />
+              <button type="button" class="toggle-password"><i class="fas fa-eye"></i></button>
+            </div>
+            <div class="password-strength" id="passwordStrength">
+              <div class="strength-meter">
+                <div class="strength-meter-fill" id="strengthMeter"></div>
+              </div>
+              <div class="strength-text" id="strengthText">Password strength</div>
+            </div>
+            <div class="password-tips">
+              <p>For a strong password, include:</p>
+              <ul>
+                <li>At least 8 characters</li>
+                <li>Uppercase and lowercase letters</li>
+                <li>Numbers</li>
+                <li>Special characters (e.g., !@#$%)</li>
+              </ul>
+            </div>
+          </div>
+          <button type="submit" class="submit-btn profile-submit" disabled>
+            <span>Save Profile Settings</span>
+            <i class="fas fa-check"></i>
+          </button>
+        </form>
+      </div>
+
+      <!-- Communication Settings Section -->
+      <div class="settings-section communication-settings">
+        <div class="section-header">
+          <div class="section-icon">
+            <i class="fas fa-comment-dots"></i>
+          </div>
+          <h2>Communication Settings</h2>
+        </div>
+        <form id="communicationSettingsForm">
+          <div class="form-group">
+            <label for="defaultReplyEmail">Default Reply-To Email</label>
+            <input type="email" id="defaultReplyEmail" name="defaultReplyEmail" placeholder="Enter your preferred email for replies" />
+          </div>
+          <div class="form-group">
+            <label for="emailSignature">Email Signature</label>
+            <textarea id="emailSignature" name="emailSignature" rows="3" placeholder="Enter your email signature"></textarea>
+          </div>
+          <div class="form-group toggle-wrapper">
+            <div class="toggle-label">
+              <label for="autoResponder">Auto-Responder</label>
+              <span class="toggle-description">Automatically respond to student emails during off-hours</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="autoResponder" name="autoResponder">
+              <span class="slider round"></span>
+            </label>
+          </div>
+          <div class="form-group autoResponderText" id="autoResponderTextGroup">
+            <label for="autoResponderText">Auto-Responder Message</label>
+            <textarea id="autoResponderText" name="autoResponderText" rows="3" placeholder="Enter your auto-responder message"></textarea>
+          </div>
+          <button type="submit" class="submit-btn communication-submit">
+            <span>Save Communication Settings</span>
+            <i class="fas fa-check"></i>
+          </button>
+        </form>
+      </div>
+
+      <!-- Display Settings Section -->
+      <div class="settings-section display-settings">
+        <div class="section-header">
+          <div class="section-icon">
+            <i class="fas fa-palette"></i>
+          </div>
+          <h2>Display Settings</h2>
+        </div>
+        <form id="displaySettingsForm">
+          <div class="theme-selector">
+            <label>Theme</label>
+            <div class="theme-options">
+              <div class="theme-option">
+                <input type="radio" id="lightTheme" name="theme" value="light" checked />
+                <label for="lightTheme" class="theme-card light-theme">
+                  <div class="theme-preview">
+                    <div class="preview-header"></div>
+                    <div class="preview-sidebar"></div>
+                    <div class="preview-content"></div>
+                  </div>
+                  <span>Light</span>
+                </label>
+              </div>
+              <div class="theme-option">
+                <input type="radio" id="darkTheme" name="theme" value="dark" />
+                <label for="darkTheme" class="theme-card dark-theme">
+                  <div class="theme-preview">
+                    <div class="preview-header"></div>
+                    <div class="preview-sidebar"></div>
+                    <div class="preview-content"></div>
+                  </div>
+                  <span>Dark</span>
+                </label>
+              </div>
+              <div class="theme-option">
+                <input type="radio" id="blueTheme" name="theme" value="blue" />
+                <label for="blueTheme" class="theme-card blue-theme">
+                  <div class="theme-preview">
+                    <div class="preview-header"></div>
+                    <div class="preview-sidebar"></div>
+                    <div class="preview-content"></div>
+                  </div>
+                  <span>Blue</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="form-group font-size-selector">
+            <label>Font Size</label>
+            <div class="range-slider-container">
+              <input type="range" min="0" max="2" value="1" class="range-slider" id="fontSizeRange">
+              <div class="range-labels">
+                <span>Small</span>
+                <span>Medium</span>
+                <span>Large</span>
+              </div>
+            </div>
+          </div>
+          <div class="form-group toggle-wrapper">
+            <div class="toggle-label">
+              <label for="reducedMotion">Reduced Motion</label>
+              <span class="toggle-description">Minimize animations throughout the interface</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="reducedMotion" name="reducedMotion">
+              <span class="slider round"></span>
+            </label>
+          </div>
+          <div class="form-group toggle-wrapper">
+            <div class="toggle-label">
+              <label for="highContrast">High Contrast</label>
+              <span class="toggle-description">Increase contrast for better readability</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="highContrast" name="highContrast">
+              <span class="slider round"></span>
+            </label>
+          </div>
+          <button type="submit" class="submit-btn display-submit">
+            <span>Save Display Settings</span>
+            <i class="fas fa-check"></i>
+          </button>
+        </form>
+      </div>
+
+      <!-- Data & Privacy Section -->
+      <div class="settings-section data-privacy-settings">
+        <div class="section-header">
+          <div class="section-icon">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+          <h2>Data & Privacy</h2>
+        </div>
+        <div class="privacy-info">
+          <p>Control how your data is used and accessed</p>
+        </div>
+        <div class="data-exports">
+          <h3>Data Export</h3>
+          <p>Download all your data including course materials and student interactions.</p>
+          <button type="button" class="action-btn" id="exportDataBtn">
+            <i class="fas fa-file-export"></i> Export All Data
+          </button>
+        </div>
+        <div class="form-divider"></div>
+        <div class="account-deletion">
+          <h3>Account</h3>
+          <p>Permanently delete your account and all associated data.</p>
+          <button type="button" class="danger-btn" id="deleteAccountBtn">
+            <i class="fas fa-user-slash"></i> Delete Account
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Chatbot Icon -->
+  <div class="chatbot-icon">
+    <i class="fas fa-comment-dots"></i>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div class="modal" id="confirmationModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Confirm Action</h3>
+        <button class="close-modal">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        Are you sure you want to proceed with this action?
+      </div>
+      <div class="modal-footer">
+        <button class="cancel-btn" id="modalCancelBtn">Cancel</button>
+        <button class="confirm-btn" id="modalConfirmBtn">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success Toast Notification -->
+  <div class="toast-notification" id="successToast">
+    <div class="toast-icon success">
+      <i class="fas fa-check-circle"></i>
+    </div>
+    <div class="toast-message" id="toastMessage">Settings saved successfully!</div>
+    <button class="toast-close">&times;</button>
+  </div>
+
+  <!-- External JS -->
+  <script src="teacher_settings.js"></script>
+</body>
+</html> 
