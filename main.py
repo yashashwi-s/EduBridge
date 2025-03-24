@@ -504,7 +504,7 @@ def enrolled_students_page():
 def teacher_calendar():
     return send_file('src/teacher_calendar.html')
 
-@app.route("/teacher_settings")
+@app.route("/Settings")
 def teacher_settings():
     return send_file('src/teacher_settings.html')
 
