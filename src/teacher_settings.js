@@ -124,19 +124,16 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
   // ----- Profile Dropdown Toggle -----
-    if (profileIcon) {
-  profileIcon.addEventListener('click', function(e) {
+const profileWrapper = document.querySelector('.profile-wrapper');
+if (profileWrapper && profileDropdown) {
+  profileWrapper.addEventListener('click', (e) => {
     e.stopPropagation();
-    profileDropdown.classList.toggle('active');
+    profileDropdown.classList.toggle('show');
   });
-    }
-
-  document.addEventListener('click', function() {
-      if (profileDropdown) {
-    profileDropdown.classList.remove('active');
-      }
+  document.addEventListener('click', () => {
+    profileDropdown.classList.remove('show');
   });
-
+}
   // ----- Password Visibility Toggle -----
     if (togglePasswordBtns) {
   togglePasswordBtns.forEach(btn => {
