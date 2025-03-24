@@ -1,4 +1,7 @@
+
+
 // DOM Elements
+
 document.addEventListener('DOMContentLoaded', function() {
   try {
   // Nav and Sidebar Elements
@@ -113,12 +116,12 @@ document.addEventListener('DOMContentLoaded', function() {
   };
 
   // ----- Sidebar Toggle Functionality -----
-    if (hamburgerBtn) {
-  hamburgerBtn.addEventListener('click', function() {
-    sidebar.classList.toggle('collapsed');
-    content.classList.toggle('expanded');
-  });
-    }
+    if (hamburgerBtn ) {
+    hamburgerBtn.addEventListener('click', function() {
+      sidebar.classList.toggle('expanded');
+      content.classList.toggle('collapsed');
+    });
+      }
 
   // ----- Profile Dropdown Toggle -----
     if (profileIcon) {
