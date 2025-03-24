@@ -500,6 +500,15 @@ def quiz_details_page():
 def enrolled_students_page():
     return send_file('src/teacher_enrolled.html')
 
+@app.route("/teacher_calendar")
+def teacher_calendar():
+    return send_file('src/teacher_calendar.html')
+
+@app.route("/teacher_settings")
+def teacher_settings():
+    return send_file('src/teacher_settings.html')
+
+
 chat_sessions = {}
 
 @app.route("/chat", methods=["POST"])
@@ -651,23 +660,54 @@ def get_profile():
 @jwt_required()
 def update_profile():
     user_id = get_jwt_identity()
-    data = request.get_json()
-    update_data = {
-        "fullName": data.get("fullName"),
-        "email": data.get("email"),
-        "phone": data.get("phone", ""),
-        "institution": data.get("institution", ""),
-        "department": data.get("department", ""),
-        "title": data.get("title", ""),
-        "bio": data.get("bio", "")
-    }
-    
-    # Only update profile image if provided
-    if data.get("profileImage"):
-        update_data["profileImage"] = data.get("profileImage")
+    user = users_collection.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        return jsonify({"msg": "User not found"}), 404
         
-    users_collection.update_one({"_id": ObjectId(user_id)}, {"$set": update_data})
-    return jsonify({"msg": "Profile updated"}), 200
+    data = request.get_json()
+    if not data:
+        return jsonify({"msg": "No input data provided"}), 400
+    
+    # Check if current password is provided and valid
+    current_password = data.get("current_password")
+    if not current_password:
+        return jsonify({"msg": "Current password is required for any profile changes"}), 400
+        
+    if not check_password_hash(user["password"], current_password):
+        return jsonify({"msg": "Current password is incorrect"}), 401
+    
+    # Initialize update data with only fields that were provided
+    update_data = {}
+    
+    # Handle name change
+    if "name" in data:
+        update_data["fullName"] = data["name"]
+    
+    # Handle password change
+    if "new_password" in data and data["new_password"]:
+        new_password = data["new_password"]
+        # You could add additional password validation here
+        update_data["password"] = generate_password_hash(new_password)
+    
+    # If no changes were provided
+    if not update_data:
+        return jsonify({"msg": "No changes provided"}), 400
+    
+    # Update the user in the database
+    result = users_collection.update_one(
+        {"_id": ObjectId(user_id)}, 
+        {"$set": update_data}
+    )
+    
+    if result.modified_count:
+        return jsonify({"msg": "Profile updated successfully"}), 200
+    else:
+        # This means the user was found but nothing was changed
+        # (e.g., the new values were the same as the old ones)
+        return jsonify({"msg": "No changes made to profile"}), 200
+
+
+
 
 BACKGROUND_IMAGES = [
     'https://www.gstatic.com/classroom/themes/img_graduation.jpg',
