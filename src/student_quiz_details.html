@@ -8,6 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="student_classroom.css">
+  <link rel="stylesheet" href="quiz-common.css">
   <style>
     .details-container {
       max-width: 800px;
@@ -151,6 +152,17 @@
       background-color: #d93025;
     }
     
+    .btn-disabled {
+      background-color: var(--grey-300);
+      color: var(--grey-700);
+      cursor: not-allowed;
+      border: none;
+    }
+    
+    .btn-disabled:hover {
+      background-color: var(--grey-300);
+    }
+    
     .status-badge {
       display: inline-block;
       padding: 4px 8px;
@@ -224,7 +236,8 @@
       <div class="profile-wrapper">
         <img src="images/image.png" alt="Profile" class="profile-icon">
         <div class="profile-dropdown">
-          <a href="/profile"><i class="fas fa-user-circle"></i> Show Profile</a>
+          <a href="/profile"><i class="fas fa-user-circle"></i> My Profile</a>
+          <a href="/settings"><i class="fas fa-cog"></i> Settings</a>
           <a href="/login"><i class="fas fa-sign-out-alt"></i> Log Out</a>
         </div>
       </div>
@@ -233,7 +246,7 @@
   
   <div class="sidebar">
     <ul>
-      <li><a href="/dashboard"><i class="fas fa-home"></i><span class="text">Home</span></a></li>
+      <li><a href="/dashboard"><i class="fas fa-home"></i><span class="text">Dashboard</span></a></li>
       <li><a href="/calendar"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a></li>
       <li><a href="/courses" class="active"><i class="fas fa-book"></i><span class="text">My Courses</span></a></li>
       <li><a href="/profile"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a></li>
@@ -249,191 +262,78 @@
       <p>Loading quiz details...</p>
     </div>
     
-    <div id="details-container" class="details-container" style="display: none;">
+    <div id="details-container" class="quiz-details-container" style="display: none;">
       <div class="quiz-header">
         <h1 class="quiz-title" id="quiz-title">Quiz Title</h1>
         <p class="quiz-description" id="quiz-description">Quiz description will appear here.</p>
       </div>
       
       <div class="quiz-meta">
-        <div class="meta-item">
-          <div class="meta-label">Status</div>
-          <div class="meta-value" id="quiz-status">
-            <span class="status-badge available">Available</span>
-          </div>
+        <div class="quiz-meta-item">
+          <span class="meta-label"><i class="fas fa-calendar"></i> Start Date</span>
+          <span class="meta-value" id="start-time">--</span>
         </div>
-        
-        <div class="meta-item">
-          <div class="meta-label">Time Limit</div>
-          <div class="meta-value"><i class="fas fa-clock"></i> <span id="quiz-duration">60</span> minutes</div>
+        <div class="quiz-meta-item">
+          <span class="meta-label"><i class="fas fa-clock"></i> Duration</span>
+          <span class="meta-value" id="duration">--</span>
         </div>
-        
-        <div class="meta-item">
-          <div class="meta-label">Questions</div>
-          <div class="meta-value"><i class="fas fa-question-circle"></i> <span id="quiz-questions">0</span> questions</div>
+        <div class="quiz-meta-item">
+          <span class="meta-label"><i class="fas fa-list-ol"></i> Questions</span>
+          <span class="meta-value" id="quiz-question-count">--</span>
         </div>
-        
-        <div class="meta-item">
-          <div class="meta-label">Available From</div>
-          <div class="meta-value" id="quiz-start-time">March 10, 2025 10:00 AM</div>
+        <div class="quiz-meta-item">
+          <span class="meta-label"><i class="fas fa-calendar-check"></i> End Date</span>
+          <span class="meta-value" id="end-time">--</span>
         </div>
-        
-        <div class="meta-item">
-          <div class="meta-label">Available Until</div>
-          <div class="meta-value" id="quiz-end-time">March 15, 2025 11:59 PM</div>
+        <div class="quiz-meta-item">
+          <span class="meta-label"><i class="fas fa-tag"></i> Status</span>
+          <span class="meta-value" id="quiz-status"><span id="status-badge" class="status-badge">--</span></span>
         </div>
       </div>
       
       <div class="instructions">
-        <h2 class="instructions-title">Instructions</h2>
+        <h2 class="instructions-title">Quiz Instructions</h2>
         <ul class="instructions-list">
-          <li><i class="fas fa-info-circle"></i> Read each question carefully before answering.</li>
-          <li><i class="fas fa-clock"></i> Once started, the quiz timer cannot be paused.</li>
-          <li><i class="fas fa-exclamation-triangle"></i> Do not refresh or navigate away from the page during the quiz.</li>
-          <li><i class="fas fa-check-circle"></i> You can review and change your answers before submission.</li>
-          <li><i class="fas fa-hourglass-end"></i> The quiz will auto-submit when the time expires.</li>
+          <li><i class="fas fa-info-circle"></i> Read each question carefully before selecting your answer.</li>
+          <li><i class="fas fa-clock"></i> You will have a limited time to complete the quiz.</li>
+          <li><i class="fas fa-exclamation-triangle"></i> Once you submit your answers, you cannot retake the quiz.</li>
+          <li><i class="fas fa-check-circle"></i> Your quiz results will be available immediately after submission.</li>
+          <li><i class="fas fa-question-circle"></i> You can navigate between questions using the question numbers or navigation buttons.</li>
         </ul>
       </div>
       
       <div class="actions">
-        <button id="back-to-classroom" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Back to Classroom</button>
+        <button class="btn btn-outline" id="back-button">
+          <i class="fas fa-arrow-left"></i> Back to Classroom
+        </button>
         <div>
-          <button id="take-quiz" class="btn btn-primary"><i class="fas fa-play-circle"></i> Start Quiz</button>
-          <button id="view-results" class="btn btn-outline" style="display: none;"><i class="fas fa-chart-bar"></i> View Results</button>
+          <button class="btn btn-primary" id="start-quiz">
+            <i class="fas fa-play"></i> Start Quiz
+          </button>
+          <button class="btn btn-primary" id="view-results" style="display: none;">
+            <i class="fas fa-chart-bar"></i> View Results
+          </button>
         </div>
       </div>
     </div>
   </div>
   
+  <script src="quiz-common.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      // Get query parameters
-      const urlParams = new URLSearchParams(window.location.search);
-      const classId = urlParams.get('classId');
-      const quizId = urlParams.get('quizId');
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initialize quiz page
+      if (!EduQuiz.initQuizPage()) return;
       
-      // Check if we have valid parameters
-      if (!classId || !quizId || quizId === 'undefined') {
-        showError('Invalid quiz parameters. Please go back to your classroom.');
-        return;
-      }
-      
-      // Load quiz details
-      loadQuizDetails();
-      
-      // Event listeners
-      document.getElementById('back-to-classroom').addEventListener('click', () => {
-        window.location.href = `/courses?classId=${classId}`;
-      });
-      
-      document.getElementById('take-quiz').addEventListener('click', () => {
-        window.location.href = `/quiz?classId=${classId}&quizId=${quizId}`;
-      });
-      
-      document.getElementById('view-results').addEventListener('click', () => {
-        window.location.href = `/quiz-results?classId=${classId}&quizId=${quizId}`;
-      });
-      
-      // Toggle sidebar
-      document.getElementById('hamburger').addEventListener('click', () => {
-        document.querySelector('.sidebar').classList.toggle('active');
-      });
-      
-      // Function to show error message
-      function showError(message) {
-        const errorContainer = document.getElementById('error-container');
-        errorContainer.textContent = message;
-        errorContainer.style.display = 'block';
-        document.getElementById('loading-container').style.display = 'none';
-      }
-      
-      // Function to format date
-      function formatDate(dateString) {
-        const date = new Date(dateString);
-        return date.toLocaleString('en-US', {
-          weekday: 'short',
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric',
-          hour: 'numeric',
-          minute: 'numeric',
-          hour12: true
+      // Set up main event listeners
+      const backButton = document.getElementById('back-button');
+      if (backButton) {
+        backButton.addEventListener('click', function() {
+          window.location.href = `/dashboard?classId=${classroomId}`;
         });
       }
       
-      // Function to load quiz details
-      async function loadQuizDetails() {
-        try {
-          const response = await fetch(`/api/classrooms/${classId}/quizzes/student`, {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-            }
-          });
-          
-          if (!response.ok) {
-            const error = await response.json();
-            showError(error.msg || 'Failed to load quiz details.');
-            return;
-          }
-          
-          const quizzes = await response.json();
-          const quiz = quizzes.find(q => q.id === quizId);
-          
-          if (!quiz) {
-            showError('Quiz not found.');
-            return;
-          }
-          
-          displayQuizDetails(quiz);
-        } catch (err) {
-          console.error('Error loading quiz details:', err);
-          showError('An error occurred while loading the quiz details. Please try again.');
-        }
-      }
-      
-      // Function to display quiz details
-      function displayQuizDetails(quiz) {
-        // Set quiz details
-        document.getElementById('quiz-title').textContent = quiz.title;
-        document.getElementById('quiz-description').textContent = quiz.description || '';
-        document.getElementById('quiz-duration').textContent = quiz.duration;
-        document.getElementById('quiz-questions').textContent = quiz.questions.length;
-        document.getElementById('quiz-start-time').textContent = formatDate(quiz.startTime);
-        document.getElementById('quiz-end-time').textContent = formatDate(quiz.endTime);
-        
-        // Set status badge
-        const statusElement = document.getElementById('quiz-status');
-        let statusHtml = '';
-        
-        switch (quiz.studentStatus) {
-          case 'available':
-            statusHtml = '<span class="status-badge available">Available Now</span>';
-            document.getElementById('take-quiz').style.display = 'inline-flex';
-            document.getElementById('view-results').style.display = 'none';
-            break;
-          case 'upcoming':
-            statusHtml = '<span class="status-badge upcoming">Upcoming</span>';
-            document.getElementById('take-quiz').style.display = 'none';
-            document.getElementById('view-results').style.display = 'none';
-            break;
-          case 'missed':
-            statusHtml = '<span class="status-badge missed">Missed</span>';
-            document.getElementById('take-quiz').style.display = 'none';
-            document.getElementById('view-results').style.display = 'none';
-            break;
-          case 'submitted':
-            statusHtml = '<span class="status-badge submitted">Submitted</span>';
-            document.getElementById('take-quiz').style.display = 'none';
-            document.getElementById('view-results').style.display = 'inline-flex';
-            break;
-        }
-        
-        statusElement.innerHTML = statusHtml;
-        
-        // Show details container
-        document.getElementById('loading-container').style.display = 'none';
-        document.getElementById('details-container').style.display = 'block';
-      }
+      // Load quiz details
+      EduQuiz.loadQuizDetails();
     });
   </script>
 </body>
