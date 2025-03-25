@@ -619,7 +619,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <span class="meta-item"><i class="fas fa-calendar-check"></i> ${formattedStartTime} - ${formattedEndTime}</span>
             <span class="meta-item"><i class="fas fa-clock"></i> ${quiz.duration} minutes</span>
             <span class="meta-item">
-              ${isPdfQuiz ? '<i class="fas fa-file-pdf"></i>' : '<i class="fas fa-question-circle"></i>'} 
+              ${quiz.quizType === 'pdf' ? '<i class="fas fa-file-pdf"></i>' : '<i class="fas fa-question-circle"></i>'} 
               ${questionCount}
             </span>
             <span class="quiz-status-badge status-${quiz.studentStatus === 'submitted' ? 'completed' : quiz.studentStatus}">${status}</span>
@@ -1076,6 +1076,11 @@ document.addEventListener('DOMContentLoaded', function () {
         return response.json();
       })
       .then(data => {
+        // Mark all quizzes as having server-provided status
+        data.forEach(quiz => {
+          quiz.serverProvidedStatus = true;
+        });
+        
         availableQuizzes = data;
         renderQuizzes();
       })
@@ -1173,8 +1178,8 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
           `;
         } else {
-          // For regular quizzes, keep the take quiz button
-          actionButton = `<button class="take-quiz-btn" data-quiz-id="${quiz.id}"><i class="fas fa-play"></i> Take Quiz</button>`;
+          // For regular quizzes, change to directly start the quiz instead of showing instructions
+          actionButton = `<button class="start-quiz-direct-btn" data-quiz-id="${quiz.id}"><i class="fas fa-play"></i> Take Quiz</button>`;
         }
       } else if (quiz.studentStatus === 'upcoming') {
         actionButton = `<button class="take-quiz-btn disabled-btn" disabled><i class="fas fa-clock"></i> Not Available Yet</button>`;
@@ -1183,6 +1188,10 @@ document.addEventListener('DOMContentLoaded', function () {
       } else if (quiz.studentStatus === 'missed') {
         actionButton = `<button class="missed-quiz-btn disabled-btn" disabled><i class="fas fa-times-circle"></i> Missed</button>`;
       }
+      
+      // Debug button for admins/teachers
+      const debugButton = localStorage.getItem('role') === 'teacher' ? 
+        `<button class="quiz-debug-btn" data-quiz-id="${quiz.id}"><i class="fas fa-bug"></i> Debug</button>` : '';
       
       quizList.insertAdjacentHTML('beforeend', `
         <div class="quiz-card" data-quiz-id="${quiz.id}">
@@ -1203,19 +1212,21 @@ document.addEventListener('DOMContentLoaded', function () {
           </div>
           <div class="quiz-card-actions">
             ${actionButton}
+            ${debugButton}
           </div>
         </div>
       `);
     });
     
-    // Add event listeners to take quiz buttons
-    document.querySelectorAll('.take-quiz-btn').forEach(btn => {
-      if (!btn.classList.contains('disabled-btn')) {
-        btn.addEventListener('click', function() {
-          const quizId = this.dataset.quizId;
-          openQuizInstructions(quizId);
-        });
-      }
+    // Add event listeners to take quiz buttons - changed to start-quiz-direct-btn
+    document.querySelectorAll('.start-quiz-direct-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const quizId = this.dataset.quizId;
+        const quiz = availableQuizzes.find(q => q.id === quizId);
+        if (quiz) {
+          startQuiz(quiz); // Directly start the quiz instead of showing instructions
+        }
+      });
     });
     
     // Add event listeners to view results buttons
@@ -1233,6 +1244,14 @@ document.addEventListener('DOMContentLoaded', function () {
       btn.addEventListener('click', function() {
         const quizId = this.dataset.quizId;
         openUploadAnswerModal(quizId);
+      });
+    });
+
+    // Add event listeners to debug buttons (for teachers only)
+    document.querySelectorAll('.quiz-debug-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const quizId = this.dataset.quizId;
+        debugQuizStatus(quizId);
       });
     });
   }
@@ -1914,6 +1933,80 @@ document.addEventListener('DOMContentLoaded', function () {
       // Reset button
       submitBtn.disabled = false;
       submitBtn.innerHTML = 'Submit Answer';
+    });
+  }
+
+  // Add debug function
+  function debugQuizStatus(quizId) {
+    // Call the debug endpoint
+    fetch(`/api/classrooms/${classroomId}/quizzes/${quizId}/debug`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('Debug data:', data);
+      
+      // Format the debug data for display
+      const formattedData = `
+        Server Time (IST): ${new Date(data.serverTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+        Server Time (UTC): ${new Date(data.serverTimeUTC).toLocaleString('en-US', { timeZone: 'UTC' })}
+        Timezone: ${data.timezone || 'IST (UTC+5:30)'}
+        
+        Quiz Start Time: ${new Date(data.quizStartTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+        Quiz End Time: ${new Date(data.quizEndTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+        Status: ${data.studentStatus}
+        
+        Time since start: ${data.timeSinceStartInMinutes.toFixed(2)} minutes
+        Time until end: ${data.timeUntilEndInMinutes.toFixed(2)} minutes
+        Time buffer: ${data.timeBufferInMinutes} minutes
+        
+        Conditions:
+        - Before start: ${data.conditions.isBeforeStart}
+        - After end: ${data.conditions.isAfterEnd}
+        - During quiz: ${data.conditions.isDuringQuiz}
+      `;
+      
+      // Create and show modal with debug info
+      const modalHtml = `
+        <div id="quiz-debug-modal" class="modal">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2>Quiz Debug Information</h2>
+              <span class="close">&times;</span>
+            </div>
+            <div class="modal-body">
+              <pre>${formattedData}</pre>
+            </div>
+            <div class="modal-footer">
+              <button class="btn close-modal">Close</button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // Add modal to the page
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+      
+      // Get the modal
+      const modal = document.getElementById('quiz-debug-modal');
+      
+      // Open the modal
+      modal.style.display = 'block';
+      
+      // Close the modal when clicked on X or Close button
+      modal.querySelector('.close').addEventListener('click', () => {
+        modal.remove();
+      });
+      
+      modal.querySelector('.close-modal').addEventListener('click', () => {
+        modal.remove();
+      });
+    })
+    .catch(error => {
+      console.error('Error fetching debug data:', error);
+      showNotification('Error fetching debug data', 'error');
     });
   }
 }); 

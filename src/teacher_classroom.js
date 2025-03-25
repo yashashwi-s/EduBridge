@@ -2571,17 +2571,17 @@ function viewQuizResults(quizId) {
                 if (isPdfQuiz) {
                     // For PDF quizzes, show different actions
                     actionsHtml = `
-                        <button class="btn btn-sm btn-outline view-pdf-btn" data-student-id="${submission.studentId}">
+                        <button class="btn btn-sm btn-outline view-pdf-btn" data-student-id="${submission.student_id || submission['student_id']}">
                             <i class="fas fa-file-pdf"></i> View Submission
                         </button>
-                        <button class="btn btn-sm btn-outline grade-pdf-btn" data-student-id="${submission.studentId}">
+                        <button class="btn btn-sm btn-outline grade-pdf-btn" data-student-id="${submission.student_id || submission['student_id']}">
                             ${submission.isGraded ? '<i class="fas fa-edit"></i> Edit Grade' : '<i class="fas fa-check"></i> Grade'}
                         </button>
                     `;
                 } else {
                     // For regular quizzes, show view details button
                     actionsHtml = `
-                        <button class="btn btn-sm btn-outline view-details-btn" data-student-id="${submission.studentId}">
+                        <button class="btn btn-sm btn-outline view-details-btn" data-student-id="${submission.student_id || submission['student_id']}">
                             <i class="fas fa-eye"></i> View Details
                         </button>
                     `;
@@ -2737,10 +2737,20 @@ function showGradeSubmissionModal(quizId, studentId) {
     })
     .then(response => response.json())
     .then(results => {
+        console.log('Fetched results to grade submission, looking for student ID:', studentId);
+        
         // Find the specific submission
-        const submission = results.submissions.find(s => s.studentId === studentId);
+        const submission = results.submissions.find(s => {
+            // Try different possible ways the student ID might be stored
+            return (s.studentId === studentId || 
+                   s.student_id === studentId || 
+                   (s.student_id && s.student_id.toString() === studentId) ||
+                   (s['student_id'] && s['student_id'].toString() === studentId));
+        });
         
         if (submission) {
+            console.log('Found submission to grade:', submission);
+            
             // If we're editing an existing grade
             if (submission.isGraded) {
                 document.getElementById('submission-score').value = submission.score || 0;
@@ -2756,6 +2766,8 @@ function showGradeSubmissionModal(quizId, studentId) {
             gradeModal.querySelector('#grade-loading').style.display = 'none';
             gradeModal.querySelector('#grade-form-container').style.display = 'block';
         } else {
+            console.error('Submission not found for student ID:', studentId);
+            console.log('Available submissions:', results.submissions);
             throw new Error('Submission not found');
         }
     })
@@ -2772,6 +2784,9 @@ function showGradeSubmissionModal(quizId, studentId) {
 }
 
 function submitGrade(quizId, studentId) {
+    // Log the student ID to debug
+    console.log('Submitting grade for student:', studentId);
+    
     // Get values from form
     const score = parseFloat(document.getElementById('submission-score').value);
     const feedback = document.getElementById('submission-feedback').value;
@@ -2799,15 +2814,15 @@ function submitGrade(quizId, studentId) {
     fetch(`/api/classrooms/${classroomId}/quizzes/${quizId}/submissions/${studentId}/grade-pdf`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify(gradeData)
     })
     .then(response => {
         if (!response.ok) {
-            return response.json().then(errorData => {
-                throw new Error(errorData.msg || 'Failed to save grade');
+            return response.json().then(data => {
+                throw new Error(data.msg || 'Failed to save grade');
             });
         }
         return response.json();
@@ -2815,23 +2830,20 @@ function submitGrade(quizId, studentId) {
     .then(data => {
         console.log('Grade saved successfully:', data);
         
-        // Close the modal
+        // Close modal
         document.getElementById('grade-submission-modal').style.display = 'none';
-        
-        // Refresh the results view
-        viewQuizResults(quizId);
         
         // Show success message
         showNotification('Grade saved successfully', 'success');
+        
+        // Refresh the quiz results
+        viewQuizResults(quizId);
     })
     .catch(error => {
         console.error('Error saving grade:', error);
-        alert('Failed to save grade: ' + error.message);
-    })
-    .finally(() => {
-        // Reset button state
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;
+        alert(`Error saving grade: ${error.message}`);
     });
 }
 

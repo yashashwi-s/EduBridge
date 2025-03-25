@@ -132,6 +132,9 @@ EduQuiz.fetchQuizData = function(callback) {
     console.log('Found quiz:', quiz.title);
     console.log('Current status:', quiz.studentStatus);
     
+    // Mark the quiz status as coming from the server
+    quiz.serverProvidedStatus = true;
+    
     // Update the quiz status based on current time
     const updatedQuiz = EduQuiz.updateQuizStatus(quiz);
     
@@ -211,6 +214,10 @@ EduQuiz.startQuizAfterVerification = function(callback) {
     
     if (data && data.quiz) {
       console.log('Quiz data received from start endpoint:', data.quiz);
+      
+      // Mark the quiz status as coming from the server
+      data.quiz.serverProvidedStatus = true;
+      
       quizData = data.quiz;
       
       // If we have questions in the response, use them directly
@@ -278,6 +285,9 @@ EduQuiz.fetchQuizQuestions = function(callback) {
     
     if (currentQuiz) {
       console.log('Found current quiz:', currentQuiz.title);
+      
+      // Mark the quiz status as coming from the server
+      currentQuiz.serverProvidedStatus = true;
       
       // Create a backup of the quiz object in case we need to debug
       window.quizBackup = JSON.parse(JSON.stringify(currentQuiz));
@@ -647,6 +657,12 @@ EduQuiz.fetchQuizDetails = function(callback) {
  * @param {object} quiz - Quiz object to update
  */
 EduQuiz.updateQuizStatus = function(quiz) {
+  // If the quiz already has a status from the backend, respect it
+  if (quiz.serverProvidedStatus === true) {
+    console.log(`Quiz ${quiz.title} has server-provided status: ${quiz.studentStatus}, not recalculating`);
+    return quiz;
+  }
+  
   // Use current time in UTC
   const now = new Date();
   

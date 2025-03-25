@@ -206,13 +206,42 @@
         const classroomId = EduQuiz.getClassroomId();
         const quizId = EduQuiz.getQuizId();
         
-        // We'll use the user ID from the results or fetch it if needed
-        const studentId = results.studentId || localStorage.getItem('user_id');
+        // Get user ID from localStorage or JWT token
+        let userId = localStorage.getItem('user_id');
         
-        if (studentId) {
+        // If user_id isn't available in localStorage, try to get it from the JWT token
+        if (!userId) {
           const token = localStorage.getItem('access_token');
-          const downloadUrl = `/api/classrooms/${classroomId}/quizzes/${quizId}/submissions/${studentId}/pdf?token=${token}`;
+          if (token) {
+            try {
+              // Decode JWT token to get user ID
+              const tokenParts = token.split('.');
+              if (tokenParts.length === 3) {
+                const payload = JSON.parse(atob(tokenParts[1]));
+                userId = payload.sub; // sub claim contains the user ID
+              }
+            } catch (e) {
+              console.error('Error decoding JWT token:', e);
+            }
+          }
+        }
+        
+        if (userId) {
+          console.log('Using user ID for download:', userId);
+          const token = localStorage.getItem('access_token');
+          // Use the answer-pdf endpoint instead of pdf endpoint
+          const downloadUrl = `/api/classrooms/${classroomId}/quizzes/${quizId}/submissions/${userId}/answer-pdf?token=${token}`;
           document.getElementById('download-submission').href = downloadUrl;
+        } else {
+          console.error('User ID not available for PDF download');
+          // Show error message or disable download button
+          const downloadBtn = document.getElementById('download-submission');
+          downloadBtn.classList.add('disabled');
+          downloadBtn.removeAttribute('href');
+          downloadBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            alert('Unable to download. Please try logging out and logging back in.');
+          });
         }
       }
       

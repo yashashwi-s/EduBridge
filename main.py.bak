@@ -13,7 +13,6 @@ from google.genai import types
 import json
 from bson import Binary
 import io
-import traceback
 
 # Add a custom JSON encoder to handle ObjectId and datetime
 class MongoJSONEncoder(json.JSONEncoder):
@@ -1128,9 +1127,7 @@ def get_classroom_quizzes(classroom_id):
         return jsonify(mongo_to_json_serializable(quizzes)), 200
     
     except Exception as e:
-        error_traceback = traceback.format_exc()
         print(f"Error retrieving quizzes: {str(e)}")
-        print(f"Traceback: {error_traceback}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
 @app.route("/api/classrooms/<classroom_id>/quizzes", methods=["POST"])
@@ -1253,9 +1250,7 @@ def create_classroom_quiz(classroom_id):
         return jsonify({"msg": "Failed to create quiz"}), 500
         
     except Exception as e:
-        error_traceback = traceback.format_exc()
         print(f"Error creating quiz: {str(e)}")
-        print(f"Traceback: {error_traceback}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
 @app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>", methods=["GET"])
@@ -1306,9 +1301,7 @@ def get_classroom_quiz(classroom_id, quiz_id):
         return jsonify(mongo_to_json_serializable(quiz)), 200
         
     except Exception as e:
-        error_traceback = traceback.format_exc()
         print(f"Error retrieving quiz: {str(e)}")
-        print(f"Traceback: {error_traceback}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
 @app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>", methods=["PUT"])
@@ -1414,16 +1407,16 @@ def update_classroom_quiz(classroom_id, quiz_id):
         else:
             # Handle regular quiz update with JSON data
             data = request.get_json()
-        if not data:
-            return jsonify({"msg": "Quiz data is required"}), 400
-        
-        # Create updated quiz object
-        updated_quiz = quiz.copy()
-        
-        # Update basic fields
-        for field in ["title", "description", "published"]:
-            if field in data:
-                updated_quiz[field] = data[field]
+            if not data:
+                return jsonify({"msg": "Quiz data is required"}), 400
+            
+            # Create updated quiz object
+            updated_quiz = quiz.copy()
+            
+            # Update basic fields
+            for field in ["title", "description", "published"]:
+                if field in data:
+                    updated_quiz[field] = data[field]
         
         # Handle questions update if provided and no submissions exist
         if "questions" in data:
@@ -1564,9 +1557,7 @@ def update_classroom_quiz(classroom_id, quiz_id):
         return jsonify({"msg": "No changes made to quiz"}), 200
         
     except Exception as e:
-        error_traceback = traceback.format_exc()
         print(f"Error updating quiz: {str(e)}")
-        print(f"Traceback: {error_traceback}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
 @app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>", methods=["DELETE"])
@@ -1601,9 +1592,7 @@ def delete_classroom_quiz(classroom_id, quiz_id):
         return jsonify({"msg": "No changes made"}), 200
         
     except Exception as e:
-        error_traceback = traceback.format_exc()
         print(f"Error deleting quiz: {str(e)}")
-        print(f"Traceback: {error_traceback}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
 @app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/results", methods=["GET"])
@@ -1653,24 +1642,24 @@ def get_quiz_results(classroom_id, quiz_id):
                     }
             else:
                 # For question-based quizzes, process subjective questions
-                subjective_status = {
-                    "total": 0,
-                    "graded": 0,
-                    "pending": 0
-                }
+            subjective_status = {
+                "total": 0,
+                "graded": 0,
+                "pending": 0
+            }
             
             # Check each answer
-            if "questions" in quiz and isinstance(quiz["questions"], list):
-                for question in quiz["questions"]:
-                    q_id = str(question["id"])
-                    q_type = question.get("type", "single_choice")
-                    
-                    if q_type == "subjective" and q_id in submission.get("answers", {}):
-                        subjective_status["total"] += 1
-                        if submission["answers"][q_id].get("isGraded", False):
-                            subjective_status["graded"] += 1
-                        else:
-                            subjective_status["pending"] += 1
+                if "questions" in quiz:
+            for question in quiz["questions"]:
+                q_id = str(question["id"])
+                q_type = question.get("type", "single_choice")
+                
+                if q_type == "subjective" and q_id in submission.get("answers", {}):
+                    subjective_status["total"] += 1
+                    if submission["answers"][q_id].get("isGraded", False):
+                        subjective_status["graded"] += 1
+                    else:
+                        subjective_status["pending"] += 1
             
             submission_copy["subjectiveStatus"] = subjective_status
             
@@ -1682,8 +1671,7 @@ def get_quiz_results(classroom_id, quiz_id):
             "averageScore": 0,
             "highestScore": 0,
             "lowestScore": 100 if submissions else 0,
-            "needsManualGrading": False,
-            "questionsStatistics": {}  # Initialize here for all quiz types
+            "needsManualGrading": False
         }
         
         if submissions:
@@ -1697,129 +1685,128 @@ def get_quiz_results(classroom_id, quiz_id):
                 stats["needsManualGrading"] = any(not s.get("isGraded", False) for s in submissions)
             else:
                 # For question-based quizzes, check subjective questions
-                stats["needsManualGrading"] = any(
+            stats["needsManualGrading"] = any(
                     s.get("subjectiveStatus", {}).get("pending", 0) > 0 for s in submissions
-                )
+            )
                 
-                # Remove this line since we already initialized questionsStatistics above
-                # if "questions" in quiz:
-                #    stats["questionsStatistics"] = {}
+                # Only add question statistics for question-based quizzes
+                if "questions" in quiz:
+                    stats["questionsStatistics"] = {}
             
             # Calculate per-question statistics based on question type
-            if "questions" in quiz and isinstance(quiz["questions"], list):
-                for question in quiz["questions"]:
-                    q_id = str(question["id"])
-                    q_type = question.get("type", "single_choice")
+            for question in quiz["questions"]:
+                q_id = str(question["id"])
+                q_type = question.get("type", "single_choice")
+                
+                # Initialize stats for this question
+                question_stats = {
+                    "type": q_type,
+                    "text": question["text"],
+                    "points": question.get("points", 1)
+                }
+                
+                if q_type == "subjective":
+                    # For subjective questions, track graded vs ungraded
+                    answered_count = 0
+                    graded_count = 0
+                    total_score = 0
                     
-                    # Initialize stats for this question
-                    question_stats = {
-                        "type": q_type,
-                        "text": question["text"],
-                        "points": question.get("points", 1)
-                    }
+                    for submission in submissions:
+                        if q_id in submission.get("answers", {}):
+                            answered_count += 1
+                            answer = submission["answers"][q_id]
+                            if answer.get("isGraded", False):
+                                graded_count += 1
+                                total_score += answer.get("score", 0)
                     
-                    if q_type == "subjective":
-                        # For subjective questions, track graded vs ungraded
-                        answered_count = 0
-                        graded_count = 0
-                        total_score = 0
-                        
-                        for submission in submissions:
-                            if q_id in submission.get("answers", {}):
-                                answered_count += 1
-                                answer = submission["answers"][q_id]
-                                if answer.get("isGraded", False):
-                                    graded_count += 1
-                                    total_score += answer.get("score", 0)
-                        
-                        question_stats.update({
-                            "answered": answered_count,
-                            "graded": graded_count,
-                            "pending": answered_count - graded_count,
-                            "averageScore": round(total_score / graded_count, 1) if graded_count > 0 else 0,
-                            "maxScore": question.get("points", 1)
-                        })
+                    question_stats.update({
+                        "answered": answered_count,
+                        "graded": graded_count,
+                        "pending": answered_count - graded_count,
+                        "averageScore": round(total_score / graded_count, 1) if graded_count > 0 else 0,
+                        "maxScore": question.get("points", 1)
+                    })
+                
+                elif q_type == "multiple_choice":
+                    # For multiple choice, track selection of each option
+                    option_stats = {}
+                    answered_count = 0
+                    correct_count = 0
+                    partial_count = 0
                     
-                    elif q_type == "multiple_choice":
-                        # For multiple choice, track selection of each option
-                        option_stats = {}
-                        answered_count = 0
-                        correct_count = 0
-                        partial_count = 0
-                        
-                        # Initialize option statistics
-                        for option in question.get("options", []):
-                            opt_id = option["id"]
-                            option_stats[opt_id] = {
-                                "text": option["text"],
-                                "isCorrect": opt_id in question.get("correctOptions", []),
-                                "count": 0
-                            }
-                        
-                        for submission in submissions:
-                            if q_id in submission.get("answers", {}):
-                                answer = submission["answers"][q_id]
-                                answered_count += 1
+                    # Initialize option statistics
+                    for option in question.get("options", []):
+                        opt_id = option["id"]
+                        option_stats[opt_id] = {
+                            "text": option["text"],
+                            "isCorrect": opt_id in question.get("correctOptions", []),
+                            "count": 0
+                        }
+                    
+                    for submission in submissions:
+                        if q_id in submission.get("answers", {}):
+                            answer = submission["answers"][q_id]
+                            answered_count += 1
+                            
+                            # Track correctness
+                            if answer.get("isCorrect", False):
+                                correct_count += 1
+                            elif answer.get("score", 0) > 0:
+                                partial_count += 1
                                 
-                                # Track correctness
-                                if answer.get("isCorrect", False):
-                                    correct_count += 1
-                                elif answer.get("score", 0) > 0:
-                                    partial_count += 1
-                                    
-                                # Track selected options
-                                for selected_id in answer.get("selected", []):
-                                    if selected_id in option_stats:
-                                        option_stats[selected_id]["count"] += 1
-                        
-                        question_stats.update({
-                            "options": option_stats,
-                            "answered": answered_count,
-                            "correct": correct_count,
-                            "partial": partial_count,
-                            "incorrect": answered_count - correct_count - partial_count,
-                            "correctPercentage": round((correct_count / answered_count) * 100, 1) if answered_count > 0 else 0
-                        })
-                        
-                    else:
-                        # For single choice, track selection rate of each option
-                        option_stats = {}
-                        answered_count = 0
-                        correct_count = 0
-                        
-                        # Initialize option statistics
-                        for option in question.get("options", []):
-                            opt_id = option["id"]
-                            option_stats[opt_id] = {
-                                "text": option["text"],
-                                "isCorrect": opt_id == question.get("correctOption", ""),
-                                "count": 0
-                            }
-                        
-                        for submission in submissions:
-                            if q_id in submission.get("answers", {}):
-                                answer = submission["answers"][q_id]
-                                answered_count += 1
-                                
-                                # Track correctness
-                                if answer.get("isCorrect", False):
-                                    correct_count += 1
-                                    
-                                # Track selected option
-                                selected_id = answer.get("selected", "")
+                            # Track selected options
+                            for selected_id in answer.get("selected", []):
                                 if selected_id in option_stats:
                                     option_stats[selected_id]["count"] += 1
-                        
-                        question_stats.update({
-                            "options": option_stats,
-                            "answered": answered_count,
-                            "correct": correct_count,
-                            "incorrect": answered_count - correct_count,
-                            "correctPercentage": round((correct_count / answered_count) * 100, 1) if answered_count > 0 else 0
-                        })
                     
-                    # Add to overall statistics
-                    stats["questionsStatistics"][q_id] = question_stats
+                    question_stats.update({
+                        "options": option_stats,
+                        "answered": answered_count,
+                        "correct": correct_count,
+                        "partial": partial_count,
+                        "incorrect": answered_count - correct_count - partial_count,
+                        "correctPercentage": round((correct_count / answered_count) * 100, 1) if answered_count > 0 else 0
+                    })
+                    
+                else:
+                    # For single choice, track selection rate of each option
+                    option_stats = {}
+                    answered_count = 0
+                    correct_count = 0
+                    
+                    # Initialize option statistics
+                    for option in question.get("options", []):
+                        opt_id = option["id"]
+                        option_stats[opt_id] = {
+                            "text": option["text"],
+                            "isCorrect": opt_id == question.get("correctOption", ""),
+                            "count": 0
+                        }
+                    
+                    for submission in submissions:
+                        if q_id in submission.get("answers", {}):
+                            answer = submission["answers"][q_id]
+                            answered_count += 1
+                            
+                            # Track correctness
+                            if answer.get("isCorrect", False):
+                                correct_count += 1
+                                
+                            # Track selected option
+                            selected_id = answer.get("selected", "")
+                            if selected_id in option_stats:
+                                option_stats[selected_id]["count"] += 1
+                    
+                    question_stats.update({
+                        "options": option_stats,
+                        "answered": answered_count,
+                        "correct": correct_count,
+                        "incorrect": answered_count - correct_count,
+                        "correctPercentage": round((correct_count / answered_count) * 100, 1) if answered_count > 0 else 0
+                    })
+                
+                # Add to overall statistics
+                stats["questionsStatistics"][q_id] = question_stats
         
         # Compile results based on quiz type
         result = {
@@ -1850,7 +1837,7 @@ def get_quiz_results(classroom_id, quiz_id):
                 }
         else:
             # For question-based quizzes, add question count and subjective question flag
-            if "questions" in quiz and isinstance(quiz["questions"], list):
+            if "questions" in quiz:
                 result["totalQuestions"] = len(quiz["questions"])
                 result["hasSubjectiveQuestions"] = any(q.get("type") == "subjective" for q in quiz["questions"])
             else:
@@ -1860,9 +1847,7 @@ def get_quiz_results(classroom_id, quiz_id):
         return jsonify(mongo_to_json_serializable(result)), 200
         
     except Exception as e:
-        error_traceback = traceback.format_exc()
         print(f"Error getting quiz results: {str(e)}")
-        print(f"Traceback: {error_traceback}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
 # Student endpoints
@@ -1957,9 +1942,7 @@ def get_student_quizzes(classroom_id):
         return jsonify(mongo_to_json_serializable(processed_quizzes)), 200
         
     except Exception as e:
-        error_traceback = traceback.format_exc()
         print(f"Error getting student quizzes: {str(e)}")
-        print(f"Traceback: {error_traceback}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
 @app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/start", methods=["POST"])
@@ -2002,7 +1985,7 @@ def start_quiz(classroom_id, quiz_id):
             if time_diff <= timedelta(minutes=15):
                 print(f"Allowing quiz start despite missed status, time difference is only {time_diff.total_seconds() / 60} minutes")
             else:
-                return jsonify({"msg": "This quiz has already ended"}), 400
+            return jsonify({"msg": "This quiz has already ended"}), 400
             
         if quiz_status != "available" and quiz_status != "upcoming":
             # Add a manual time check as backup 
@@ -2029,9 +2012,7 @@ def start_quiz(classroom_id, quiz_id):
         return jsonify(result), 200
         
     except Exception as e:
-        error_traceback = traceback.format_exc()
         print(f"Error starting quiz: {str(e)}")
-        print(f"Traceback: {error_traceback}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
 @app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/submit", methods=["POST"])
@@ -2153,9 +2134,7 @@ def submit_quiz(classroom_id, quiz_id):
         # Handle date parsing errors
         return jsonify({"msg": f"Invalid data format: {str(e)}"}), 400
     except Exception as e:
-        error_traceback = traceback.format_exc()
         print(f"Error submitting quiz: {str(e)}")
-        print(f"Traceback: {error_traceback}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
 @app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/results/student", methods=["GET"])
@@ -2245,9 +2224,7 @@ def get_student_quiz_results(classroom_id, quiz_id):
         return jsonify(mongo_to_json_serializable(results)), 200
         
     except Exception as e:
-        error_traceback = traceback.format_exc()
         print(f"Error getting student quiz results: {str(e)}")
-        print(f"Traceback: {error_traceback}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
 @app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/pdf/<file_type>", methods=["GET"])
@@ -2316,9 +2293,7 @@ def get_quiz_pdf(classroom_id, quiz_id, file_type):
         )
         
     except Exception as e:
-        error_traceback = traceback.format_exc()
         print(f"Error retrieving quiz PDF: {str(e)}")
-        print(f"Traceback: {error_traceback}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
 @app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/submissions/<student_id>/pdf", methods=["GET"])
@@ -2381,9 +2356,7 @@ def get_student_submission_pdf(classroom_id, quiz_id, student_id):
         )
         
     except Exception as e:
-        error_traceback = traceback.format_exc()
         print(f"Error retrieving submission PDF: {str(e)}")
-        print(f"Traceback: {error_traceback}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
 @app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/submissions/<student_id>/grade-pdf", methods=["POST"])
@@ -2462,9 +2435,7 @@ def grade_pdf_submission(classroom_id, quiz_id, student_id):
             return jsonify({"msg": "Invalid score value"}), 400
             
     except Exception as e:
-        error_traceback = traceback.format_exc()
         print(f"Error grading PDF submission: {str(e)}")
-        print(f"Traceback: {error_traceback}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
 @app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/submissions/<student_id>/answer-pdf", methods=["GET"])
@@ -2525,9 +2496,7 @@ def get_student_answer_pdf(classroom_id, quiz_id, student_id):
         return response
         
     except Exception as e:
-        error_traceback = traceback.format_exc()
         print(f"Error retrieving student answer PDF: {str(e)}")
-        print(f"Traceback: {error_traceback}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
 @app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/debug", methods=["GET"])
@@ -2588,9 +2557,7 @@ def debug_quiz_status(classroom_id, quiz_id):
         }), 200
         
     except Exception as e:
-        error_traceback = traceback.format_exc()
         print(f"Error debugging quiz status: {str(e)}")
-        print(f"Traceback: {error_traceback}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
 def get_current_ist_time():
@@ -2598,169 +2565,6 @@ def get_current_ist_time():
     utc_now = datetime.utcnow()
     ist_offset = timedelta(hours=5, minutes=30)
     return utc_now + ist_offset
-
-@app.route("/api/classrooms/<classroom_id>/drafts", methods=["GET"])
-@jwt_required()
-def get_classroom_drafts(classroom_id):
-    """Retrieve all announcement drafts for a classroom"""
-    try:
-        # Get current user ID from JWT
-        user_id = get_jwt_identity()
-        user_obj_id = ObjectId(user_id)
-        
-        # Validate classroom access
-        classroom = get_classroom_and_validate_access(classroom_id, user_id, required_role="teacher")
-        if not classroom:
-            return jsonify({"msg": "Classroom not found or access denied"}), 404
-        
-        # Get drafts from the database
-        drafts = list(db.drafts.find({
-            "classroom_id": ObjectId(classroom_id),
-            "user_id": user_obj_id
-        }))
-        
-        # Convert drafts to JSON serializable format
-        drafts_json = mongo_to_json_serializable(drafts)
-        
-        return jsonify({"drafts": drafts_json}), 200
-        
-    except Exception as e:
-        error_traceback = traceback.format_exc()
-        print(f"Error retrieving drafts: {str(e)}")
-        print(f"Traceback: {error_traceback}")
-        return jsonify({"msg": f"Server error: {str(e)}"}), 500
-
-@app.route("/api/classrooms/<classroom_id>/drafts", methods=["POST"])
-@jwt_required()
-def save_classroom_draft(classroom_id):
-    """Save an announcement draft for a classroom"""
-    try:
-        # Get current user ID from JWT
-        user_id = get_jwt_identity()
-        user_obj_id = ObjectId(user_id)
-        
-        # Validate classroom access
-        classroom = get_classroom_and_validate_access(classroom_id, user_id, required_role="teacher")
-        if not classroom:
-            return jsonify({"msg": "Classroom not found or access denied"}), 404
-        
-        # Get draft data from request
-        data = request.json
-        if not data:
-            return jsonify({"msg": "No data provided"}), 400
-        
-        # Create or update draft in the database
-        draft = {
-            "classroom_id": ObjectId(classroom_id),
-            "user_id": user_obj_id,
-            "draft_id": data.get("draft_id"),
-            "text": data.get("text", ""),
-            "attachments": data.get("attachments", []),
-            "images": data.get("images", []),
-            "timestamp": data.get("timestamp", datetime.utcnow().isoformat()),
-            "updated_at": datetime.utcnow()
-        }
-        
-        # Use upsert to create or update
-        result = db.drafts.update_one(
-            {
-                "classroom_id": ObjectId(classroom_id),
-                "user_id": user_obj_id,
-                "draft_id": data.get("draft_id")
-            },
-            {"$set": draft},
-            upsert=True
-        )
-        
-        return jsonify({"msg": "Draft saved successfully", "id": data.get("draft_id")}), 200
-        
-    except Exception as e:
-        error_traceback = traceback.format_exc()
-        print(f"Error saving draft: {str(e)}")
-        print(f"Traceback: {error_traceback}")
-        return jsonify({"msg": f"Server error: {str(e)}"}), 500
-
-@app.route("/api/classrooms/<classroom_id>/drafts/autosave", methods=["POST"])
-@jwt_required()
-def autosave_classroom_draft(classroom_id):
-    """Autosave an announcement draft for a classroom"""
-    try:
-        # Get current user ID from JWT
-        user_id = get_jwt_identity()
-        user_obj_id = ObjectId(user_id)
-        
-        # Validate classroom access
-        classroom = get_classroom_and_validate_access(classroom_id, user_id, required_role="teacher")
-        if not classroom:
-            return jsonify({"msg": "Classroom not found or access denied"}), 404
-        
-        # Get draft data from request
-        data = request.json
-        if not data:
-            return jsonify({"msg": "No data provided"}), 400
-        
-        # Create or update autosave draft in the database
-        draft = {
-            "classroom_id": ObjectId(classroom_id),
-            "user_id": user_obj_id,
-            "draft_id": "autosave_draft",
-            "text": data.get("text", ""),
-            "attachments": data.get("attachments", []),
-            "images": data.get("images", []),
-            "timestamp": data.get("timestamp", datetime.utcnow().isoformat()),
-            "updated_at": datetime.utcnow()
-        }
-        
-        # Use upsert to create or update
-        result = db.drafts.update_one(
-            {
-                "classroom_id": ObjectId(classroom_id),
-                "user_id": user_obj_id,
-                "draft_id": "autosave_draft"
-            },
-            {"$set": draft},
-            upsert=True
-        )
-        
-        return jsonify({"msg": "Draft autosaved successfully"}), 200
-        
-    except Exception as e:
-        error_traceback = traceback.format_exc()
-        print(f"Error autosaving draft: {str(e)}")
-        print(f"Traceback: {error_traceback}")
-        return jsonify({"msg": f"Server error: {str(e)}"}), 500
-
-@app.route("/api/classrooms/<classroom_id>/drafts/<draft_id>", methods=["DELETE"])
-@jwt_required()
-def delete_classroom_draft(classroom_id, draft_id):
-    """Delete an announcement draft for a classroom"""
-    try:
-        # Get current user ID from JWT
-        user_id = get_jwt_identity()
-        user_obj_id = ObjectId(user_id)
-        
-        # Validate classroom access
-        classroom = get_classroom_and_validate_access(classroom_id, user_id, required_role="teacher")
-        if not classroom:
-            return jsonify({"msg": "Classroom not found or access denied"}), 404
-        
-        # Delete the draft
-        result = db.drafts.delete_one({
-            "classroom_id": ObjectId(classroom_id),
-            "user_id": user_obj_id,
-            "draft_id": draft_id
-        })
-        
-        if result.deleted_count == 0:
-            return jsonify({"msg": "Draft not found"}), 404
-            
-        return jsonify({"msg": "Draft deleted successfully"}), 200
-        
-    except Exception as e:
-        error_traceback = traceback.format_exc()
-        print(f"Error deleting draft: {str(e)}")
-        print(f"Traceback: {error_traceback}")
-        return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
