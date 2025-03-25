@@ -1790,64 +1790,72 @@ function initializeQuizzes() {
 }
 
 function openQuizModal(quizData = null) {
-    const modal = document.getElementById('quiz-modal');
-    const modalHeader = modal.querySelector('.modal-header h3');
+    // Set current editing quiz ID
+    currentEditingQuizId = quizData ? quizData.id : null;
     
-    // Reset the form
+    // Set modal title based on whether we're creating or editing
+    document.querySelector('.modal-header h3').textContent = quizData ? 'Edit Quiz' : 'Create New Quiz';
+    
+    // Reset the form first
     resetQuizForm();
     
+    // If editing, fill in form with existing data
     if (quizData) {
-        modalHeader.textContent = 'Edit Quiz';
-        currentEditingQuizId = quizData.id;
+        document.getElementById('quiz-title').value = quizData.title || '';
+        document.getElementById('quiz-description').value = quizData.description || '';
         
-        // Fill the form with quiz data
-        document.getElementById('quiz-title').value = quizData.title;
-        document.getElementById('quiz-description').value = quizData.description;
-        
-        // Set date and time for start only
-        const startDate = new Date(quizData.startTime);
-        
-        document.getElementById('quiz-start-date').valueAsDate = startDate;
-        
-        const startHours = startDate.getHours().toString().padStart(2, '0');
-        const startMinutes = startDate.getMinutes().toString().padStart(2, '0');
-        document.getElementById('quiz-start-time').value = `${startHours}:${startMinutes}`;
-        
-        document.getElementById('quiz-duration').value = quizData.duration;
-        
-        // Add questions
-        const questionsContainer = document.getElementById('questions-container');
-        questionsContainer.innerHTML = '';
-        
-        quizData.questions.forEach((question, index) => {
-            const questionId = index + 1;
-            const questionHTML = createQuestionHTML(questionId, question.text);
-            questionsContainer.insertAdjacentHTML('beforeend', questionHTML);
+        // Handle date/time fields
+        if (quizData.startTime) {
+            const startDate = new Date(quizData.startTime);
             
-            const questionCard = questionsContainer.lastElementChild;
-            const optionsContainer = questionCard.querySelector('.options-container');
-            optionsContainer.innerHTML = '';
+            // Format date as YYYY-MM-DD for input[type="date"]
+            const dateString = startDate.toISOString().split('T')[0];
+            document.getElementById('quiz-start-date').value = dateString;
             
-            question.options.forEach((option, optionIndex) => {
-                const optionId = optionIndex + 1;
-                const optionHTML = createOptionHTML(questionId, optionId, option.text);
-                optionsContainer.insertAdjacentHTML('beforeend', optionHTML);
-                
-                if (option.isCorrect) {
-                    const radioInput = optionsContainer.lastElementChild.querySelector(`input[type="radio"][name="correctOption_${questionId}"]`);
-                    radioInput.checked = true;
-                }
-            });
-        });
+            // Format time as HH:MM for input[type="time"]
+            const hours = String(startDate.getHours()).padStart(2, '0');
+            const minutes = String(startDate.getMinutes()).padStart(2, '0');
+            document.getElementById('quiz-start-time').value = `${hours}:${minutes}`;
+        }
         
-        nextQuestionId = quizData.questions.length + 1;
-    } else {
-        modalHeader.textContent = 'Create New Quiz';
-        currentEditingQuizId = null;
+        // Set duration
+        document.getElementById('quiz-duration').value = quizData.duration || 60;
+        
+        // Set published status
+        document.getElementById('quiz-published').checked = quizData.published !== false;
+        
+        // Note: When editing, we don't re-upload the PDF files
+        // Instead, show information about the current files
+        if (quizData.quizType === 'pdf') {
+            const questionPaperNote = document.createElement('div');
+            questionPaperNote.className = 'file-note';
+            questionPaperNote.innerHTML = `
+                <p>Current file: <strong>${quizData.questionPaper?.filename || 'No file'}</strong></p>
+                <p class="note">Upload a new file only if you want to replace the current one.</p>
+            `;
+            
+            const answerKeyNote = document.createElement('div');
+            answerKeyNote.className = 'file-note';
+            answerKeyNote.innerHTML = `
+                <p>Current file: <strong>${quizData.answerKey?.filename || 'No file'}</strong></p>
+                <p class="note">Upload a new file only if you want to replace the current one.</p>
+            `;
+            
+            // Insert after each file input
+            const questionPaperInput = document.getElementById('question-paper');
+            questionPaperInput.insertAdjacentElement('afterend', questionPaperNote);
+            questionPaperInput.required = false; // Not required when editing
+            
+            const answerKeyInput = document.getElementById('answer-key');
+            answerKeyInput.insertAdjacentElement('afterend', answerKeyNote);
+        }
     }
     
     // Show the modal
-    modal.style.display = 'flex';
+    const modal = document.getElementById('quiz-modal');
+    modal.style.display = 'block';
+    
+    // Fade in the modal content
     setTimeout(() => {
         modal.classList.add('active');
         modal.querySelector('.modal-content').style.opacity = '1';
@@ -1871,11 +1879,32 @@ function resetQuizForm() {
     const form = document.getElementById('quiz-form');
     form.reset();
     
-    // Reset questions to have just one question with two options
-    const questionsContainer = document.getElementById('questions-container');
-    questionsContainer.innerHTML = createQuestionHTML(1);
+    // Reset any existing file notes
+    document.querySelectorAll('.file-note').forEach(note => note.remove());
     
-    nextQuestionId = 2;
+    // Make question paper required for new quizzes
+    const questionPaperInput = document.getElementById('question-paper');
+    if (questionPaperInput) {
+        questionPaperInput.required = true;
+    }
+    
+    // Set default date to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const dateInput = document.getElementById('quiz-start-date');
+    if (dateInput) {
+        dateInput.valueAsDate = tomorrow;
+    }
+    
+    // Set reasonable default time (9:00 AM)
+    const timeInput = document.getElementById('quiz-start-time');
+    if (timeInput) {
+        timeInput.value = '09:00';
+    }
+    
+    // Clear any validation messages
+    document.querySelectorAll('.error-message').forEach(msg => msg.remove());
 }
 
 function addNewQuestion() {
@@ -1971,6 +2000,14 @@ function saveQuiz() {
     const startDate = document.getElementById('quiz-start-date').value;
     const startTime = document.getElementById('quiz-start-time').value;
     const duration = document.getElementById('quiz-duration').value;
+    const questionPaperInput = document.getElementById('question-paper');
+    const answerKeyInput = document.getElementById('answer-key');
+    const questionPaperFile = questionPaperInput.files[0];
+    const answerKeyFile = answerKeyInput.files[0];
+    const published = document.getElementById('quiz-published').checked;
+    
+    // Check if we're editing an existing quiz
+    const isEdit = !!currentEditingQuizId;
     
     // Check for token first
     const token = localStorage.getItem('access_token');
@@ -1989,6 +2026,23 @@ function saveQuiz() {
         return;
     }
     
+    // When creating a new quiz, question paper is required
+    if (!isEdit && !questionPaperFile) {
+        showNotification('Please upload a question paper PDF', 'error');
+        return;
+    }
+    
+    // Validate file types if provided
+    if (questionPaperFile && !questionPaperFile.type.match('application/pdf')) {
+        showNotification('Question paper must be a PDF file', 'error');
+        return;
+    }
+    
+    if (answerKeyFile && !answerKeyFile.type.match('application/pdf')) {
+        showNotification('Answer key must be a PDF file', 'error');
+        return;
+    }
+    
     // Create ISO 8601 formatted datetime string that Python can properly parse
     // Format as YYYY-MM-DDTHH:MM:SS
     const formattedStartDateTime = `${startDate}T${startTime}:00`;
@@ -2002,85 +2056,43 @@ function saveQuiz() {
     console.log('Start time (local):', startDateTime.toLocaleString());
     console.log('End time (calculated):', endDateTime.toLocaleString());
     
-    // Get questions data
-    const questions = [];
-    const questionCards = document.querySelectorAll('.question-card');
-    
-    let hasError = false;
-    questionCards.forEach(card => {
-        const questionId = card.dataset.questionId;
-        const questionText = card.querySelector('.question-text').value;
-        
-        if (!questionText.trim()) {
-            showNotification(`Question ${questionId} text cannot be empty`, 'error');
-            hasError = true;
-            return;
-        }
-        
-        const options = [];
-        const optionElements = card.querySelectorAll('.option');
-        const selectedOption = card.querySelector(`input[name="correctOption_${questionId}"]:checked`);
-        
-        if (!selectedOption) {
-            showNotification(`Please select a correct answer for Question ${questionId}`, 'error');
-            hasError = true;
-            return;
-        }
-        
-        const correctOptionId = selectedOption.value;
-        
-        optionElements.forEach(optionElement => {
-            const optionId = optionElement.dataset.optionId;
-            const optionText = optionElement.querySelector('.option-text').value;
-            
-            if (!optionText.trim()) {
-                showNotification(`Option text cannot be empty in Question ${questionId}`, 'error');
-                hasError = true;
-                return;
-            }
-            
-            options.push({
-                id: optionId,
-                text: optionText
-            });
-        });
-        
-        questions.push({
-            id: questionId,
-            text: questionText,
-            options: options,
-            correctOption: correctOptionId
-        });
-    });
-    
-    if (hasError) {
-        return;
-    }
-    
-    // Create quiz object - formatting exactly as backend expects
-    const quiz = {
-        title: title,
-        description: description,
-        startTime: formattedStartDateTime, // Use the formatted string directly
-        duration: parseInt(duration),
-        questions: questions.map(q => ({
-            text: q.text,
-            options: q.options,
-            correctOption: q.correctOption
-        }))
-    };
-    
     // Show loading state
     const saveBtn = document.querySelector('.save-quiz-btn');
     const originalText = saveBtn.innerHTML;
     saveBtn.disabled = true;
     saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
     
+    // Create FormData object for file uploads
+    const formData = new FormData();
+    formData.append('title', title);
+    formData.append('description', description);
+    formData.append('startTime', formattedStartDateTime);
+    formData.append('duration', duration);
+    formData.append('published', published.toString());
+    
+    // Only append files if they are provided
+    // For new quizzes, question paper is required
+    // For existing quizzes, only include files if new ones are selected
+    if (questionPaperFile) {
+        formData.append('questionPaper', questionPaperFile);
+    }
+    
+    if (answerKeyFile) {
+        formData.append('answerKey', answerKeyFile);
+    }
+    
     // For debugging
-    console.log('Sending quiz data to server:', JSON.stringify(quiz));
+    console.log(`Preparing to ${isEdit ? 'update' : 'create'} quiz data with files:`, {
+        title,
+        description,
+        startTime: formattedStartDateTime,
+        duration,
+        published: published.toString(),
+        hasQuestionPaper: !!questionPaperFile,
+        hasAnswerKey: !!answerKeyFile
+    });
     
     // Save to database instead of localStorage
-    const isEdit = !!currentEditingQuizId;
     const method = isEdit ? 'PUT' : 'POST';
     const url = isEdit 
         ? `/api/classrooms/${classroomId}/quizzes/${currentEditingQuizId}` 
@@ -2089,10 +2101,10 @@ function saveQuiz() {
     fetch(url, {
         method: method,
         headers: {
-            'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
+            // Note: Don't set Content-Type header for FormData
         },
-        body: JSON.stringify(quiz)
+        body: formData
     })
     .then(response => {
         console.log('Server response status:', response.status);
@@ -2129,22 +2141,32 @@ function saveQuiz() {
                 description: description,
                 startTime: formattedStartDateTime,
                 duration: parseInt(duration),
-                questions: questions,
-                status: getQuizStatus(startDateTime, endDateTime)
+                quizType: 'pdf',
+                questionPaper: data.quiz.questionPaper,
+                answerKey: data.quiz.answerKey,
+                status: getQuizStatus(startDateTime, endDateTime),
+                published: published
             };
             quizzes.push(newQuiz);
         } else if (isEdit) {
             // Update local array
             const index = quizzes.findIndex(q => q.id === currentEditingQuizId);
             if (index !== -1) {
+                // Preserve existing question paper and answer key if not updated
+                const existingQuestionPaper = !questionPaperFile ? quizzes[index].questionPaper : data.quiz.questionPaper;
+                const existingAnswerKey = !answerKeyFile ? quizzes[index].answerKey : data.quiz.answerKey;
+                
                 quizzes[index] = {
                     ...quizzes[index],
                     title: title,
                     description: description,
                     startTime: formattedStartDateTime,
                     duration: parseInt(duration),
-                    questions: questions,
-                    status: getQuizStatus(startDateTime, endDateTime)
+                    quizType: 'pdf',
+                    questionPaper: existingQuestionPaper,
+                    answerKey: existingAnswerKey,
+                    status: getQuizStatus(startDateTime, endDateTime),
+                    published: published
                 };
             }
         }
@@ -2163,19 +2185,13 @@ function saveQuiz() {
         if (error.message !== 'Authentication failed') {
             // Extract and display the specific error message
             let errorMessage = error.message || 'Failed to save quiz';
-            // Check if it's a startTime format error and make the message more user-friendly
-            if (errorMessage.includes('Invalid date format for startTime')) {
-                errorMessage = 'Invalid date format. Please check the start date and time.';
-            }
             showNotification(errorMessage, 'error');
         }
     })
     .finally(() => {
-        // Reset button state if not redirecting due to auth error
-        if (!document.querySelector('.notification.error')) {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = originalText;
-        }
+        // Restore button state
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalText;
     });
 }
 
@@ -2304,24 +2320,112 @@ function renderQuizzes() {
             'expired': 'Expired'
         };
         
+        // Check if this is a PDF quiz
+        const isPdfQuiz = quiz.quizType === 'pdf';
+        
+        // Create the quiz info section with appropriate metadata
+        let quizMetaHTML = `
+            <span class="date"><i class="fas fa-calendar-check"></i> ${formattedDate} - ${formattedTime}</span>
+            <span class="quiz-status ${quiz.status}">${statusLabel[quiz.status] || 'Unknown'}</span>
+        `;
+        
+        if (isPdfQuiz) {
+            // Show PDF info for PDF quizzes
+            const hasPaper = quiz.questionPaper && quiz.questionPaper.filename;
+            const hasAnswerKey = quiz.answerKey && quiz.answerKey.filename;
+            
+            quizMetaHTML += `
+                <span class="quiz-type pdf"><i class="fas fa-file-pdf"></i> PDF Quiz</span>
+                ${hasPaper ? `<span class="quiz-paper"><i class="fas fa-file-alt"></i> ${quiz.questionPaper.filename}</span>` : ''}
+                ${hasAnswerKey ? `<span class="quiz-key"><i class="fas fa-key"></i> Answer Key</span>` : ''}
+            `;
+        } else {
+            // Show question count for regular quizzes
+            quizMetaHTML += `
+                <span class="quiz-questions"><i class="fas fa-question-circle"></i> ${quiz.questions ? quiz.questions.length : 0} Question${quiz.questions && quiz.questions.length !== 1 ? 's' : ''}</span>
+            `;
+        }
+        
+        // Calculate submission count if available
+        let submissionInfo = '';
+        if (quiz.submissionStats) {
+            if (isPdfQuiz) {
+                // For PDF quizzes, show graded vs total
+                const gradedCount = quiz.submissionStats.gradedCount || 0;
+                const totalCount = quiz.submissionStats.submissionCount || 0;
+                submissionInfo = `
+                    <span class="submission-info">
+                        <i class="fas fa-users"></i> 
+                        ${totalCount} Submission${totalCount !== 1 ? 's' : ''} (${gradedCount} Graded)
+                    </span>
+                `;
+            } else {
+                // For regular quizzes, just show total
+                const count = quiz.submissionStats.submissionCount || 0;
+                submissionInfo = `
+                    <span class="submission-info">
+                        <i class="fas fa-users"></i> 
+                        ${count} Submission${count !== 1 ? 's' : ''}
+                    </span>
+                `;
+            }
+        }
+        
+        // Add download buttons for PDF quizzes
+        let downloadButtons = '';
+        if (isPdfQuiz) {
+            downloadButtons = `
+                <button class="btn btn-outline download-paper-btn">
+                    <i class="fas fa-download"></i> Question Paper
+                </button>
+            `;
+            
+            if (quiz.answerKey) {
+                downloadButtons += `
+                    <button class="btn btn-outline download-key-btn">
+                        <i class="fas fa-download"></i> Answer Key
+                    </button>
+                `;
+            }
+        }
+        
         quizList.insertAdjacentHTML('beforeend', `
-            <div class="quiz-card" data-quiz-id="${quiz.id}">
+            <div class="quiz-card ${isPdfQuiz ? 'pdf-quiz' : ''}" data-quiz-id="${quiz.id}">
                 <div class="quiz-info">
                     <h3>${quiz.title}</h3>
                     <p>${quiz.description || ''}</p>
                     <div class="quiz-meta">
-                        <span class="date"><i class="fas fa-calendar-check"></i> ${formattedDate} - ${formattedTime}</span>
-                        <span class="quiz-status ${quiz.status}">${statusLabel[quiz.status] || 'Unknown'}</span>
-                        <span class="quiz-questions"><i class="fas fa-question-circle"></i> ${quiz.questions ? quiz.questions.length : 0} Question${quiz.questions && quiz.questions.length !== 1 ? 's' : ''}</span>
+                        ${quizMetaHTML}
                     </div>
+                    ${submissionInfo}
                 </div>
                 <div class="quiz-actions">
+                    ${downloadButtons}
                     <button class="btn btn-outline edit-quiz-btn"><i class="fas fa-edit"></i> Edit</button>
                     <button class="btn btn-outline results-btn"><i class="fas fa-chart-bar"></i> Results</button>
                     <button class="btn btn-outline delete-quiz-btn"><i class="fas fa-trash"></i></button>
                 </div>
             </div>
         `);
+    });
+    
+    // Add event listeners for PDF download buttons
+    document.querySelectorAll('.download-paper-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const quizId = e.target.closest('.quiz-card').dataset.quizId;
+            const token = localStorage.getItem('access_token');
+            window.open(`/api/classrooms/${classroomId}/quizzes/${quizId}/pdf/questionPaper?token=${token}`, '_blank');
+        });
+    });
+    
+    document.querySelectorAll('.download-key-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const quizId = e.target.closest('.quiz-card').dataset.quizId;
+            const token = localStorage.getItem('access_token');
+            window.open(`/api/classrooms/${classroomId}/quizzes/${quizId}/pdf/answerKey?token=${token}`, '_blank');
+        });
     });
 }
 
@@ -2435,6 +2539,10 @@ function viewQuizResults(quizId) {
         return response.json();
     })
     .then(results => {
+        // Get the quiz details
+        const quiz = quizzes.find(q => q.id === quizId);
+        const isPdfQuiz = quiz && quiz.quizType === 'pdf';
+        
         document.getElementById('results-modal-title').textContent = `Results: ${results.quizTitle}`;
         
         // Update statistics
@@ -2455,54 +2563,275 @@ function viewQuizResults(quizId) {
             document.querySelector('.results-table-container').style.display = 'block';
             
             results.submissions.forEach(submission => {
-                const row = document.createElement('tr');
-                
-                // Format submission time
                 const submissionDate = new Date(submission.submittedAt);
-                const formattedDate = submissionDate.toLocaleDateString() + ' ' + 
-                                     submissionDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const formattedDate = submissionDate.toLocaleString();
                 
+                let actionsHtml = '';
+                
+                if (isPdfQuiz) {
+                    // For PDF quizzes, show different actions
+                    actionsHtml = `
+                        <button class="btn btn-sm btn-outline view-pdf-btn" data-student-id="${submission.studentId}">
+                            <i class="fas fa-file-pdf"></i> View Submission
+                        </button>
+                        <button class="btn btn-sm btn-outline grade-pdf-btn" data-student-id="${submission.studentId}">
+                            ${submission.isGraded ? '<i class="fas fa-edit"></i> Edit Grade' : '<i class="fas fa-check"></i> Grade'}
+                        </button>
+                    `;
+                } else {
+                    // For regular quizzes, show view details button
+                    actionsHtml = `
+                        <button class="btn btn-sm btn-outline view-details-btn" data-student-id="${submission.studentId}">
+                            <i class="fas fa-eye"></i> View Details
+                        </button>
+                    `;
+                }
+                
+                // Create the row with appropriate elements
+                const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${submission.studentName}</td>
-                    <td>${submission.percentage}%</td>
+                    <td>${submission.isGraded ? `${submission.percentage}%` : 'Not graded'}</td>
                     <td>${formattedDate}</td>
-                    <td>
-                        <button class="view-detail-btn" onclick="viewStudentDetail('${quizId}', '${submission.student_id}')">
-                            View Detail
-                        </button>
-                    </td>
+                    <td class="actions">${actionsHtml}</td>
                 `;
                 
                 tableBody.appendChild(row);
             });
+            
+            // Add event listeners for PDF-specific buttons
+            if (isPdfQuiz) {
+                // View PDF submission - add JWT token to URL
+                document.querySelectorAll('.view-pdf-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const studentId = e.target.closest('.view-pdf-btn').dataset.studentId;
+                        const token = localStorage.getItem('access_token');
+                        const pdfUrl = `/api/classrooms/${classroomId}/quizzes/${quizId}/submissions/${studentId}/pdf?token=${token}`;
+                        window.open(pdfUrl, '_blank');
+                    });
+                });
+                
+                // Grade PDF submission
+                document.querySelectorAll('.grade-pdf-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const studentId = e.target.closest('.grade-pdf-btn').dataset.studentId;
+                        showGradeSubmissionModal(quizId, studentId);
+                    });
+                });
+            } else {
+                // For regular quizzes, add view details listener
+                document.querySelectorAll('.view-details-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const studentId = e.target.closest('.view-details-btn').dataset.studentId;
+                        viewStudentDetail(quizId, studentId);
+                    });
+                });
+            }
         }
         
-        // Hide loading spinner
+        // Hide loading spinner, show content
         document.getElementById('results-loading').style.display = 'none';
         document.getElementById('results-content').style.display = 'block';
     })
     .catch(error => {
         console.error('Error fetching quiz results:', error);
-        showNotification('Failed to fetch quiz results', 'error');
-        
-        // Hide loading spinner
         document.getElementById('results-loading').style.display = 'none';
-        document.getElementById('results-content').style.display = 'block';
         document.getElementById('results-content').innerHTML = `
             <div class="error-message">
                 <i class="fas fa-exclamation-circle"></i>
-                <p>Failed to load quiz results. Please try again.</p>
+                <p>Failed to load quiz results. Please try again later.</p>
+                <p class="error-details">${error.message}</p>
             </div>
         `;
     });
+}
+
+function showGradeSubmissionModal(quizId, studentId) {
+    // Create modal if it doesn't exist
+    let gradeModal = document.getElementById('grade-submission-modal');
     
-    // Close button event handler
-    document.querySelector('.close-results-modal').addEventListener('click', () => {
-        resultsModal.classList.remove('active');
-        resultsModal.querySelector('.modal-content').style.opacity = '0';
-        setTimeout(() => {
-            resultsModal.style.display = 'none';
-        }, 300);
+    if (!gradeModal) {
+        // Create the modal element
+        gradeModal = document.createElement('div');
+        gradeModal.id = 'grade-submission-modal';
+        gradeModal.className = 'modal';
+        
+        gradeModal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Grade Submission</h3>
+                    <button class="close-grade-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="grade-loading" class="loading-container">
+                        <div class="spinner"></div>
+                        <p>Loading submission...</p>
+                    </div>
+                    
+                    <div id="grade-form-container" style="display: none;">
+                        <div class="submission-preview">
+                            <h4>Student Submission</h4>
+                            <div class="pdf-info">
+                                <i class="fas fa-file-pdf"></i>
+                                <span id="submission-filename">answer.pdf</span>
+                                <a id="view-submission-pdf" class="btn btn-sm btn-outline" target="_blank">
+                                    <i class="fas fa-external-link-alt"></i> Open PDF
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <form id="grade-submission-form">
+                            <div class="form-group">
+                                <label for="submission-score">Score</label>
+                                <input type="number" id="submission-score" min="0" max="100" step="0.1" required placeholder="Enter score (0-100)">
+                                <span class="form-info">Out of 100 points</span>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="submission-feedback">Feedback (Optional)</label>
+                                <textarea id="submission-feedback" rows="4" placeholder="Enter feedback for the student"></textarea>
+                            </div>
+                            
+                            <div class="form-actions">
+                                <button type="button" class="btn btn-outline cancel-grade-btn">Cancel</button>
+                                <button type="submit" class="btn btn-primary save-grade-btn">Save Grade</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(gradeModal);
+        
+        // Add event listeners
+        gradeModal.querySelector('.close-grade-modal').addEventListener('click', () => {
+            gradeModal.style.display = 'none';
+        });
+        
+        gradeModal.querySelector('.cancel-grade-btn').addEventListener('click', () => {
+            gradeModal.style.display = 'none';
+        });
+        
+        gradeModal.querySelector('#grade-submission-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            submitGrade(quizId, studentId);
+        });
+    }
+    
+    // Show loading state
+    gradeModal.style.display = 'block';
+    gradeModal.querySelector('#grade-loading').style.display = 'flex';
+    gradeModal.querySelector('#grade-form-container').style.display = 'none';
+    
+    // Set up the PDF link in grade modal - add JWT token to URL
+    const token = localStorage.getItem('access_token');
+    const pdfUrl = `/api/classrooms/${classroomId}/quizzes/${quizId}/submissions/${studentId}/pdf?token=${token}`;
+    gradeModal.querySelector('#view-submission-pdf').href = pdfUrl;
+    
+    // Fetch submission details if we need them (like current grade if editing)
+    fetch(`/api/classrooms/${classroomId}/quizzes/${quizId}/results`, {
+        headers: {
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        }
+    })
+    .then(response => response.json())
+    .then(results => {
+        // Find the specific submission
+        const submission = results.submissions.find(s => s.studentId === studentId);
+        
+        if (submission) {
+            // If we're editing an existing grade
+            if (submission.isGraded) {
+                document.getElementById('submission-score').value = submission.score || 0;
+                document.getElementById('submission-feedback').value = submission.feedback || '';
+            }
+            
+            // Set filename
+            if (submission.answerFile && submission.answerFile.filename) {
+                document.getElementById('submission-filename').textContent = submission.answerFile.filename;
+            }
+            
+            // Show the form
+            gradeModal.querySelector('#grade-loading').style.display = 'none';
+            gradeModal.querySelector('#grade-form-container').style.display = 'block';
+        } else {
+            throw new Error('Submission not found');
+        }
+    })
+    .catch(error => {
+        console.error('Error loading submission details:', error);
+        gradeModal.querySelector('#grade-loading').style.display = 'none';
+        gradeModal.querySelector('#grade-form-container').innerHTML = `
+            <div class="error-message">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Failed to load submission details. Please try again later.</p>
+            </div>
+        `;
+    });
+}
+
+function submitGrade(quizId, studentId) {
+    // Get values from form
+    const score = parseFloat(document.getElementById('submission-score').value);
+    const feedback = document.getElementById('submission-feedback').value;
+    
+    // Validate
+    if (isNaN(score) || score < 0 || score > 100) {
+        alert('Please enter a valid score between 0 and 100');
+        return;
+    }
+    
+    // Show loading state
+    const submitBtn = document.querySelector('.save-grade-btn');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    
+    // Prepare data
+    const gradeData = {
+        score: score,
+        maxScore: 100,
+        feedback: feedback
+    };
+    
+    // Submit to server
+    fetch(`/api/classrooms/${classroomId}/quizzes/${quizId}/submissions/${studentId}/grade-pdf`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        },
+        body: JSON.stringify(gradeData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(errorData => {
+                throw new Error(errorData.msg || 'Failed to save grade');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Grade saved successfully:', data);
+        
+        // Close the modal
+        document.getElementById('grade-submission-modal').style.display = 'none';
+        
+        // Refresh the results view
+        viewQuizResults(quizId);
+        
+        // Show success message
+        showNotification('Grade saved successfully', 'success');
+    })
+    .catch(error => {
+        console.error('Error saving grade:', error);
+        alert('Failed to save grade: ' + error.message);
+    })
+    .finally(() => {
+        // Reset button state
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
     });
 }
 

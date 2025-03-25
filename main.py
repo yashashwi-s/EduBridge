@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timedelta
-from flask import Flask, send_file, redirect, url_for, request, jsonify, render_template
+from flask import Flask, send_file, redirect, url_for, request, jsonify, render_template, make_response
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from pymongo import MongoClient
 from bson import ObjectId
@@ -11,6 +11,8 @@ import string
 from google import genai
 from google.genai import types
 import json
+from bson import Binary
+import io
 
 # Add a custom JSON encoder to handle ObjectId and datetime
 class MongoJSONEncoder(json.JSONEncoder):
@@ -27,6 +29,12 @@ def mongo_to_json_serializable(obj):
         return str(obj)
     elif isinstance(obj, datetime):
         return obj.isoformat()
+    elif isinstance(obj, Binary):
+        # Skip Binary data or represent it with metadata
+        return "binary_data"
+    elif isinstance(obj, bytes):
+        # Skip bytes data or represent it with metadata
+        return "bytes_data"
     elif isinstance(obj, dict):
         return {k: mongo_to_json_serializable(v) for k, v in obj.items()}
     elif isinstance(obj, list):
@@ -44,6 +52,8 @@ if not GEMINI_API_KEY:
 gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-key")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
+app.config["JWT_TOKEN_LOCATION"] = ["headers", "query_string"]  # Allow tokens in query string
+app.config["JWT_QUERY_STRING_NAME"] = "token"  # The query parameter name to look for the JWT
 jwt = JWTManager(app)
 
 mongo_url = os.getenv("MONGO_URL")
@@ -124,7 +134,7 @@ def get_quiz_status(quiz, user_obj_id, current_time=None):
     """
     Determine the status of a quiz for a student.
     
-    Returns one of: "submitted", "upcoming", "active", "missed"
+    Returns one of: "submitted", "upcoming", "available", "missed"
     """
     if current_time is None:
         current_time = datetime.utcnow()
@@ -148,7 +158,7 @@ def get_quiz_status(quiz, user_obj_id, current_time=None):
     elif current_time > quiz_end + QUIZ_TIME_BUFFER:
         return "missed"
     else:
-        return "active"
+        return "available"  # Changed from "active" to "available" to match frontend
 
 def prepare_quiz_for_student(quiz, include_correct_answers=False):
     """
@@ -777,6 +787,36 @@ def get_classrooms():
                     user_obj = users_collection.find_one({"_id": cid})
                     comment["commenterName"] = user_obj["fullName"] if user_obj else "Unknown"
         
+        # Remove binary content from quizzes to prevent JSON serialization issues
+        if "quizzes" in c:
+            for quiz in c["quizzes"]:
+                # Remove binary content from question papers and answer keys
+                if "questionPaper" in quiz and "content" in quiz["questionPaper"]:
+                    # Replace binary content with metadata only
+                    quiz["questionPaper"] = {
+                        "filename": quiz["questionPaper"].get("filename", "question_paper.pdf"),
+                        "contentType": quiz["questionPaper"].get("contentType", "application/pdf"),
+                        "size": quiz["questionPaper"].get("size", 0)
+                    }
+                
+                if "answerKey" in quiz and "content" in quiz["answerKey"]:
+                    # Replace binary content with metadata only
+                    quiz["answerKey"] = {
+                        "filename": quiz["answerKey"].get("filename", "answer_key.pdf"),
+                        "contentType": quiz["answerKey"].get("contentType", "application/pdf"),
+                        "size": quiz["answerKey"].get("size", 0)
+                    }
+                
+                # Handle student submissions with file attachments
+                if "submissions" in quiz:
+                    for submission in quiz["submissions"]:
+                        if "answerFile" in submission and "content" in submission["answerFile"]:
+                            submission["answerFile"] = {
+                                "filename": submission["answerFile"].get("filename", "answer_file.pdf"),
+                                "contentType": submission["answerFile"].get("contentType", "application/pdf"),
+                                "size": submission["answerFile"].get("size", 0)
+                            }
+        
         # Convert the entire classroom object to be JSON serializable
         classrooms.append(mongo_to_json_serializable(c))
     return jsonify(classrooms), 200
@@ -798,6 +838,36 @@ def get_classroom(classroom_id):
                 cid = comment["commenter_id"]
                 user_obj = users_collection.find_one({"_id": cid})
                 comment["commenterName"] = user_obj["fullName"] if user_obj else "Unknown"
+    
+    # Remove binary content from quizzes to prevent JSON serialization issues
+    if "quizzes" in classroom:
+        for quiz in classroom["quizzes"]:
+            # Remove binary content from question papers and answer keys
+            if "questionPaper" in quiz and "content" in quiz["questionPaper"]:
+                # Replace binary content with metadata only
+                quiz["questionPaper"] = {
+                    "filename": quiz["questionPaper"].get("filename", "question_paper.pdf"),
+                    "contentType": quiz["questionPaper"].get("contentType", "application/pdf"),
+                    "size": quiz["questionPaper"].get("size", 0)
+                }
+            
+            if "answerKey" in quiz and "content" in quiz["answerKey"]:
+                # Replace binary content with metadata only
+                quiz["answerKey"] = {
+                    "filename": quiz["answerKey"].get("filename", "answer_key.pdf"),
+                    "contentType": quiz["answerKey"].get("contentType", "application/pdf"),
+                    "size": quiz["answerKey"].get("size", 0)
+                }
+            
+            # Handle student submissions with file attachments
+            if "submissions" in quiz:
+                for submission in quiz["submissions"]:
+                    if "answerFile" in submission and "content" in submission["answerFile"]:
+                        submission["answerFile"] = {
+                            "filename": submission["answerFile"].get("filename", "answer_file.pdf"),
+                            "contentType": submission["answerFile"].get("contentType", "application/pdf"),
+                            "size": submission["answerFile"].get("size", 0)
+                        }
     
     # Convert the entire classroom object to be JSON serializable
     classroom = mongo_to_json_serializable(classroom)
@@ -949,22 +1019,43 @@ def get_classroom_quizzes(classroom_id):
         # Process quizzes
         quizzes = classroom.get("quizzes", [])
         
-        # Add student names to submissions and calculate some statistics
+        # Process each quiz
         for quiz in quizzes:
+            # Common processing for all quiz types
             if "submissions" in quiz:
                 # Calculate submission stats
                 total_submissions = len(quiz["submissions"])
-                total_score = sum(sub.get("score", 0) for sub in quiz["submissions"])
-                max_possible = total_submissions * quiz.get("questions", [])
-                avg_score = total_score / total_submissions if total_submissions > 0 else 0
                 
-                quiz["submissionStats"] = {
-                    "submissionCount": total_submissions,
-                    "averageScore": round(avg_score, 1),
-                    "averagePercentage": round((avg_score / len(quiz["questions"])) * 100, 1) if quiz.get("questions") else 0
-                }
+                # For PDF quizzes, we need to handle differently
+                quiz_type = quiz.get("quizType", "question")  # Default to question type for backwards compatibility
                 
-                # Add student names
+                if quiz_type == "pdf":
+                    # For PDF quizzes, collect grading statistics
+                    graded_count = sum(1 for sub in quiz["submissions"] if sub.get("isGraded", False))
+                    total_score = sum(sub.get("score", 0) for sub in quiz["submissions"] if sub.get("isGraded", False))
+                    avg_score = total_score / graded_count if graded_count > 0 else 0
+                    
+                    quiz["submissionStats"] = {
+                        "submissionCount": total_submissions,
+                        "gradedCount": graded_count,
+                        "pendingCount": total_submissions - graded_count,
+                        "averageScore": round(avg_score, 1) if graded_count > 0 else "N/A",
+                        "averagePercentage": round((avg_score / 100) * 100, 1) if graded_count > 0 else "N/A"
+                    }
+                else:
+                    # Original processing for question-based quizzes
+                    total_score = sum(sub.get("score", 0) for sub in quiz["submissions"])
+                    max_possible = sum(sub.get("maxScore", 0) for sub in quiz["submissions"])
+                    avg_score = total_score / total_submissions if total_submissions > 0 else 0
+                    max_per_submission = max(sub.get("maxScore", 0) for sub in quiz["submissions"]) if quiz["submissions"] else 0
+                    
+                    quiz["submissionStats"] = {
+                        "submissionCount": total_submissions,
+                        "averageScore": round(avg_score, 1),
+                        "averagePercentage": round((avg_score / max_per_submission) * 100, 1) if max_per_submission > 0 else 0
+                    }
+                
+                # Add student names to all quiz types
                 for submission in quiz["submissions"]:
                     student = users_collection.find_one({"_id": submission["student_id"]})
                     submission["studentName"] = student["fullName"] if student else "Unknown"
@@ -973,6 +1064,23 @@ def get_classroom_quizzes(classroom_id):
                     max_score = submission.get("maxScore", 0)
                     score = submission.get("score", 0)
                     submission["percentage"] = round((score / max_score) * 100, 1) if max_score > 0 else 0
+            
+            # Remove binary content from response to reduce size
+            if "questionPaper" in quiz and "content" in quiz["questionPaper"]:
+                # Replace binary content with metadata only
+                quiz["questionPaper"] = {
+                    "filename": quiz["questionPaper"].get("filename", "question_paper.pdf"),
+                    "contentType": quiz["questionPaper"].get("contentType", "application/pdf"),
+                    "size": quiz["questionPaper"].get("size", 0)
+                }
+                
+            if "answerKey" in quiz and "content" in quiz["answerKey"]:
+                # Replace binary content with metadata only
+                quiz["answerKey"] = {
+                    "filename": quiz["answerKey"].get("filename", "answer_key.pdf"),
+                    "contentType": quiz["answerKey"].get("contentType", "application/pdf"),
+                    "size": quiz["answerKey"].get("size", 0)
+                }
             
             # Ensure end time is calculated
             quiz["endTime"] = calculate_quiz_end_time(quiz)
@@ -987,7 +1095,7 @@ def get_classroom_quizzes(classroom_id):
 @app.route("/api/classrooms/<classroom_id>/quizzes", methods=["POST"])
 @jwt_required()
 def create_classroom_quiz(classroom_id):
-    """Create a new quiz for a classroom"""
+    """Create a new quiz for a classroom with PDF support"""
     user_id = get_jwt_identity()
     
     classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "teacher")
@@ -995,107 +1103,31 @@ def create_classroom_quiz(classroom_id):
         return error
     
     try:
-        # Validate request data
-        data = request.get_json()
+        # Get form data and files
+        data = request.form
+        question_paper_file = request.files.get('questionPaper')
+        answer_key_file = request.files.get('answerKey')
+        
+        # Validate required fields
         if not data:
             return jsonify({"msg": "Quiz data is required"}), 400
         
         # Check required fields
-        required_fields = ["title", "description", "startTime", "duration", "questions"]
+        required_fields = ["title", "description", "startTime", "duration"]
         missing_fields = [field for field in required_fields if field not in data]
         if missing_fields:
             return jsonify({"msg": f"Missing required fields: {', '.join(missing_fields)}"}), 400
         
-        # Validate questions
-        questions = data["questions"]
-        if not questions or not isinstance(questions, list) or len(questions) == 0:
-            return jsonify({"msg": "At least one question is required"}), 400
+        # Validate at least one PDF is required
+        if not question_paper_file:
+            return jsonify({"msg": "Question paper PDF is required"}), 400
         
-        # Process questions and options
-        processed_questions = []
-        for i, question in enumerate(questions):
-            if "text" not in question:
-                return jsonify({"msg": f"Question {i+1} is missing required text field"}), 400
+        # Validate files are PDFs
+        if question_paper_file and not question_paper_file.filename.lower().endswith('.pdf'):
+            return jsonify({"msg": "Question paper must be a PDF file"}), 400
             
-            # Get the question type, defaulting to single_choice for backward compatibility
-            question_type = question.get("type", "single_choice")
-            
-            # Start with basic question fields
-            processed_question = {
-                "id": question.get("id", str(ObjectId())),
-                "text": question["text"],
-                "type": question_type,
-                "points": int(question.get("points", 1))  # Allow setting point value for each question
-            }
-            
-            # Process based on question type
-            if question_type == "subjective":
-                # Subjective questions don't have options but may have a model answer
-                if "modelAnswer" in question:
-                    processed_question["modelAnswer"] = question["modelAnswer"]
-                
-            elif question_type == "multiple_choice":
-                # Multiple choice questions: verify options and correct options (plural)
-                if "options" not in question or not question["options"]:
-                    return jsonify({"msg": f"Question {i+1} is missing options"}), 400
-                
-                if "correctOptions" not in question or not question["correctOptions"]:
-                    return jsonify({"msg": f"Question {i+1} is missing correctOptions"}), 400
-                
-                # Process options
-                processed_options = []
-                for j, option in enumerate(question["options"]):
-                    if "text" not in option:
-                        return jsonify({"msg": f"Option {j+1} in question {i+1} is missing text field"}), 400
-                    
-                    option_id = option.get("id", str(ObjectId()))
-                    processed_options.append({
-                        "id": option_id,
-                        "text": option["text"]
-                    })
-                
-                # Validate correctOptions exists in options
-                correct_options = question["correctOptions"]
-                if not isinstance(correct_options, list):
-                    return jsonify({"msg": f"Question {i+1} has correctOptions that is not a list"}), 400
-                
-                for opt_id in correct_options:
-                    if not any(opt["id"] == opt_id for opt in processed_options):
-                        return jsonify({"msg": f"Question {i+1} has a correctOption that doesn't match any option ID"}), 400
-                
-                processed_question["options"] = processed_options
-                processed_question["correctOptions"] = correct_options
-                
-            else:
-                # Default: single choice questions
-                if "options" not in question or not question["options"]:
-                    return jsonify({"msg": f"Question {i+1} is missing options"}), 400
-                
-                if "correctOption" not in question:
-                    return jsonify({"msg": f"Question {i+1} is missing correctOption"}), 400
-                
-                # Process options
-                processed_options = []
-                for j, option in enumerate(question["options"]):
-                    if "text" not in option:
-                        return jsonify({"msg": f"Option {j+1} in question {i+1} is missing text field"}), 400
-                    
-                    option_id = option.get("id", str(ObjectId()))
-                    processed_options.append({
-                        "id": option_id,
-                        "text": option["text"]
-                    })
-                
-                # Validate correctOption exists in options
-                correct_option = question["correctOption"]
-                if not any(opt["id"] == correct_option for opt in processed_options):
-                    return jsonify({"msg": f"Question {i+1} has an invalid correctOption that doesn't match any option ID"}), 400
-                
-                processed_question["options"] = processed_options
-                processed_question["correctOption"] = correct_option
-            
-            # Add the processed question
-            processed_questions.append(processed_question)
+        if answer_key_file and not answer_key_file.filename.lower().endswith('.pdf'):
+            return jsonify({"msg": "Answer key must be a PDF file"}), 400
         
         # Parse dates
         try:
@@ -1111,19 +1143,38 @@ def create_classroom_quiz(classroom_id):
         except ValueError:
             return jsonify({"msg": "Duration must be a positive integer"}), 400
         
-        # Create quiz object
+        # Process file uploads and store as binary data
+        question_paper_binary = question_paper_file.read() if question_paper_file else None
+        answer_key_binary = answer_key_file.read() if answer_key_file else None
+        
+        # Create quiz object with PDF data
         quiz = {
             "id": ObjectId(),
             "title": data["title"],
             "description": data["description"],
             "startTime": start_time,
             "duration": duration,
-            "published": data.get("published", True),
-            "questions": processed_questions,
+            "published": data.get("published", "true").lower() == "true",
+            "quizType": "pdf",  # Indicate this is a PDF-based quiz
+            "questionPaper": {
+                "filename": question_paper_file.filename,
+                "content": Binary(question_paper_binary),  # Store as Binary data in MongoDB
+                "contentType": "application/pdf",
+                "size": len(question_paper_binary)
+            },
             "submissions": [],
             "createdAt": datetime.utcnow(),
             "updatedAt": datetime.utcnow()
         }
+        
+        # Add answer key if provided
+        if answer_key_binary:
+            quiz["answerKey"] = {
+                "filename": answer_key_file.filename,
+                "content": Binary(answer_key_binary),  # Store as Binary data in MongoDB
+                "contentType": "application/pdf",
+                "size": len(answer_key_binary)
+            }
         
         # Add quiz to classroom
         result = classrooms_collection.update_one(
@@ -1134,9 +1185,28 @@ def create_classroom_quiz(classroom_id):
         if result.modified_count:
             # Calculate and add end time for response
             quiz["endTime"] = calculate_quiz_end_time(quiz)
+            
+            # Create a version of the quiz without the binary data for the response
+            response_quiz = {k: v for k, v in quiz.items() if k not in ["questionPaper", "answerKey"]}
+            
+            # Add file info without the binary content
+            if "questionPaper" in quiz:
+                response_quiz["questionPaper"] = {
+                    "filename": quiz["questionPaper"]["filename"],
+                    "contentType": quiz["questionPaper"]["contentType"],
+                    "size": quiz["questionPaper"]["size"]
+                }
+                
+            if "answerKey" in quiz:
+                response_quiz["answerKey"] = {
+                    "filename": quiz["answerKey"]["filename"],
+                    "contentType": quiz["answerKey"]["contentType"],
+                    "size": quiz["answerKey"]["size"]
+                }
+            
             return jsonify({
                 "msg": "Quiz created successfully", 
-                "quiz": mongo_to_json_serializable(quiz)
+                "quiz": mongo_to_json_serializable(response_quiz)
             }), 201
         
         return jsonify({"msg": "Failed to create quiz"}), 500
@@ -1223,136 +1293,210 @@ def update_classroom_quiz(classroom_id, quiz_id):
         # Check if quiz has submissions (limit what can be changed)
         has_submissions = len(quiz.get("submissions", [])) > 0
         
-        # Validate request data
-        data = request.get_json()
-        if not data:
-            return jsonify({"msg": "Quiz data is required"}), 400
+        # Check if this is a PDF quiz
+        is_pdf_quiz = quiz.get("quizType") == "pdf"
         
-        # Create updated quiz object
-        updated_quiz = quiz.copy()
-        
-        # Update basic fields
-        for field in ["title", "description", "published"]:
-            if field in data:
-                updated_quiz[field] = data[field]
-        
-        # Handle questions update if provided and no submissions exist
-        if "questions" in data:
-            if has_submissions:
-                return jsonify({"msg": "Cannot update questions for a quiz with existing submissions"}), 400
-                
-            questions = data["questions"]
-            if not questions or not isinstance(questions, list) or len(questions) == 0:
-                return jsonify({"msg": "At least one question is required"}), 400
+        # Process request based on content type
+        if is_pdf_quiz:
+            # Handle PDF quiz update with FormData (multipart/form-data)
+            data = request.form
+            question_paper_file = request.files.get('questionPaper')
+            answer_key_file = request.files.get('answerKey')
             
-            # Process questions and options (similar to creation)
-            processed_questions = []
-            for i, question in enumerate(questions):
-                if "text" not in question:
-                    return jsonify({"msg": f"Question {i+1} is missing required text field"}), 400
+            if not data:
+                return jsonify({"msg": "Quiz data is required"}), 400
+            
+            # Create updated quiz object
+            updated_quiz = quiz.copy()
+            
+            # Update basic fields
+            for field in ["title", "description", "published"]:
+                if field in data:
+                    if field == "published":
+                        updated_quiz[field] = data.get(field).lower() == "true"
+                    else:
+                        updated_quiz[field] = data.get(field)
+            
+            # Handle time updates if no submissions exist
+            try:
+                # If start time is updated
+                if "startTime" in data:
+                    if has_submissions:
+                        return jsonify({"msg": "Cannot update start time for a quiz with existing submissions"}), 400
+                        
+                    updated_quiz["startTime"] = datetime.fromisoformat(data["startTime"].replace('Z', '+00:00'))
                 
-                # Get the question type, defaulting to single_choice for backward compatibility
-                question_type = question.get("type", "single_choice")
+                # If duration is updated
+                if "duration" in data:
+                    if has_submissions and int(data["duration"]) < updated_quiz["duration"]:
+                        return jsonify({"msg": "Cannot shorten duration for a quiz with existing submissions"}), 400
+                        
+                    updated_quiz["duration"] = int(data["duration"])
+                    if updated_quiz["duration"] <= 0:
+                        return jsonify({"msg": "Duration must be a positive integer"}), 400
+            except ValueError as e:
+                return jsonify({"msg": f"Invalid date format or duration: {str(e)}"}), 400
+            
+            # Only update files if new ones are provided
+            if question_paper_file:
+                # Validate files are PDFs
+                if not question_paper_file.filename.lower().endswith('.pdf'):
+                    return jsonify({"msg": "Question paper must be a PDF file"}), 400
                 
-                # Start with basic question fields
-                processed_question = {
-                    "id": question.get("id", str(ObjectId())),
-                    "text": question["text"],
-                    "type": question_type,
-                    "points": int(question.get("points", 1))  # Allow setting point value for each question
+                # Process new question paper file
+                question_paper_binary = question_paper_file.read()
+                updated_quiz["questionPaper"] = {
+                    "filename": question_paper_file.filename,
+                    "content": Binary(question_paper_binary),
+                    "contentType": "application/pdf",
+                    "size": len(question_paper_binary)
+                }
+            
+            if answer_key_file:
+                # Validate files are PDFs
+                if not answer_key_file.filename.lower().endswith('.pdf'):
+                    return jsonify({"msg": "Answer key must be a PDF file"}), 400
+                
+                # Process new answer key file
+                answer_key_binary = answer_key_file.read()
+                updated_quiz["answerKey"] = {
+                    "filename": answer_key_file.filename,
+                    "content": Binary(answer_key_binary),
+                    "contentType": "application/pdf",
+                    "size": len(answer_key_binary)
                 }
                 
-                # Process based on question type
-                if question_type == "subjective":
-                    # Subjective questions don't have options but may have a model answer
-                    if "modelAnswer" in question:
-                        processed_question["modelAnswer"] = question["modelAnswer"]
-                    
-                elif question_type == "multiple_choice":
-                    # Multiple choice questions: verify options and correct options (plural)
-                    if "options" not in question or not question["options"]:
-                        return jsonify({"msg": f"Question {i+1} is missing options"}), 400
-                    
-                    if "correctOptions" not in question or not question["correctOptions"]:
-                        return jsonify({"msg": f"Question {i+1} is missing correctOptions"}), 400
-                    
-                    # Process options
-                    processed_options = []
-                    for j, option in enumerate(question["options"]):
-                        if "text" not in option:
-                            return jsonify({"msg": f"Option {j+1} in question {i+1} is missing text field"}), 400
-                            
-                        option_id = option.get("id", str(ObjectId()))
-                        processed_options.append({
-                            "id": option_id,
-                            "text": option["text"]
-                        })
-                    
-                    # Validate correctOptions exists in options
-                    correct_options = question["correctOptions"]
-                    if not isinstance(correct_options, list):
-                        return jsonify({"msg": f"Question {i+1} has correctOptions that is not a list"}), 400
-                    
-                    for opt_id in correct_options:
-                        if not any(opt["id"] == opt_id for opt in processed_options):
-                            return jsonify({"msg": f"Question {i+1} has a correctOption that doesn't match any option ID"}), 400
-                    
-                    processed_question["options"] = processed_options
-                    processed_question["correctOptions"] = correct_options
-                    
-                else:
-                    # Default: single choice questions
-                    if "options" not in question or not question["options"]:
-                        return jsonify({"msg": f"Question {i+1} is missing options"}), 400
-                    
-                    if "correctOption" not in question:
-                        return jsonify({"msg": f"Question {i+1} is missing correctOption"}), 400
-                    
-                    # Process options
-                    processed_options = []
-                    for j, option in enumerate(question["options"]):
-                        if "text" not in option:
-                            return jsonify({"msg": f"Option {j+1} in question {i+1} is missing text field"}), 400
-                            
-                        option_id = option.get("id", str(ObjectId()))
-                        processed_options.append({
-                            "id": option_id,
-                            "text": option["text"]
-                        })
-                    
-                    # Validate correctOption exists in options
-                    correct_option = question["correctOption"]
-                    if not any(opt["id"] == correct_option for opt in processed_options):
-                        return jsonify({"msg": f"Question {i+1} has an invalid correctOption that doesn't match any option ID"}), 400
-                    
-                    processed_question["options"] = processed_options
-                    processed_question["correctOption"] = correct_option
-                
-                # Add the processed question
-                processed_questions.append(processed_question)
+        else:
+            # Handle regular quiz update with JSON data
+            data = request.get_json()
+            if not data:
+                return jsonify({"msg": "Quiz data is required"}), 400
             
-            # Update quiz with processed questions
-            updated_quiz["questions"] = processed_questions
-        
-        # Handle time updates if no submissions exist
-        try:
-            # If start time is updated
-            if "startTime" in data:
+            # Create updated quiz object
+            updated_quiz = quiz.copy()
+            
+            # Update basic fields
+            for field in ["title", "description", "published"]:
+                if field in data:
+                    updated_quiz[field] = data[field]
+            
+            # Handle questions update if provided and no submissions exist
+            if "questions" in data:
                 if has_submissions:
-                    return jsonify({"msg": "Cannot update start time for a quiz with existing submissions"}), 400
+                    return jsonify({"msg": "Cannot update questions for a quiz with existing submissions"}), 400
                     
-                updated_quiz["startTime"] = datetime.fromisoformat(data["startTime"].replace('Z', '+00:00'))
+                questions = data["questions"]
+                if not questions or not isinstance(questions, list) or len(questions) == 0:
+                    return jsonify({"msg": "At least one question is required"}), 400
+                
+                # Process questions and options (similar to creation)
+                processed_questions = []
+                for i, question in enumerate(questions):
+                    if "text" not in question:
+                        return jsonify({"msg": f"Question {i+1} is missing required text field"}), 400
+                    
+                    # Get the question type, defaulting to single_choice for backward compatibility
+                    question_type = question.get("type", "single_choice")
+                    
+                    # Start with basic question fields
+                    processed_question = {
+                        "id": question.get("id", str(ObjectId())),
+                        "text": question["text"],
+                        "type": question_type,
+                        "points": int(question.get("points", 1))  # Allow setting point value for each question
+                    }
+                    
+                    # Process based on question type
+                    if question_type == "subjective":
+                        # Subjective questions don't have options but may have a model answer
+                        if "modelAnswer" in question:
+                            processed_question["modelAnswer"] = question["modelAnswer"]
+                        
+                    elif question_type == "multiple_choice":
+                        # Multiple choice questions: verify options and correct options (plural)
+                        if "options" not in question or not question["options"]:
+                            return jsonify({"msg": f"Question {i+1} is missing options"}), 400
+                        
+                        if "correctOptions" not in question or not question["correctOptions"]:
+                            return jsonify({"msg": f"Question {i+1} is missing correctOptions"}), 400
+                        
+                        # Process options
+                        processed_options = []
+                        for j, option in enumerate(question["options"]):
+                            if "text" not in option:
+                                return jsonify({"msg": f"Option {j+1} in question {i+1} is missing text field"}), 400
+                                
+                            option_id = option.get("id", str(ObjectId()))
+                            processed_options.append({
+                                "id": option_id,
+                                "text": option["text"]
+                            })
+                        
+                        # Validate correctOptions exists in options
+                        correct_options = question["correctOptions"]
+                        if not isinstance(correct_options, list):
+                            return jsonify({"msg": f"Question {i+1} has correctOptions that is not a list"}), 400
+                        
+                        for opt_id in correct_options:
+                            if not any(opt["id"] == opt_id for opt in processed_options):
+                                return jsonify({"msg": f"Question {i+1} has a correctOption that doesn't match any option ID"}), 400
+                        
+                        processed_question["options"] = processed_options
+                        processed_question["correctOptions"] = correct_options
+                        
+                    else:
+                        # Default: single choice questions
+                        if "options" not in question or not question["options"]:
+                            return jsonify({"msg": f"Question {i+1} is missing options"}), 400
+                        
+                        if "correctOption" not in question:
+                            return jsonify({"msg": f"Question {i+1} is missing correctOption"}), 400
+                        
+                        # Process options
+                        processed_options = []
+                        for j, option in enumerate(question["options"]):
+                            if "text" not in option:
+                                return jsonify({"msg": f"Option {j+1} in question {i+1} is missing text field"}), 400
+                                
+                            option_id = option.get("id", str(ObjectId()))
+                            processed_options.append({
+                                "id": option_id,
+                                "text": option["text"]
+                            })
+                        
+                        # Validate correctOption exists in options
+                        correct_option = question["correctOption"]
+                        if not any(opt["id"] == correct_option for opt in processed_options):
+                            return jsonify({"msg": f"Question {i+1} has an invalid correctOption that doesn't match any option ID"}), 400
+                        
+                        processed_question["options"] = processed_options
+                        processed_question["correctOption"] = correct_option
+                    
+                    # Add the processed question
+                    processed_questions.append(processed_question)
+                
+                # Update quiz with processed questions
+                updated_quiz["questions"] = processed_questions
             
-            # If duration is updated
-            if "duration" in data:
-                if has_submissions and data["duration"] < updated_quiz["duration"]:
-                    return jsonify({"msg": "Cannot shorten duration for a quiz with existing submissions"}), 400
-                    
-                updated_quiz["duration"] = int(data["duration"])
-                if updated_quiz["duration"] <= 0:
-                    return jsonify({"msg": "Duration must be a positive integer"}), 400
-        except ValueError as e:
-            return jsonify({"msg": f"Invalid date format or duration: {str(e)}"}), 400
+            # Handle time updates if no submissions exist
+            try:
+                # If start time is updated
+                if "startTime" in data:
+                    if has_submissions:
+                        return jsonify({"msg": "Cannot update start time for a quiz with existing submissions"}), 400
+                        
+                    updated_quiz["startTime"] = datetime.fromisoformat(data["startTime"].replace('Z', '+00:00'))
+                
+                # If duration is updated
+                if "duration" in data:
+                    if has_submissions and data["duration"] < updated_quiz["duration"]:
+                        return jsonify({"msg": "Cannot shorten duration for a quiz with existing submissions"}), 400
+                        
+                    updated_quiz["duration"] = int(data["duration"])
+                    if updated_quiz["duration"] <= 0:
+                        return jsonify({"msg": "Duration must be a positive integer"}), 400
+            except ValueError as e:
+                return jsonify({"msg": f"Invalid date format or duration: {str(e)}"}), 400
         
         # Update modified timestamp
         updated_quiz["updatedAt"] = datetime.utcnow()
@@ -1428,6 +1572,9 @@ def get_quiz_results(classroom_id, quiz_id):
         quiz = find_quiz_by_id(classroom, quiz_id)
         if not quiz:
             return jsonify({"msg": "Quiz not found"}), 404
+            
+        # Identify quiz type
+        quiz_type = quiz.get("quizType", "question")  # Default to question type for backwards compatibility
         
         # Process submissions
         submissions = []
@@ -1439,30 +1586,45 @@ def get_quiz_results(classroom_id, quiz_id):
             submission_copy["studentEmail"] = student["email"] if student else ""
             
             # Calculate percentage score
-            max_score = submission["maxScore"]
-            score = submission["score"]
+            max_score = submission.get("maxScore", 0)
+            score = submission.get("score", 0)
             submission_copy["percentage"] = round((score / max_score) * 100, 1) if max_score > 0 else 0
             
-            # Process status of subjective questions
-            subjective_status = {
-                "total": 0,
-                "graded": 0,
-                "pending": 0
-            }
-            
-            # Check each answer
-            for question in quiz["questions"]:
-                q_id = str(question["id"])
-                q_type = question.get("type", "single_choice")
+            # Process differently based on quiz type
+            if quiz_type == "pdf":
+                # For PDF quizzes, simply add grading status
+                submission_copy["isGraded"] = submission.get("isGraded", False)
+                submission_copy["feedback"] = submission.get("feedback", "")
                 
-                if q_type == "subjective" and q_id in submission.get("answers", {}):
-                    subjective_status["total"] += 1
-                    if submission["answers"][q_id].get("isGraded", False):
-                        subjective_status["graded"] += 1
-                    else:
-                        subjective_status["pending"] += 1
+                # Add file info if available
+                if "answerFile" in submission:
+                    submission_copy["answerFile"] = {
+                        "filename": submission["answerFile"].get("filename", "answer.pdf"),
+                        "size": submission["answerFile"].get("size", 0)
+                    }
+            else:
+                # For question-based quizzes, process subjective questions
+                subjective_status = {
+                    "total": 0,
+                    "graded": 0,
+                    "pending": 0
+                }
+                
+                # Check each answer
+                if "questions" in quiz:
+                    for question in quiz["questions"]:
+                        q_id = str(question["id"])
+                        q_type = question.get("type", "single_choice")
+                        
+                        if q_type == "subjective" and q_id in submission.get("answers", {}):
+                            subjective_status["total"] += 1
+                            if submission["answers"][q_id].get("isGraded", False):
+                                subjective_status["graded"] += 1
+                            else:
+                                subjective_status["pending"] += 1
+                
+                submission_copy["subjectiveStatus"] = subjective_status
             
-            submission_copy["subjectiveStatus"] = subjective_status
             submissions.append(submission_copy)
         
         # Calculate statistics
@@ -1471,7 +1633,6 @@ def get_quiz_results(classroom_id, quiz_id):
             "averageScore": 0,
             "highestScore": 0,
             "lowestScore": 100 if submissions else 0,
-            "questionsStatistics": {},
             "needsManualGrading": False
         }
         
@@ -1481,139 +1642,169 @@ def get_quiz_results(classroom_id, quiz_id):
             stats["highestScore"] = max(percentages)
             stats["lowestScore"] = min(percentages)
             
-            # Check if any submissions need manual grading
-            stats["needsManualGrading"] = any(
-                s["subjectiveStatus"]["pending"] > 0 for s in submissions
-            )
-            
-            # Calculate per-question statistics based on question type
-            for question in quiz["questions"]:
-                q_id = str(question["id"])
-                q_type = question.get("type", "single_choice")
+            if quiz_type == "pdf":
+                # For PDF quizzes, check if any need grading
+                stats["needsManualGrading"] = any(not s.get("isGraded", False) for s in submissions)
+            else:
+                # For question-based quizzes, check subjective questions
+                stats["needsManualGrading"] = any(
+                    s.get("subjectiveStatus", {}).get("pending", 0) > 0 for s in submissions
+                )
                 
-                # Initialize stats for this question
-                question_stats = {
-                    "type": q_type,
-                    "text": question["text"],
-                    "points": question.get("points", 1)
-                }
-                
-                if q_type == "subjective":
-                    # For subjective questions, track graded vs ungraded
-                    answered_count = 0
-                    graded_count = 0
-                    total_score = 0
+                # Only add question statistics for question-based quizzes
+                if "questions" in quiz:
+                    stats["questionsStatistics"] = {}
                     
-                    for submission in submissions:
-                        if q_id in submission.get("answers", {}):
-                            answered_count += 1
-                            answer = submission["answers"][q_id]
-                            if answer.get("isGraded", False):
-                                graded_count += 1
-                                total_score += answer.get("score", 0)
-                    
-                    question_stats.update({
-                        "answered": answered_count,
-                        "graded": graded_count,
-                        "pending": answered_count - graded_count,
-                        "averageScore": round(total_score / graded_count, 1) if graded_count > 0 else 0,
-                        "maxScore": question.get("points", 1)
-                    })
-                
-                elif q_type == "multiple_choice":
-                    # For multiple choice, track selection of each option
-                    option_stats = {}
-                    answered_count = 0
-                    correct_count = 0
-                    partial_count = 0
-                    
-                    # Initialize option statistics
-                    for option in question.get("options", []):
-                        opt_id = option["id"]
-                        option_stats[opt_id] = {
-                            "text": option["text"],
-                            "isCorrect": opt_id in question.get("correctOptions", []),
-                            "count": 0
+                    # Calculate per-question statistics based on question type
+                    for question in quiz["questions"]:
+                        q_id = str(question["id"])
+                        q_type = question.get("type", "single_choice")
+                        
+                        # Initialize stats for this question
+                        question_stats = {
+                            "type": q_type,
+                            "text": question["text"],
+                            "points": question.get("points", 1)
                         }
-                    
-                    for submission in submissions:
-                        if q_id in submission.get("answers", {}):
-                            answer = submission["answers"][q_id]
-                            answered_count += 1
+                        
+                        if q_type == "subjective":
+                            # For subjective questions, track graded vs ungraded
+                            answered_count = 0
+                            graded_count = 0
+                            total_score = 0
                             
-                            # Track correctness
-                            if answer.get("isCorrect", False):
-                                correct_count += 1
-                            elif answer.get("score", 0) > 0:
-                                partial_count += 1
-                                
-                            # Track selected options
-                            for selected_id in answer.get("selected", []):
-                                if selected_id in option_stats:
-                                    option_stats[selected_id]["count"] += 1
-                    
-                    question_stats.update({
-                        "options": option_stats,
-                        "answered": answered_count,
-                        "correct": correct_count,
-                        "partial": partial_count,
-                        "incorrect": answered_count - correct_count - partial_count,
-                        "correctPercentage": round((correct_count / answered_count) * 100, 1) if answered_count > 0 else 0
-                    })
-                    
-                else:
-                    # For single choice, track selection rate of each option
-                    option_stats = {}
-                    answered_count = 0
-                    correct_count = 0
-                    
-                    # Initialize option statistics
-                    for option in question.get("options", []):
-                        opt_id = option["id"]
-                        option_stats[opt_id] = {
-                            "text": option["text"],
-                            "isCorrect": opt_id == question.get("correctOption", ""),
-                            "count": 0
-                        }
-                    
-                    for submission in submissions:
-                        if q_id in submission.get("answers", {}):
-                            answer = submission["answers"][q_id]
-                            answered_count += 1
+                            for submission in submissions:
+                                if q_id in submission.get("answers", {}):
+                                    answered_count += 1
+                                    answer = submission["answers"][q_id]
+                                    if answer.get("isGraded", False):
+                                        graded_count += 1
+                                        total_score += answer.get("score", 0)
                             
-                            # Track correctness
-                            if answer.get("isCorrect", False):
-                                correct_count += 1
-                                
-                            # Track selected option
-                            selected_id = answer.get("selected", "")
-                            if selected_id in option_stats:
-                                option_stats[selected_id]["count"] += 1
-                    
-                    question_stats.update({
-                        "options": option_stats,
-                        "answered": answered_count,
-                        "correct": correct_count,
-                        "incorrect": answered_count - correct_count,
-                        "correctPercentage": round((correct_count / answered_count) * 100, 1) if answered_count > 0 else 0
-                    })
-                
-                # Add to overall statistics
-                stats["questionsStatistics"][q_id] = question_stats
+                            question_stats.update({
+                                "answered": answered_count,
+                                "graded": graded_count,
+                                "pending": answered_count - graded_count,
+                                "averageScore": round(total_score / graded_count, 1) if graded_count > 0 else 0,
+                                "maxScore": question.get("points", 1)
+                            })
+                        
+                        elif q_type == "multiple_choice":
+                            # For multiple choice, track selection of each option
+                            option_stats = {}
+                            answered_count = 0
+                            correct_count = 0
+                            partial_count = 0
+                            
+                            # Initialize option statistics
+                            for option in question.get("options", []):
+                                opt_id = option["id"]
+                                option_stats[opt_id] = {
+                                    "text": option["text"],
+                                    "isCorrect": opt_id in question.get("correctOptions", []),
+                                    "count": 0
+                                }
+                            
+                            for submission in submissions:
+                                if q_id in submission.get("answers", {}):
+                                    answer = submission["answers"][q_id]
+                                    answered_count += 1
+                                    
+                                    # Track correctness
+                                    if answer.get("isCorrect", False):
+                                        correct_count += 1
+                                    elif answer.get("score", 0) > 0:
+                                        partial_count += 1
+                                        
+                                    # Track selected options
+                                    for selected_id in answer.get("selected", []):
+                                        if selected_id in option_stats:
+                                            option_stats[selected_id]["count"] += 1
+                            
+                            question_stats.update({
+                                "options": option_stats,
+                                "answered": answered_count,
+                                "correct": correct_count,
+                                "partial": partial_count,
+                                "incorrect": answered_count - correct_count - partial_count,
+                                "correctPercentage": round((correct_count / answered_count) * 100, 1) if answered_count > 0 else 0
+                            })
+                            
+                        else:
+                            # For single choice, track selection rate of each option
+                            option_stats = {}
+                            answered_count = 0
+                            correct_count = 0
+                            
+                            # Initialize option statistics
+                            for option in question.get("options", []):
+                                opt_id = option["id"]
+                                option_stats[opt_id] = {
+                                    "text": option["text"],
+                                    "isCorrect": opt_id == question.get("correctOption", ""),
+                                    "count": 0
+                                }
+                            
+                            for submission in submissions:
+                                if q_id in submission.get("answers", {}):
+                                    answer = submission["answers"][q_id]
+                                    answered_count += 1
+                                    
+                                    # Track correctness
+                                    if answer.get("isCorrect", False):
+                                        correct_count += 1
+                                        
+                                    # Track selected option
+                                    selected_id = answer.get("selected", "")
+                                    if selected_id in option_stats:
+                                        option_stats[selected_id]["count"] += 1
+                            
+                            question_stats.update({
+                                "options": option_stats,
+                                "answered": answered_count,
+                                "correct": correct_count,
+                                "incorrect": answered_count - correct_count,
+                                "correctPercentage": round((correct_count / answered_count) * 100, 1) if answered_count > 0 else 0
+                            })
+                        
+                        # Add to overall statistics
+                        stats["questionsStatistics"][q_id] = question_stats
         
-        # Compile results
+        # Compile results based on quiz type
         result = {
             "quizId": quiz_id,
             "quizTitle": quiz["title"],
             "quizDescription": quiz["description"],
-            "totalQuestions": len(quiz["questions"]),
             "startTime": quiz["startTime"],
             "endTime": calculate_quiz_end_time(quiz),
             "duration": quiz["duration"],
             "submissions": submissions,
             "statistics": stats,
-            "hasSubjectiveQuestions": any(q.get("type") == "subjective" for q in quiz["questions"])
+            "quizType": quiz_type
         }
+        
+        # Add specific fields based on quiz type
+        if quiz_type == "pdf":
+            # For PDF quizzes, add file information
+            if "questionPaper" in quiz:
+                result["questionPaper"] = {
+                    "filename": quiz["questionPaper"].get("filename", "question_paper.pdf"),
+                    "size": quiz["questionPaper"].get("size", 0)
+                }
+                
+            if "answerKey" in quiz:
+                result["answerKey"] = {
+                    "filename": quiz["answerKey"].get("filename", "answer_key.pdf"),
+                    "size": quiz["answerKey"].get("size", 0)
+                }
+        else:
+            # For question-based quizzes, add question count and subjective question flag
+            if "questions" in quiz:
+                result["totalQuestions"] = len(quiz["questions"])
+                result["hasSubjectiveQuestions"] = any(q.get("type") == "subjective" for q in quiz["questions"])
+            else:
+                result["totalQuestions"] = 0
+                result["hasSubjectiveQuestions"] = False
         
         return jsonify(mongo_to_json_serializable(result)), 200
         
@@ -1646,11 +1837,34 @@ def get_student_quizzes(classroom_id):
             # Determine quiz status for this student
             student_status = get_quiz_status(quiz, user_obj_id, current_time)
             
-            # Create student-friendly quiz object (no correct answers)
-            student_quiz = prepare_quiz_for_student(quiz)
-            student_quiz["studentStatus"] = student_status
+            # Identify quiz type
+            quiz_type = quiz.get("quizType", "question")  # Default to question type for backwards compatibility
             
-            # If quiz is submitted, include the submission time
+            # Create base student-friendly quiz object
+            student_quiz = {
+                "id": str(quiz["id"]),
+                "title": quiz.get("title", "Untitled Quiz"),
+                "description": quiz.get("description", ""),
+                "startTime": quiz["startTime"],
+                "endTime": calculate_quiz_end_time(quiz),
+                "duration": int(quiz["duration"]),
+                "quizType": quiz_type,
+                "studentStatus": student_status
+            }
+            
+            # For PDF quizzes, add file information
+            if quiz_type == "pdf":
+                if "questionPaper" in quiz:
+                    student_quiz["questionPaper"] = {
+                        "filename": quiz["questionPaper"].get("filename", "question_paper.pdf"),
+                        "size": quiz["questionPaper"].get("size", 0)
+                    }
+            else:
+                # For legacy quizzes, use the existing prepare_quiz_for_student function
+                legacy_quiz = prepare_quiz_for_student(quiz)
+                student_quiz["questions"] = legacy_quiz.get("questions", [])
+            
+            # If quiz is submitted, include the submission time and score info
             if student_status == "submitted":
                 for submission in quiz.get("submissions", []):
                     if submission["student_id"] == user_obj_id:
@@ -1658,6 +1872,17 @@ def get_student_quizzes(classroom_id):
                         student_quiz["score"] = submission.get("score", 0)
                         student_quiz["maxScore"] = submission.get("maxScore", 0)
                         student_quiz["percentage"] = round((submission.get("score", 0) / submission.get("maxScore", 1)) * 100, 1)
+                        
+                        # For PDF quizzes, add grading status
+                        if quiz_type == "pdf":
+                            student_quiz["isGraded"] = submission.get("isGraded", False)
+                            if "answerFile" in submission:
+                                student_quiz["submission"] = {
+                                    "filename": submission["answerFile"].get("filename", "answer.pdf"),
+                                    "size": submission["answerFile"].get("size", 0)
+                                }
+                            if submission.get("isGraded", False):
+                                student_quiz["feedback"] = submission.get("feedback", "")
                         break
             
             processed_quizzes.append(student_quiz)
@@ -1705,17 +1930,15 @@ def start_quiz(classroom_id, quiz_id):
         current_time = datetime.utcnow()
         quiz_status = get_quiz_status(quiz, user_obj_id, current_time)
         
-        # Only allow active quizzes to be started
+        # Only allow available quizzes to be started
         if quiz_status == "submitted":
             return jsonify({"msg": "You have already submitted this quiz"}), 400
             
         if quiz_status == "missed":
             return jsonify({"msg": "This quiz has already ended"}), 400
-        
-        # For testing and development, we'll allow upcoming quizzes to be started as well
-        # but in production you might want to uncomment this:
-        # if quiz_status == "upcoming":
-        #     return jsonify({"msg": "This quiz has not started yet"}), 400
+            
+        if quiz_status != "available":
+            return jsonify({"msg": f"This quiz is not available for taking. Status: {quiz_status}"}), 400
         
         # Return basic quiz info for the student to start
         student_quiz = prepare_quiz_for_student(quiz)
@@ -1736,7 +1959,7 @@ def start_quiz(classroom_id, quiz_id):
 @app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/submit", methods=["POST"])
 @jwt_required()
 def submit_quiz(classroom_id, quiz_id):
-    """Submit a quiz with student answers"""
+    """Submit a quiz with student answers or PDF submission"""
     user_id = get_jwt_identity()
     
     classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "student")
@@ -1764,28 +1987,64 @@ def submit_quiz(classroom_id, quiz_id):
         
         if quiz_status == "missed":
             return jsonify({"msg": "This quiz has ended and cannot be submitted"}), 400
-        
-        # Get submitted answers
-        data = request.get_json()
-        if not data:
-            return jsonify({"msg": "No data provided"}), 400
             
-        # Ensure we have answers
-        if "answers" not in data or not isinstance(data["answers"], dict):
-            return jsonify({"msg": "Invalid answers format"}), 400
+        # Get submission data based on quiz type
+        quiz_type = quiz.get("quizType", "question")  # Default to question type for backwards compatibility
         
-        # Score the submission
-        correct_count, total_questions, scored_answers = score_quiz_submission(quiz, data["answers"])
-        
-        # Create submission object
-        submission = {
-            "student_id": user_obj_id,
-            "startTime": datetime.fromisoformat(data.get("startTime")) if "startTime" in data else current_time - timedelta(minutes=5),
-            "endTime": current_time,
-            "score": correct_count,
-            "maxScore": total_questions,
-            "answers": scored_answers
-        }
+        if quiz_type == "pdf":
+            # For PDF quizzes, expect a file upload
+            if 'answerFile' not in request.files:
+                return jsonify({"msg": "No answer file provided"}), 400
+                
+            answer_file = request.files['answerFile']
+            if not answer_file.filename:
+                return jsonify({"msg": "No answer file selected"}), 400
+                
+            # Validate file is a PDF
+            if not answer_file.filename.lower().endswith('.pdf'):
+                return jsonify({"msg": "Answer file must be a PDF"}), 400
+                
+            # Read the file
+            answer_file_binary = answer_file.read()
+            
+            # Create submission object for PDF quiz
+            submission = {
+                "student_id": user_obj_id,
+                "startTime": datetime.fromisoformat(request.form.get("startTime")) if "startTime" in request.form else current_time - timedelta(minutes=5),
+                "endTime": current_time,
+                "answerFile": {
+                    "filename": answer_file.filename,
+                    "content": Binary(answer_file_binary),
+                    "contentType": "application/pdf",
+                    "size": len(answer_file_binary)
+                },
+                "score": 0,  # Score will be set by teacher after grading
+                "maxScore": 100,  # Default max score
+                "isGraded": False
+            }
+        else:
+            # Legacy quiz submission with questions and answers
+            # Get submitted answers
+            data = request.get_json()
+            if not data:
+                return jsonify({"msg": "No data provided"}), 400
+                
+            # Ensure we have answers
+            if "answers" not in data or not isinstance(data["answers"], dict):
+                return jsonify({"msg": "Invalid answers format"}), 400
+            
+            # Score the submission
+            correct_count, total_questions, scored_answers = score_quiz_submission(quiz, data["answers"])
+            
+            # Create submission object
+            submission = {
+                "student_id": user_obj_id,
+                "startTime": datetime.fromisoformat(data.get("startTime")) if "startTime" in data else current_time - timedelta(minutes=5),
+                "endTime": current_time,
+                "score": correct_count,
+                "maxScore": total_questions,
+                "answers": scored_answers
+            }
         
         # Add submission to quiz
         result = classrooms_collection.update_one(
@@ -1796,13 +2055,20 @@ def submit_quiz(classroom_id, quiz_id):
         if not result.modified_count:
             return jsonify({"msg": "Failed to submit quiz"}), 500
         
-        # Create the results response
-        results = create_quiz_results_response(quiz, scored_answers, correct_count, total_questions)
-        
-        # Add submission time
-        results["submittedAt"] = current_time.isoformat()
-        
-        return jsonify(results), 200
+        # Create response based on quiz type
+        if quiz_type == "pdf":
+            # For PDF quizzes, just confirm submission
+            return jsonify({
+                "msg": "Quiz submitted successfully",
+                "submissionTime": current_time.isoformat(),
+                "filename": submission["answerFile"]["filename"],
+                "fileSize": submission["answerFile"]["size"]
+            }), 200
+        else:
+            # For legacy quizzes, return detailed results
+            results = create_quiz_results_response(quiz, scored_answers, correct_count, total_questions)
+            results["submittedAt"] = current_time.isoformat()
+            return jsonify(results), 200
         
     except ValueError as e:
         # Handle date parsing errors
@@ -1827,6 +2093,9 @@ def get_student_quiz_results(classroom_id, quiz_id):
         if not quiz:
             return jsonify({"msg": "Quiz not found"}), 404
         
+        # Identify quiz type
+        quiz_type = quiz.get("quizType", "question")  # Default to question type for backwards compatibility
+        
         # Find student's submission
         user_obj_id = ObjectId(user_id)
         submission = None
@@ -1839,19 +2108,8 @@ def get_student_quiz_results(classroom_id, quiz_id):
         if not submission:
             return jsonify({"msg": "You have not submitted this quiz"}), 404
         
-        # Get the scored answers
-        scored_answers = submission.get("answers", {})
-        
-        # Create detailed results
-        results = create_quiz_results_response(
-            quiz, 
-            scored_answers, 
-            submission["score"], 
-            submission["maxScore"]
-        )
-        
-        # Add quiz metadata
-        results.update({
+        # Common quiz metadata for all quiz types
+        results = {
             "quizTitle": quiz["title"],
             "quizDescription": quiz["description"],
             "startTime": quiz["startTime"],
@@ -1859,8 +2117,48 @@ def get_student_quiz_results(classroom_id, quiz_id):
             "duration": quiz["duration"],
             "submissionDate": submission.get("endTime"),
             "timeSpent": int((submission.get("endTime", datetime.utcnow()) - 
-                             submission.get("startTime", submission.get("endTime", datetime.utcnow()))).total_seconds() / 60)
-        })
+                           submission.get("startTime", submission.get("endTime", datetime.utcnow()))).total_seconds() / 60),
+            "quizType": quiz_type
+        }
+        
+        # Handle results based on quiz type
+        if quiz_type == "pdf":
+            # For PDF quizzes, get submission and grading info
+            results.update({
+                "score": submission.get("score", 0),
+                "maxScore": submission.get("maxScore", 100),
+                "percentage": round((submission.get("score", 0) / submission.get("maxScore", 100)) * 100, 1),
+                "isGraded": submission.get("isGraded", False),
+                "feedback": submission.get("feedback", "")
+            })
+            
+            # Add submission file info if available
+            if "answerFile" in submission:
+                results["submission"] = {
+                    "filename": submission["answerFile"].get("filename", "answer.pdf"),
+                    "size": submission["answerFile"].get("size", 0),
+                    "downloadUrl": f"/api/classrooms/{classroom_id}/quizzes/{quiz_id}/submissions/{user_id}/answer-pdf"
+                }
+        else:
+            # For legacy quizzes, use the existing results creation
+            scored_answers = submission.get("answers", {})
+            legacy_results = create_quiz_results_response(
+                quiz, 
+                scored_answers, 
+                submission["score"], 
+                submission["maxScore"]
+            )
+            
+            # Merge legacy results with common metadata
+            results.update({
+                "score": legacy_results["score"],
+                "totalPossible": legacy_results["totalPossible"],
+                "percentage": legacy_results["percentage"],
+                "correctCount": legacy_results["correctCount"],
+                "totalQuestions": legacy_results["totalQuestions"],
+                "questions": legacy_results["questions"],
+                "summary": legacy_results["summary"]
+            })
         
         return jsonify(mongo_to_json_serializable(results)), 200
         
@@ -1868,248 +2166,142 @@ def get_student_quiz_results(classroom_id, quiz_id):
         print(f"Error getting student quiz results: {str(e)}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
-@app.route("/api/enrolled-students", methods=["GET"])
-@jwt_required(optional=True)
-def get_enrolled_students():
-    """Get all students enrolled in the teacher's classrooms with their details"""
-    # Get user ID from JWT token (will be None if no valid token)
+@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/pdf/<file_type>", methods=["GET"])
+@jwt_required()
+def get_quiz_pdf(classroom_id, quiz_id, file_type):
+    """Get PDF from a quiz (question paper or answer key)"""
+    # Get the token from query parameter or JWT header
     user_id = get_jwt_identity()
     
-    # Log authentication status
-    if user_id:
-        print(f"User authenticated with ID: {user_id}")
-    else:
-        print("No valid authentication token provided")
+    # Find classroom and check access
+    classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id)
+    if error:
+        return error
     
-    # Check request headers for debugging
-    auth_header = request.headers.get('Authorization')
-    print(f"Authorization header present: {auth_header is not None}")
-    if auth_header:
-        print(f"Authorization header starts with 'Bearer': {auth_header.startswith('Bearer ')}")
-        print(f"Authorization header length: {len(auth_header)}")
-    
-    # First try to get real data if user is authenticated
-    if user_id:
-        try:
-            user = users_collection.find_one({"_id": ObjectId(user_id)})
-            if user and user["userType"] == "teacher":
-                print(f"Fetching enrolled students for teacher: {user.get('fullName', 'Unknown')}")
+    try:
+        # Instead of using the returned classroom, fetch the quiz directly from the database
+        # to ensure we have the binary content
+        classroom_obj = classrooms_collection.find_one({"_id": ObjectId(classroom_id)})
+        if not classroom_obj:
+            return jsonify({"msg": "Classroom not found"}), 404
+            
+        # Find the quiz
+        quiz = None
+        for q in classroom_obj.get("quizzes", []):
+            if str(q["id"]) == quiz_id:
+                quiz = q
+                break
                 
-                # Get all classrooms where this teacher is the owner
-                teacher_classrooms = list(classrooms_collection.find({"teacher_id": ObjectId(user_id)}))
-                print(f"Found {len(teacher_classrooms)} classrooms for this teacher")
-                
-                result = []
-                student_counts = {}
-                
-                for classroom in teacher_classrooms:
-                    classroom_data = {
-                        "id": str(classroom["_id"]),
-                        "name": classroom.get("className", "Unnamed Class"),
-                        "subject": classroom.get("subject", "General"),
-                        "section": classroom.get("section", "Main"),
-                        "students": []
-                    }
-                    
-                    # Get all enrolled students for this classroom
-                    enrolled_student_ids = classroom.get("enrolled_students", [])
-                    print(f"Classroom {classroom_data['name']} has {len(enrolled_student_ids)} enrolled students")
-                    
-                    for student_id in enrolled_student_ids:
-                        student = users_collection.find_one({"_id": student_id})
-                        if student:
-                            # Count student across all classrooms
-                            student_id_str = str(student["_id"])
-                            if student_id_str in student_counts:
-                                student_counts[student_id_str]["count"] += 1
-                            else:
-                                # Collect all available student data
-                                student_data = {
-                                    "id": student_id_str,
-                                    "name": student.get("fullName", "Unknown"),
-                                    "email": student.get("email", ""),
-                                    "institution": student.get("institution", "No institution provided"),
-                                    "department": student.get("department", "No department provided"),
-                                    "phone": student.get("phone", "No phone provided"),
-                                    "title": student.get("title", "Student"),
-                                    "bio": student.get("bio", "No bio provided"),
-                                    "joinedAt": student.get("createdAt", datetime.utcnow())
-                                }
-                                
-                                student_counts[student_id_str] = {
-                                    "count": 1,
-                                    "student": student_data
-                                }
-                            
-                            # Add student to this classroom
-                            classroom_data["students"].append({
-                                "id": student_id_str,
-                                "name": student.get("fullName", "Unknown"),
-                                "email": student.get("email", "")
-                            })
-                        else:
-                            print(f"Warning: Student with ID {student_id} not found in the database")
-                            
-                    result.append(classroom_data)
-                
-                # Get all unique students sorted by enrollment count
-                all_students = [data["student"] for _, data in sorted(
-                    student_counts.items(), 
-                    key=lambda x: x[1]["count"], 
-                    reverse=True
-                )]
-                
-                print(f"Successfully fetched data for {len(all_students)} students across {len(result)} classrooms")
-                
-                return jsonify({
-                    "classrooms": result,
-                    "students": all_students,
-                    "totalClassrooms": len(result),
-                    "totalStudents": len(all_students)
-                }), 200
-            else:
-                print("User is not a teacher or not found, using sample data")
-        except Exception as e:
-            print(f"Error getting real data: {e}")
-            # Fall back to sample data if anything fails
-    
-    # Provide sample data if not authenticated or if fetching real data failed
-    print("Using sample data for enrolled students")
-    sample_classrooms = [
-        {
-            "id": "class1",
-            "name": "Mathematics 101",
-            "subject": "Mathematics",
-            "section": "A",
-            "students": [
-                {
-                    "id": "student1",
-                    "name": "John Smith",
-                    "email": "john.smith@example.com"
-                },
-                {
-                    "id": "student2",
-                    "name": "Emily Johnson",
-                    "email": "emily.j@example.com"
-                },
-                {
-                    "id": "student3",
-                    "name": "Michael Brown",
-                    "email": "michael.b@example.com"
-                }
-            ]
-        },
-        {
-            "id": "class2",
-            "name": "Physics 202",
-            "subject": "Physics",
-            "section": "B",
-            "students": [
-                {
-                    "id": "student1",
-                    "name": "John Smith",
-                    "email": "john.smith@example.com"
-                },
-                {
-                    "id": "student4",
-                    "name": "Sarah Williams",
-                    "email": "sarah.w@example.com"
-                }
-            ]
-        },
-        {
-            "id": "class3",
-            "name": "Computer Science 301",
-            "subject": "Computer Science",
-            "section": "C",
-            "students": [
-                {
-                    "id": "student2",
-                    "name": "Emily Johnson",
-                    "email": "emily.j@example.com"
-                },
-                {
-                    "id": "student3",
-                    "name": "Michael Brown",
-                    "email": "michael.b@example.com"
-                },
-                {
-                    "id": "student5",
-                    "name": "David Miller",
-                    "email": "david.m@example.com"
-                },
-                {
-                    "id": "student6",
-                    "name": "Jessica Davis",
-                    "email": "jessica.d@example.com"
-                }
-            ]
-        }
-    ]
-    
-    # Add more sample data for better UI testing
-    sample_classrooms.append({
-        "id": "class4",
-        "name": "History 101",
-        "subject": "History",
-        "section": "D",
-        "students": [
-            {
-                "id": "student7",
-                "name": "Alex Thompson",
-                "email": "alex.t@example.com"
-            },
-            {
-                "id": "student8",
-                "name": "Olivia Wilson",
-                "email": "olivia.w@example.com"
-            }
-        ]
-    })
-    
-    # Prepare student data
-    student_counts = {}
-    
-    for classroom in sample_classrooms:
-        for student in classroom["students"]:
-            student_id = student["id"]
-            if student_id in student_counts:
-                student_counts[student_id]["count"] += 1
-            else:
-                student_counts[student_id] = {
-                    "count": 1,
-                    "student": {
-                        "id": student_id,
-                        "name": student["name"],
-                        "email": student["email"],
-                        "institution": "Sample University (PLACEHOLDER)",
-                        "department": "Sample Department (PLACEHOLDER)",
-                        "phone": "123-456-7890 (PLACEHOLDER)",
-                        "title": "Student (PLACEHOLDER)",
-                        "bio": "This is sample data. Please log in to see real student information. (PLACEHOLDER)",
-                        "joinedAt": "2023-01-15T12:00:00Z"
-                    }
-                }
-    
-    # Get all unique students sorted by enrollment count
-    all_students = [data["student"] for _, data in sorted(
-        student_counts.items(), 
-        key=lambda x: x[1]["count"], 
-        reverse=True
-    )]
-    
-    return jsonify({
-        "classrooms": sample_classrooms,
-        "students": all_students,
-        "totalClassrooms": len(sample_classrooms),
-        "totalStudents": len(all_students),
-        "isSampleData": True
-    }), 200
+        if not quiz:
+            return jsonify({"msg": "Quiz not found"}), 404
+        
+        is_teacher = user.get("userType") == "teacher"
+        
+        # Validate file type
+        if file_type not in ["questionPaper", "answerKey"]:
+            return jsonify({"msg": "Invalid file type. Must be 'questionPaper' or 'answerKey'"}), 400
+        
+        # Only teachers can access answer keys
+        if file_type == "answerKey" and not is_teacher:
+            return jsonify({"msg": "Unauthorized access to answer key"}), 403
+        
+        # If student wants the question paper, make sure quiz is published and active/available
+        if not is_teacher and file_type == "questionPaper":
+            user_obj_id = ObjectId(user_id)
+            quiz_status = get_quiz_status(quiz, user_obj_id)
+            if quiz_status not in ["available", "submitted"]:
+                return jsonify({"msg": f"You cannot access this quiz in its current state ({quiz_status})"}), 403
+        
+        # Check if requested file exists
+        if file_type not in quiz:
+            return jsonify({"msg": f"The requested file ({file_type}) does not exist for this quiz"}), 404
+        
+        # Get the file data
+        file_data = quiz[file_type]
+        
+        # Check if content exists in the file_data
+        if "content" not in file_data:
+            return jsonify({"msg": f"The file content is missing"}), 500
+        
+        # Return PDF file
+        return send_file(
+            io.BytesIO(file_data["content"]),
+            mimetype=file_data.get("contentType", "application/pdf"),
+            as_attachment=True,
+            download_name=file_data.get("filename", f"{file_type}.pdf")
+        )
+        
+    except Exception as e:
+        print(f"Error retrieving quiz PDF: {str(e)}")
+        return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
-@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/submissions/<student_id>/grade", methods=["POST"])
+@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/submissions/<student_id>/pdf", methods=["GET"])
 @jwt_required()
-def grade_subjective_questions(classroom_id, quiz_id, student_id):
-    """Grade subjective questions for a student's quiz submission"""
+def get_student_submission_pdf(classroom_id, quiz_id, student_id):
+    """Get PDF submission from a student"""
+    # Get the token from query parameter or JWT header
+    user_id = get_jwt_identity()
+    
+    # Only teachers can access this endpoint
+    classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "teacher")
+    if error:
+        return error
+    
+    try:
+        # Fetch classroom directly from the database to ensure we have binary content
+        classroom_obj = classrooms_collection.find_one({"_id": ObjectId(classroom_id)})
+        if not classroom_obj:
+            return jsonify({"msg": "Classroom not found"}), 404
+            
+        # Find the quiz
+        quiz = None
+        for q in classroom_obj.get("quizzes", []):
+            if str(q["id"]) == quiz_id:
+                quiz = q
+                break
+                
+        if not quiz:
+            return jsonify({"msg": "Quiz not found"}), 404
+        
+        # Find student submission
+        submission = None
+        student_obj_id = ObjectId(student_id)
+        
+        for sub in quiz.get("submissions", []):
+            if sub["student_id"] == student_obj_id:
+                submission = sub
+                break
+                
+        if not submission:
+            return jsonify({"msg": "Student submission not found"}), 404
+        
+        # Check if the submission has a PDF file
+        if "answerFile" not in submission:
+            return jsonify({"msg": "This submission has no PDF file attached"}), 404
+        
+        # Get the file data
+        file_data = submission["answerFile"]
+        
+        # Check if content exists in the file_data
+        if "content" not in file_data:
+            return jsonify({"msg": "The file content is missing"}), 500
+        
+        # Return PDF file
+        return send_file(
+            io.BytesIO(file_data["content"]),
+            mimetype=file_data.get("contentType", "application/pdf"),
+            as_attachment=True,
+            download_name=file_data.get("filename", "student_submission.pdf")
+        )
+        
+    except Exception as e:
+        print(f"Error retrieving submission PDF: {str(e)}")
+        return jsonify({"msg": f"Server error: {str(e)}"}), 500
+
+@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/submissions/<student_id>/grade-pdf", methods=["POST"])
+@jwt_required()
+def grade_pdf_submission(classroom_id, quiz_id, student_id):
+    """Grade a student's PDF quiz submission"""
     user_id = get_jwt_identity()
     
     classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "teacher")
@@ -2138,174 +2330,67 @@ def grade_subjective_questions(classroom_id, quiz_id, student_id):
         
         # Get grading data
         data = request.get_json()
-        if not data or "grades" not in data:
-            return jsonify({"msg": "Grading data is required"}), 400
+        if not data or "score" not in data:
+            return jsonify({"msg": "Score is required"}), 400
         
-        grades = data["grades"]
-        if not isinstance(grades, dict):
-            return jsonify({"msg": "Grades data must be an object mapping question IDs to grades"}), 400
-        
-        # Keep track of total score changes
-        score_change = 0
-        old_score = submission.get("score", 0)
-        
-        # Update each answer with grades
-        for question_id, grade_data in grades.items():
-            # Find the question to validate the grade
-            question = None
-            for q in quiz["questions"]:
-                if str(q["id"]) == question_id:
-                    question = q
-                    break
-                    
-            if not question:
-                continue  # Skip questions that don't exist
-                
-            # Only grade subjective questions
-            if question.get("type") != "subjective":
-                continue
-                
-            # Validate grade data
-            if not isinstance(grade_data, dict):
-                continue
-                
-            if "score" not in grade_data:
-                continue
-                
-            # Get the maximum possible score for this question
-            max_score = question.get("points", 1)
-            given_score = min(max(0, float(grade_data["score"])), max_score)  # Constrain score to valid range
+        try:
+            score = float(data["score"])
+            max_score = float(data.get("maxScore", 100))
             
-            # Update the answer
-            if question_id in submission.get("answers", {}):
-                answer = submission["answers"][question_id]
+            if score < 0 or score > max_score:
+                return jsonify({"msg": f"Score must be between 0 and {max_score}"}), 400
                 
-                # Calculate score change
-                old_answer_score = answer.get("score", 0)
-                score_change += given_score - old_answer_score
-                
-                # Update with grade data
-                answer.update({
-                    "score": given_score,
+            feedback = data.get("feedback", "")
+            
+            # Update submission with grade
+            submission["score"] = score
+            submission["maxScore"] = max_score
+            submission["feedback"] = feedback
+            submission["isGraded"] = True
+            submission["gradedAt"] = datetime.utcnow()
+            submission["gradedBy"] = ObjectId(user_id)
+            
+            # Update the submission in the quiz
+            quiz["submissions"][submission_index] = submission
+            
+            # Update the quiz in the database
+            result = classrooms_collection.update_one(
+                {"_id": ObjectId(classroom_id)},
+                {"$set": {f"quizzes.$[quiz].submissions": quiz["submissions"]}},
+                array_filters=[{"quiz.id": ObjectId(quiz_id)}]
+            )
+            
+            if result.modified_count:
+                return jsonify({
+                    "msg": "Submission graded successfully",
+                    "score": score,
                     "maxScore": max_score,
-                    "isGraded": True,
-                    "feedback": grade_data.get("feedback", "")
-                })
-                
-                submission["answers"][question_id] = answer
-        
-        # Update overall score
-        submission["score"] = old_score + score_change
-        
-        # Update the submission in the quiz
-        quiz["submissions"][submission_index] = submission
-        
-        # Update the quiz in the database
-        result = classrooms_collection.update_one(
-            {"_id": ObjectId(classroom_id)},
-            {"$set": {f"quizzes.$[quiz].submissions": quiz["submissions"]}},
-            array_filters=[{"quiz.id": ObjectId(quiz_id)}]
-        )
-        
-        if result.modified_count:
-            return jsonify({
-                "msg": "Subjective questions graded successfully",
-                "newScore": submission["score"],
-                "maxScore": submission["maxScore"],
-                "percentage": round((submission["score"] / submission["maxScore"]) * 100, 1) if submission["maxScore"] > 0 else 0
-            }), 200
-        
-        return jsonify({"msg": "No changes made"}), 200
-        
+                    "percentage": round((score / max_score) * 100, 1) if max_score > 0 else 0
+                }), 200
+            
+            return jsonify({"msg": "No changes made"}), 200
+            
+        except ValueError:
+            return jsonify({"msg": "Invalid score value"}), 400
+            
     except Exception as e:
-        print(f"Error grading subjective questions: {str(e)}")
+        print(f"Error grading PDF submission: {str(e)}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
-@app.route("/api/quiz/question-types", methods=["GET"])
+@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/submissions/<student_id>/answer-pdf", methods=["GET"])
 @jwt_required()
-def get_question_types():
-    """Get available quiz question types and their structure"""
+def get_student_answer_pdf(classroom_id, quiz_id, student_id):
+    """Get a student's submitted answer PDF file"""
     user_id = get_jwt_identity()
     
-    # Verify user is a teacher
-    user = users_collection.find_one({"_id": ObjectId(user_id)})
-    if not user or user.get("userType") != "teacher":
-        return jsonify({"msg": "Only teachers can access this information"}), 403
+    # Allow both the student themselves and teachers to access this endpoint
+    if student_id != user_id:
+        # If not the student, ensure requester is a teacher
+        classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "teacher")
+    else:
+        # Student accessing their own submission
+        classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "student")
     
-    # Define the available question types and their structure
-    question_types = {
-        "single_choice": {
-            "name": "Single Choice",
-            "description": "Multiple choice question with exactly one correct answer",
-            "fields": {
-                "text": "Question text",
-                "options": "Array of options with id and text properties",
-                "correctOption": "ID of the correct option",
-                "points": "Points awarded for correct answer (default: 1)"
-            },
-            "example": {
-                "text": "What is the capital of France?",
-                "type": "single_choice",
-                "options": [
-                    {"id": "opt1", "text": "London"},
-                    {"id": "opt2", "text": "Paris"},
-                    {"id": "opt3", "text": "Berlin"}
-                ],
-                "correctOption": "opt2",
-                "points": 1
-            }
-        },
-        "multiple_choice": {
-            "name": "Multiple Choice",
-            "description": "Multiple choice question with multiple correct answers",
-            "fields": {
-                "text": "Question text",
-                "options": "Array of options with id and text properties",
-                "correctOptions": "Array of IDs of correct options",
-                "points": "Points awarded for fully correct answer (default: 1)"
-            },
-            "example": {
-                "text": "Which of the following are primary colors?",
-                "type": "multiple_choice",
-                "options": [
-                    {"id": "opt1", "text": "Red"},
-                    {"id": "opt2", "text": "Green"},
-                    {"id": "opt3", "text": "Blue"},
-                    {"id": "opt4", "text": "Purple"}
-                ],
-                "correctOptions": ["opt1", "opt3"],
-                "points": 2
-            }
-        },
-        "subjective": {
-            "name": "Subjective",
-            "description": "Open-ended question requiring manual grading",
-            "fields": {
-                "text": "Question text",
-                "modelAnswer": "Optional model answer for reference",
-                "points": "Maximum points possible (default: 1)"
-            },
-            "example": {
-                "text": "Explain the significance of the water cycle.",
-                "type": "subjective",
-                "modelAnswer": "The water cycle is important because it purifies water, replenishes the land with freshwater, and regulates weather patterns...",
-                "points": 5
-            }
-        }
-    }
-    
-    return jsonify({
-        "questionTypes": question_types,
-        "defaultType": "single_choice"
-    }), 200
-
-@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/pending-grades", methods=["GET"])
-@jwt_required()
-def get_pending_grades(classroom_id, quiz_id):
-    """Get submissions with subjective questions that need manual grading"""
-    user_id = get_jwt_identity()
-    
-    classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "teacher")
     if error:
         return error
     
@@ -2315,60 +2400,42 @@ def get_pending_grades(classroom_id, quiz_id):
         if not quiz:
             return jsonify({"msg": "Quiz not found"}), 404
         
-        # Check if the quiz has subjective questions
-        has_subjective = any(q.get("type") == "subjective" for q in quiz.get("questions", []))
-        if not has_subjective:
-            return jsonify({
-                "needsGrading": False,
-                "submissions": []
-            }), 200
+        # Find the student's submission
+        student_obj_id = ObjectId(student_id)
+        submission = None
         
-        # Find submissions that need grading
-        submissions_need_grading = []
-        
-        for submission in quiz.get("submissions", []):
-            student_id = submission.get("student_id")
-            student = users_collection.find_one({"_id": student_id})
-            
-            # Check if any subjective questions are ungraded
-            pending_questions = []
-            
-            for question in quiz.get("questions", []):
-                if question.get("type") != "subjective":
-                    continue
-                    
-                question_id = str(question.get("id"))
+        for sub in quiz.get("submissions", []):
+            if sub["student_id"] == student_obj_id:
+                submission = sub
+                break
                 
-                # Check if this question has been answered and needs grading
-                answer = submission.get("answers", {}).get(question_id, {})
-                if question_id in submission.get("answers", {}) and not answer.get("isGraded", False):
-                    # This question needs grading
-                    pending_questions.append({
-                        "questionId": question_id,
-                        "questionText": question.get("text", ""),
-                        "answerText": answer.get("answer", ""),
-                        "modelAnswer": question.get("modelAnswer", ""),
-                        "maxPoints": question.get("points", 1)
-                    })
-            
-            if pending_questions:
-                submissions_need_grading.append({
-                    "submissionId": str(student_id),
-                    "studentName": student.get("fullName", "Unknown") if student else "Unknown",
-                    "studentEmail": student.get("email", "") if student else "",
-                    "submittedAt": submission.get("endTime"),
-                    "currentScore": submission.get("score", 0),
-                    "maxScore": submission.get("maxScore", 0),
-                    "pendingQuestions": pending_questions
-                })
+        if not submission:
+            return jsonify({"msg": "Student submission not found"}), 404
         
-        return jsonify({
-            "needsGrading": len(submissions_need_grading) > 0,
-            "submissions": mongo_to_json_serializable(submissions_need_grading)
-        }), 200
+        # Check if submission has an answer file
+        if "answerFile" not in submission:
+            return jsonify({"msg": "No answer file found for this submission"}), 404
+        
+        # Get the file data
+        file_data = submission["answerFile"]
+        content = file_data.get("content")
+        
+        if not content:
+            return jsonify({"msg": "Answer file content not found"}), 404
+        
+        # Set filename for download
+        filename = file_data.get("filename", "student_answer.pdf")
+        
+        # Send the file
+        response = make_response(content)
+        response.headers.set("Content-Type", "application/pdf")
+        response.headers.set(
+            "Content-Disposition", f"attachment; filename={filename}"
+        )
+        return response
         
     except Exception as e:
-        print(f"Error getting pending grades: {str(e)}")
+        print(f"Error retrieving student answer PDF: {str(e)}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
 if __name__ == "__main__":

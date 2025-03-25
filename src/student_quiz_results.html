@@ -52,41 +52,96 @@
         <p class="quiz-description" id="quiz-description">Your quiz results are shown below.</p>
       </div>
       
-      <div class="results-summary">
-        <div class="score-display">
-          <div class="score-circle" id="score-circle">
-            <div class="score-value" id="score-value">0%</div>
+      <!-- PDF Quiz Results Section -->
+      <div id="pdf-results-section" style="display: none;">
+        <div class="results-summary pdf-results">
+          <div class="score-display">
+            <div class="score-circle" id="pdf-score-circle">
+              <div class="score-value" id="pdf-score-value">Pending</div>
+            </div>
+            <div class="score-label" id="pdf-score-label">Your Score</div>
           </div>
-          <div class="score-label">Your Score</div>
+          
+          <div class="results-meta">
+            <div class="meta-item">
+              <i class="fas fa-file-pdf"></i>
+              <span class="meta-label">Submission:</span>
+              <span class="meta-value" id="pdf-submission-name">answer.pdf</span>
+            </div>
+            <div class="meta-item">
+              <i class="fas fa-clock"></i>
+              <span class="meta-label">Submitted:</span>
+              <span class="meta-value" id="pdf-submission-time">---</span>
+            </div>
+            <div class="meta-item">
+              <i class="fas fa-check-circle"></i>
+              <span class="meta-label">Status:</span>
+              <span class="meta-value" id="pdf-grading-status">Waiting for grading</span>
+            </div>
+          </div>
         </div>
         
-        <div class="results-meta">
-          <div class="meta-item">
-            <i class="fas fa-check-circle"></i>
-            <span class="meta-label">Correct:</span>
-            <span class="meta-value" id="correct-count">0</span>
+        <div class="pdf-submission-card">
+          <h3>Your Submission</h3>
+          <div class="submission-details">
+            <div class="file-info">
+              <i class="fas fa-file-pdf"></i>
+              <span id="pdf-file-name">answer.pdf</span>
+            </div>
+            <a id="download-submission" class="btn btn-outline" target="_blank">
+              <i class="fas fa-download"></i> Download Your Submission
+            </a>
           </div>
-          <div class="meta-item">
-            <i class="fas fa-times-circle"></i>
-            <span class="meta-label">Incorrect:</span>
-            <span class="meta-value" id="incorrect-count">0</span>
-          </div>
-          <div class="meta-item">
-            <i class="fas fa-minus-circle"></i>
-            <span class="meta-label">Unanswered:</span>
-            <span class="meta-value" id="unanswered-count">0</span>
-          </div>
-          <div class="meta-item">
-            <i class="fas fa-clock"></i>
-            <span class="meta-label">Time Taken:</span>
-            <span class="meta-value" id="time-taken">0 minutes</span>
+          
+          <div id="graded-section" style="display: none;">
+            <div class="feedback-section">
+              <h3>Teacher's Feedback</h3>
+              <div class="feedback-container" id="feedback-container">
+                No feedback provided.
+              </div>
+            </div>
           </div>
         </div>
       </div>
       
-      <h2 class="section-title">Detailed Results</h2>
-      <div id="questions-container" class="questions-container">
-        <!-- Questions will be rendered here -->
+      <!-- Question-based Quiz Results Section -->
+      <div id="question-results-section">
+        <div class="results-summary">
+          <div class="score-display">
+            <div class="score-circle" id="score-circle">
+              <div class="score-value" id="score-value">0%</div>
+            </div>
+            <div class="score-label">Your Score</div>
+          </div>
+          
+          <div class="results-meta">
+            <div class="meta-item">
+              <i class="fas fa-check-circle"></i>
+              <span class="meta-label">Correct:</span>
+              <span class="meta-value" id="correct-count">0</span>
+            </div>
+            <div class="meta-item">
+              <i class="fas fa-times-circle"></i>
+              <span class="meta-label">Incorrect:</span>
+              <span class="meta-value" id="incorrect-count">0</span>
+            </div>
+            <div class="meta-item">
+              <i class="fas fa-minus-circle"></i>
+              <span class="meta-label">Unanswered:</span>
+              <span class="meta-value" id="unanswered-count">0</span>
+            </div>
+            <div class="meta-item">
+              <i class="fas fa-clock"></i>
+              <span class="meta-label">Time Taken:</span>
+              <span class="meta-value" id="time-taken">0 minutes</span>
+            </div>
+          </div>
+        </div>
+        
+        <h2 class="section-title">Detailed Results</h2>
+        <div id="questions-container" class="questions-container">
+          <!-- Questions will be rendered here -->
+        </div>
       </div>
       
       <div class="quiz-navigation">
@@ -105,7 +160,12 @@
       
       // Set up event listeners
       document.getElementById('back-to-class').addEventListener('click', function() {
-        window.location.href = `/dashboard?classId=${classroomId}`;
+        // Get the classroom ID
+        const classroomId = EduQuiz.getClassroomId();
+        console.log('Redirecting back to classroom with ID:', classroomId);
+        
+        // Use the most reliable approach: direct navigation with parameters
+        window.location.href = `/dashboard`;
       });
       
       // Fetch quiz results
@@ -114,11 +174,92 @@
     
     function displayResults(results) {
       // Set quiz title and description
-      document.getElementById('quiz-title').textContent = `${results.quiz.title} - Results`;
-      document.getElementById('quiz-description').textContent = results.quiz.description;
+      document.getElementById('quiz-title').textContent = `${results.quizTitle} - Results`;
+      document.getElementById('quiz-description').textContent = results.quizDescription || '';
+      
+      // Check quiz type and display appropriate section
+      if (results.quizType === 'pdf') {
+        displayPdfResults(results);
+      } else {
+        displayQuestionResults(results);
+      }
+      
+      // Show results container
+      EduQuiz.showLoading(false);
+    }
+    
+    function displayPdfResults(results) {
+      // Show PDF section, hide questions section
+      document.getElementById('pdf-results-section').style.display = 'block';
+      document.getElementById('question-results-section').style.display = 'none';
+      
+      // Set basic submission info
+      document.getElementById('pdf-submission-time').textContent = new Date(results.submissionDate).toLocaleString();
+      
+      // Set file name and download link if available
+      if (results.submission && results.submission.filename) {
+        const filename = results.submission.filename;
+        document.getElementById('pdf-submission-name').textContent = filename;
+        document.getElementById('pdf-file-name').textContent = filename;
+        
+        // Set download link
+        const classroomId = EduQuiz.getClassroomId();
+        const quizId = EduQuiz.getQuizId();
+        
+        // We'll use the user ID from the results or fetch it if needed
+        const studentId = results.studentId || localStorage.getItem('user_id');
+        
+        if (studentId) {
+          const token = localStorage.getItem('access_token');
+          const downloadUrl = `/api/classrooms/${classroomId}/quizzes/${quizId}/submissions/${studentId}/pdf?token=${token}`;
+          document.getElementById('download-submission').href = downloadUrl;
+        }
+      }
+      
+      // Check if the quiz has been graded
+      const isGraded = results.isGraded || false;
+      
+      if (isGraded) {
+        // Show score
+        const score = results.score || 0;
+        const maxScore = results.maxScore || 100;
+        const percentage = Math.round((score / maxScore) * 100);
+        
+        document.getElementById('pdf-score-value').textContent = `${percentage}%`;
+        document.getElementById('pdf-grading-status').textContent = 'Graded';
+        document.getElementById('pdf-grading-status').classList.add('graded');
+        
+        // Set score circle color based on score
+        const scoreCircle = document.getElementById('pdf-score-circle');
+        if (percentage >= 80) {
+          scoreCircle.classList.add('high-score');
+        } else if (percentage >= 60) {
+          scoreCircle.classList.add('medium-score');
+        } else {
+          scoreCircle.classList.add('low-score');
+        }
+        
+        // Show feedback section if available
+        if (results.feedback) {
+          document.getElementById('graded-section').style.display = 'block';
+          document.getElementById('feedback-container').textContent = results.feedback;
+        }
+      } else {
+        // Show pending status
+        document.getElementById('pdf-score-value').textContent = 'Pending';
+        document.getElementById('pdf-score-label').textContent = 'Waiting for grading';
+        document.getElementById('pdf-grading-status').textContent = 'Not graded yet';
+        document.getElementById('pdf-score-circle').classList.add('pending-score');
+      }
+    }
+    
+    function displayQuestionResults(results) {
+      // Show questions section, hide PDF section
+      document.getElementById('pdf-results-section').style.display = 'none';
+      document.getElementById('question-results-section').style.display = 'block';
       
       // Calculate and display score
-      const score = Math.round((results.score / results.totalPoints) * 100);
+      const score = results.percentage || 0;
       document.getElementById('score-value').textContent = `${score}%`;
       
       // Set score circle color based on score
@@ -132,29 +273,24 @@
       }
       
       // Display meta information
-      document.getElementById('correct-count').textContent = results.correctCount;
-      document.getElementById('incorrect-count').textContent = results.incorrectCount;
-      document.getElementById('unanswered-count').textContent = results.unansweredCount;
-      document.getElementById('time-taken').textContent = formatDuration(results.timeTaken);
+      document.getElementById('correct-count').textContent = results.correctCount || 0;
+      document.getElementById('incorrect-count').textContent = (results.totalQuestions - results.correctCount) || 0;
+      document.getElementById('unanswered-count').textContent = results.unansweredCount || 0;
+      document.getElementById('time-taken').textContent = formatDuration(results.timeSpent * 60000); // Convert minutes to ms
       
       // Render questions and answers
-      renderQuestions(results.questions, results.answers);
-      
-      // Show results container
-      EduQuiz.showLoading(false);
+      if (results.questions) {
+        renderQuestions(results.questions);
+      }
     }
     
-    function renderQuestions(questions, answers) {
+    function renderQuestions(questions) {
       const container = document.getElementById('questions-container');
       container.innerHTML = '';
       
       questions.forEach((question, index) => {
-        const userAnswer = answers.find(a => a.questionId === question.id);
-        const isCorrect = userAnswer && userAnswer.isCorrect;
-        const isUnanswered = !userAnswer || !userAnswer.selectedOptionId;
-        
         const questionElement = document.createElement('div');
-        questionElement.className = `question-result ${isCorrect ? 'correct' : isUnanswered ? 'unanswered' : 'incorrect'}`;
+        questionElement.className = 'question-result';
         
         // Question header
         const questionHeader = document.createElement('div');
@@ -162,11 +298,7 @@
         questionHeader.innerHTML = `
           <div class="question-number">Question ${index + 1}</div>
           <div class="question-status">
-            ${isUnanswered ? 
-              '<i class="fas fa-minus-circle"></i> Unanswered' : 
-              isCorrect ? 
-                '<i class="fas fa-check-circle"></i> Correct' : 
-                '<i class="fas fa-times-circle"></i> Incorrect'}
+            ${question.isCorrect ? '<i class="fas fa-check-circle"></i> Correct' : '<i class="fas fa-times-circle"></i> Incorrect'}
           </div>
         `;
         
@@ -180,7 +312,7 @@
         optionsContainer.className = 'answer-options';
         
         question.options.forEach(option => {
-          const isSelected = userAnswer && userAnswer.selectedOptionId === option.id;
+          const isSelected = option.id === question.selectedOptionId;
           const isCorrectOption = option.id === question.correctOptionId;
           
           const optionElement = document.createElement('div');
@@ -188,8 +320,8 @@
           
           optionElement.innerHTML = `
             <span class="option-text">${option.text}</span>
-            ${isSelected && isCorrect ? '<i class="fas fa-check"></i>' : ''}
-            ${isSelected && !isCorrect ? '<i class="fas fa-times"></i>' : ''}
+            ${isSelected && isCorrectOption ? '<i class="fas fa-check"></i>' : ''}
+            ${isSelected && !isCorrectOption ? '<i class="fas fa-times"></i>' : ''}
             ${!isSelected && isCorrectOption ? '<i class="fas fa-check"></i>' : ''}
           `;
           
@@ -361,10 +493,6 @@
       border-left-color: var(--error);
     }
     
-    .question-result.unanswered {
-      border-left-color: var(--grey-500);
-    }
-    
     .question-result-header {
       display: flex;
       justify-content: space-between;
@@ -396,10 +524,6 @@
     
     .incorrect .question-status {
       color: var(--error);
-    }
-    
-    .unanswered .question-status {
-      color: var(--grey-500);
     }
     
     .answer-options {

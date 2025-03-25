@@ -600,6 +600,13 @@ document.addEventListener('DOMContentLoaded', function () {
         statusClass = 'status-inprogress';
       }
       
+      // Check if it's a PDF quiz (has quizType property set to 'pdf') or legacy question-based quiz
+      const isPdfQuiz = quiz.quizType === 'pdf';
+      
+      // For question count, handle both quiz types
+      const questionCount = isPdfQuiz ? 'PDF Quiz' : 
+                          (quiz.questions && quiz.questions.length ? `${quiz.questions.length} Questions` : 'N/A');
+      
       const quizHtml = `
         <div class="quiz-card" data-id="${quiz.id}">
           <div class="quiz-card-header">
@@ -611,7 +618,10 @@ document.addEventListener('DOMContentLoaded', function () {
           <div class="quiz-card-meta">
             <span class="meta-item"><i class="fas fa-calendar-check"></i> ${formattedStartTime} - ${formattedEndTime}</span>
             <span class="meta-item"><i class="fas fa-clock"></i> ${quiz.duration} minutes</span>
-            <span class="meta-item"><i class="fas fa-question-circle"></i> ${quiz.questions.length} Questions</span>
+            <span class="meta-item">
+              ${isPdfQuiz ? '<i class="fas fa-file-pdf"></i>' : '<i class="fas fa-question-circle"></i>'} 
+              ${questionCount}
+            </span>
             <span class="quiz-status-badge status-${quiz.studentStatus === 'submitted' ? 'completed' : quiz.studentStatus}">${status}</span>
           </div>
           <div class="quiz-card-actions">
@@ -628,21 +638,14 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.take-quiz-btn').forEach(btn => {
       btn.addEventListener('click', function() {
         const quizId = this.closest('.quiz-card').getAttribute('data-id');
-        window.location.href = `/quiz?classId=${classroomId}&quizId=${quizId}`;
+        openQuizInstructions(quizId);
       });
     });
     
     document.querySelectorAll('.view-result-btn').forEach(btn => {
       btn.addEventListener('click', function() {
         const quizId = this.closest('.quiz-card').getAttribute('data-id');
-        window.location.href = `/quiz-results?classId=${classroomId}&quizId=${quizId}`;
-      });
-    });
-    
-    document.querySelectorAll('.view-details-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        const quizId = this.closest('.quiz-card').getAttribute('data-id');
-        window.location.href = `/quiz-details?classId=${classroomId}&quizId=${quizId}`;
+        viewQuizResults(quizId);
       });
     });
   }
@@ -1110,7 +1113,7 @@ document.addEventListener('DOMContentLoaded', function () {
     quizList.innerHTML = '';
     
     // Sort quizzes: available first, then upcoming, then completed, then missed
-    const statusOrder = { 'available': 0, 'upcoming': 1, 'completed': 2, 'submitted': 3, 'missed': 4 };
+    const statusOrder = { 'available': 0, 'upcoming': 1, 'completed': 2, 'submitted': 2, 'missed': 3 };
     
     filteredQuizzes.sort((a, b) => {
       // First sort by status
@@ -1148,16 +1151,37 @@ document.addEventListener('DOMContentLoaded', function () {
         'missed': 'Missed'
       };
       
+      // Check if quiz is PDF type
+      const isPdfQuiz = quiz.quizType === 'pdf';
+      
       let actionButton = '';
       
       if (quiz.studentStatus === 'available') {
-        actionButton = `<button class="take-quiz-btn" data-quiz-id="${quiz.id}"><i class="fas fa-play"></i> Take Quiz</button>`;
+        if (isPdfQuiz) {
+          // For PDF quizzes, add download and upload buttons
+          const token = localStorage.getItem('access_token');
+          const downloadUrl = `/api/classrooms/${classroomId}/quizzes/${quiz.id}/pdf/questionPaper?token=${token}`;
+          
+          actionButton = `
+            <div class="pdf-quiz-actions">
+              <a href="${downloadUrl}" target="_blank" class="download-paper-btn">
+                <i class="fas fa-download"></i> Download Question Paper
+              </a>
+              <button class="upload-answer-btn" data-quiz-id="${quiz.id}">
+                <i class="fas fa-upload"></i> Upload Answer
+              </button>
+            </div>
+          `;
+        } else {
+          // For regular quizzes, keep the take quiz button
+          actionButton = `<button class="take-quiz-btn" data-quiz-id="${quiz.id}"><i class="fas fa-play"></i> Take Quiz</button>`;
+        }
       } else if (quiz.studentStatus === 'upcoming') {
         actionButton = `<button class="take-quiz-btn disabled-btn" disabled><i class="fas fa-clock"></i> Not Available Yet</button>`;
       } else if (quiz.studentStatus === 'completed' || quiz.studentStatus === 'submitted') {
         actionButton = `<button class="view-results-btn" data-quiz-id="${quiz.id}"><i class="fas fa-chart-bar"></i> View Results</button>`;
       } else if (quiz.studentStatus === 'missed') {
-        actionButton = `<button class="view-results-btn disabled-btn" disabled><i class="fas fa-times-circle"></i> Missed</button>`;
+        actionButton = `<button class="missed-quiz-btn disabled-btn" disabled><i class="fas fa-times-circle"></i> Missed</button>`;
       }
       
       quizList.insertAdjacentHTML('beforeend', `
@@ -1171,7 +1195,10 @@ document.addEventListener('DOMContentLoaded', function () {
           <div class="quiz-card-meta">
             <span class="meta-item"><i class="fas fa-calendar-check"></i> ${formattedDate} - ${formattedTime}</span>
             <span class="meta-item"><i class="fas fa-clock"></i> ${quiz.duration} minutes</span>
-            <span class="meta-item"><i class="fas fa-question-circle"></i> ${quiz.questions.length} Questions</span>
+            <span class="meta-item">
+              ${quiz.quizType === 'pdf' ? '<i class="fas fa-file-pdf"></i>' : '<i class="fas fa-question-circle"></i>'} 
+              ${quiz.questions && quiz.questions.length ? `${quiz.questions.length} Questions` : isPdfQuiz ? 'PDF Quiz' : 'N/A'}
+            </span>
             <span class="quiz-status-badge status-${quiz.studentStatus === 'submitted' ? 'completed' : quiz.studentStatus}">${statusLabels[quiz.studentStatus]}</span>
           </div>
           <div class="quiz-card-actions">
@@ -1200,6 +1227,14 @@ document.addEventListener('DOMContentLoaded', function () {
         });
       }
     });
+    
+    // Add event listeners to upload answer buttons
+    document.querySelectorAll('.upload-answer-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const quizId = this.dataset.quizId;
+        openUploadAnswerModal(quizId);
+      });
+    });
   }
 
   function openQuizInstructions(quizId) {
@@ -1222,7 +1257,16 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('quiz-title-display').textContent = quiz.title;
     document.getElementById('quiz-description-display').textContent = quiz.description;
     document.getElementById('quiz-duration-display').textContent = quiz.duration;
-    document.getElementById('quiz-questions-count').textContent = quiz.questions.length;
+    
+    // Check if it's a PDF quiz
+    const isPdfQuiz = quiz.quizType === 'pdf';
+    
+    // Set question count or PDF indicator
+    if (isPdfQuiz) {
+      document.getElementById('quiz-questions-count').textContent = 'PDF Quiz';
+    } else {
+      document.getElementById('quiz-questions-count').textContent = quiz.questions ? quiz.questions.length : 'N/A';
+    }
     
     const endDate = new Date(quiz.endTime);
     document.getElementById('quiz-end-time').textContent = endDate.toLocaleString();
@@ -1235,6 +1279,23 @@ document.addEventListener('DOMContentLoaded', function () {
   function startQuiz(quiz) {
     if (!quiz) return;
     
+    // Double check that quiz is available
+    if (quiz.studentStatus !== 'available') {
+      // Quiz is not available, show an error message
+      showNotification(`This quiz is not available for taking. Status: ${quiz.studentStatus}`, 'error');
+      // Refresh quiz list to ensure we have the latest status
+      loadStudentQuizzes();
+      return;
+    }
+    
+    // Check if it's a PDF quiz
+    if (quiz.quizType === 'pdf') {
+      // For PDF quizzes, redirect to the quiz page
+      window.location.href = `/quiz?classId=${classroomId}&quizId=${quiz.id}`;
+      return;
+    }
+    
+    // For question-based quizzes, continue with the existing flow
     // Reset quiz state
     activeQuestionIndex = 0;
     userAnswers = {};
@@ -1252,16 +1313,23 @@ document.addEventListener('DOMContentLoaded', function () {
     const navContainer = document.getElementById('question-nav-buttons');
     navContainer.innerHTML = '';
     
-    quiz.questions.forEach((question, index) => {
-      navContainer.insertAdjacentHTML('beforeend', `
-        <button class="question-nav-btn ${index === 0 ? 'current' : ''}" data-index="${index}">
-          ${index + 1}
-        </button>
-      `);
-    });
-    
-    // Display first question
-    displayQuestion(0);
+    // Make sure quiz.questions exists before accessing its properties
+    if (quiz.questions && quiz.questions.length > 0) {
+      quiz.questions.forEach((question, index) => {
+        navContainer.insertAdjacentHTML('beforeend', `
+          <button class="question-nav-btn ${index === 0 ? 'current' : ''}" data-index="${index}">
+            ${index + 1}
+          </button>
+        `);
+      });
+      
+      // Display first question
+      displayQuestion(0);
+    } else {
+      // Handle case where quiz has no questions
+      showNotification('This quiz has no questions.', 'error');
+      return;
+    }
     
     // Start the timer
     startQuizTimer(endTime);
@@ -1360,7 +1428,10 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function displayQuestion(index) {
-    if (!currentQuiz || !currentQuiz.questions[index]) return;
+    if (!currentQuiz || !currentQuiz.questions || !currentQuiz.questions[index]) {
+      console.error('Cannot display question - quiz questions are undefined or index is invalid');
+      return;
+    }
     
     const question = currentQuiz.questions[index];
     activeQuestionIndex = index;
@@ -1373,16 +1444,22 @@ document.addEventListener('DOMContentLoaded', function () {
     const optionsContainer = document.getElementById('options-container');
     optionsContainer.innerHTML = '';
     
-    question.options.forEach((option, optionIndex) => {
-      const isSelected = userAnswers[index] === optionIndex.toString();
-      
-      optionsContainer.insertAdjacentHTML('beforeend', `
-        <div class="option-item ${isSelected ? 'selected' : ''}" data-option-index="${optionIndex}">
-          <div class="option-radio"></div>
-          <div class="option-text">${option.text}</div>
-        </div>
-      `);
-    });
+    // Make sure question.options exists
+    if (question.options && Array.isArray(question.options)) {
+      question.options.forEach((option, optionIndex) => {
+        const isSelected = userAnswers[index] === optionIndex.toString();
+        
+        optionsContainer.insertAdjacentHTML('beforeend', `
+          <div class="option-item ${isSelected ? 'selected' : ''}" data-option-index="${optionIndex}">
+            <div class="option-radio"></div>
+            <div class="option-text">${option.text}</div>
+          </div>
+        `);
+      });
+    } else {
+      console.error('Question options undefined or not an array');
+      optionsContainer.innerHTML = '<div class="error">Options not available for this question.</div>';
+    }
     
     // Update navigation buttons
     document.querySelectorAll('.question-nav-btn').forEach((btn, btnIndex) => {
@@ -1688,4 +1765,155 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }
   });
+
+  function openUploadAnswerModal(quizId) {
+    const quiz = availableQuizzes.find(q => q.id === quizId);
+    if (!quiz) return;
+    
+    // Check if a modal already exists, if not create it
+    let uploadModal = document.getElementById('upload-answer-modal');
+    if (!uploadModal) {
+      // Create upload modal HTML
+      const modalHTML = `
+        <div id="upload-answer-modal" class="modal">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3>Upload Answer Paper</h3>
+              <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="quiz-info">
+                <h4 id="upload-quiz-title"></h4>
+                <p id="upload-quiz-description"></p>
+                <div class="quiz-meta">
+                  <div class="meta-item">
+                    <i class="fas fa-clock"></i>
+                    <span>Duration: <span id="upload-quiz-duration"></span> minutes</span>
+                  </div>
+                  <div class="meta-item">
+                    <i class="fas fa-calendar-check"></i>
+                    <span>Available until: <span id="upload-quiz-end-time"></span></span>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="upload-form">
+                <div class="form-group">
+                  <label for="answer-file">Upload your answer paper (PDF only)</label>
+                  <input type="file" id="answer-file" accept=".pdf" required>
+                  <p class="file-hint">Please upload your completed answer paper in PDF format</p>
+                </div>
+                <div id="upload-error" class="error-message" style="display:none;"></div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline cancel-upload-btn">Cancel</button>
+              <button type="button" class="btn btn-primary submit-answer-btn">Submit Answer</button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // Append modal to body
+      document.body.insertAdjacentHTML('beforeend', modalHTML);
+      uploadModal = document.getElementById('upload-answer-modal');
+      
+      // Add event listeners for modal interaction
+      uploadModal.querySelector('.close-modal').addEventListener('click', () => {
+        closeModal(uploadModal);
+      });
+      
+      uploadModal.querySelector('.cancel-upload-btn').addEventListener('click', () => {
+        closeModal(uploadModal);
+      });
+      
+      uploadModal.querySelector('.submit-answer-btn').addEventListener('click', () => {
+        submitAnswerFile(quizId);
+      });
+    }
+    
+    // Populate the modal with quiz information
+    document.getElementById('upload-quiz-title').textContent = quiz.title;
+    document.getElementById('upload-quiz-description').textContent = quiz.description;
+    document.getElementById('upload-quiz-duration').textContent = quiz.duration;
+    
+    const endDate = new Date(quiz.endTime);
+    document.getElementById('upload-quiz-end-time').textContent = endDate.toLocaleString();
+    
+    // Reset error message and file input
+    document.getElementById('upload-error').style.display = 'none';
+    document.getElementById('answer-file').value = '';
+    
+    // Open the modal
+    openModal(uploadModal);
+  }
+
+  function submitAnswerFile(quizId) {
+    const fileInput = document.getElementById('answer-file');
+    const errorDisplay = document.getElementById('upload-error');
+    
+    // Validate file selection
+    if (!fileInput.files || fileInput.files.length === 0) {
+      errorDisplay.textContent = 'Please select a file to upload';
+      errorDisplay.style.display = 'block';
+      return;
+    }
+    
+    const file = fileInput.files[0];
+    
+    // Validate file type
+    if (file.type !== 'application/pdf') {
+      errorDisplay.textContent = 'Only PDF files are accepted';
+      errorDisplay.style.display = 'block';
+      return;
+    }
+    
+    // Create form data
+    const formData = new FormData();
+    formData.append('answerFile', file);
+    formData.append('startTime', new Date().toISOString());
+    
+    // Show loading state
+    const submitBtn = document.querySelector('.submit-answer-btn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+    
+    // Submit to server
+    fetch(`/api/classrooms/${classroomId}/quizzes/${quizId}/submit`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+      },
+      body: formData
+    })
+    .then(response => {
+      if (!response.ok) {
+        return response.json().then(data => {
+          throw new Error(data.msg || 'Failed to submit quiz');
+        });
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log('Answer uploaded successfully:', data);
+      
+      // Close the modal
+      closeModal(document.getElementById('upload-answer-modal'));
+      
+      // Show success notification
+      showNotification('Your answer has been submitted successfully!', 'success');
+      
+      // Refresh quiz list to update status
+      loadStudentQuizzes();
+    })
+    .catch(error => {
+      console.error('Error uploading answer:', error);
+      errorDisplay.textContent = error.message || 'Failed to upload answer. Please try again.';
+      errorDisplay.style.display = 'block';
+      
+      // Reset button
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = 'Submit Answer';
+    });
+  }
 }); 

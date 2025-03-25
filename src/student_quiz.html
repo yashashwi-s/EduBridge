@@ -305,16 +305,51 @@
         </div>
       </div>
       
-      <div id="question-navigation"></div>
-      
-      <div id="question-container" class="question-container">
-        <!-- Question content will be dynamically inserted here -->
+      <!-- PDF Quiz Section -->
+      <div id="pdf-quiz-section" style="display: none;">
+        <div class="pdf-container">
+          <div class="pdf-viewer">
+            <div class="pdf-embed-container">
+              <iframe id="pdf-viewer" title="Question Paper" style="width: 100%; height: 600px; border: 1px solid #ddd;"></iframe>
+            </div>
+            <div class="pdf-controls">
+              <a id="download-pdf" class="btn btn-outline" target="_blank">
+                <i class="fas fa-download"></i> Download Question Paper
+              </a>
+            </div>
+          </div>
+          
+          <div class="answer-upload-section">
+            <h3>Submit Your Answer</h3>
+            <p class="form-info">Upload your completed answer sheet as a PDF file.</p>
+            
+            <form id="pdf-submission-form" enctype="multipart/form-data">
+              <div class="form-group">
+                <label for="answer-file">Your Answer (PDF only)</label>
+                <input type="file" id="answer-file" accept=".pdf" required>
+              </div>
+              
+              <button type="submit" id="submit-pdf-quiz" class="btn btn-success">
+                <i class="fas fa-paper-plane"></i> Submit Answers
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
       
-      <div class="quiz-navigation">
-        <button id="prev-question" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Previous</button>
-        <button id="next-question" class="btn btn-outline">Next <i class="fas fa-arrow-right"></i></button>
-        <button id="submit-quiz" class="btn btn-success">Submit Quiz</button>
+      <!-- Question-based Quiz Section -->
+      <div id="question-quiz-section">
+        <div id="question-navigation"></div>
+        
+        <div id="question-container" class="question-container">
+          <!-- Question content will be dynamically inserted here -->
+        </div>
+        
+        <div class="quiz-navigation">
+          <button id="prev-question" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Previous</button>
+          <button id="next-question" class="btn btn-outline">Next <i class="fas fa-arrow-right"></i></button>
+          <button id="submit-quiz" class="btn btn-success">Submit Quiz</button>
+        </div>
       </div>
     </div>
     
@@ -341,12 +376,36 @@
       // Initialize the quiz page
       if (!EduQuiz.initQuizPage()) return;
       
-      // Set up submit button
+      // Set up submit button for question-based quizzes
       const submitButton = document.getElementById('submit-quiz');
       if (submitButton) {
         submitButton.addEventListener('click', function() {
           if (confirm('Are you sure you want to submit this quiz? You cannot change your answers after submission.')) {
             EduQuiz.submitQuizAnswers();
+          }
+        });
+      }
+      
+      // Set up submit handler for PDF quizzes
+      const pdfSubmissionForm = document.getElementById('pdf-submission-form');
+      if (pdfSubmissionForm) {
+        pdfSubmissionForm.addEventListener('submit', function(e) {
+          e.preventDefault();
+          
+          // Simple validation
+          const answerFile = document.getElementById('answer-file').files[0];
+          if (!answerFile) {
+            alert('Please select your answer file.');
+            return;
+          }
+          
+          if (!answerFile.type.match('application/pdf')) {
+            alert('Your answer file must be a PDF.');
+            return;
+          }
+          
+          if (confirm('Are you sure you want to submit your answer? You cannot change it after submission.')) {
+            submitPdfQuiz();
           }
         });
       }
@@ -365,11 +424,14 @@
       document.getElementById('quiz-title').textContent = quiz.title;
       document.getElementById('quiz-description').textContent = quiz.description || '';
       
-      // Set up question navigation
-      setupQuestionNavigation(quiz.questions);
-      
-      // Display first question
-      displayQuestion(0);
+      // Determine quiz type and set up appropriate view
+      if (quiz.quizType === 'pdf') {
+        // For PDF quizzes
+        setupPdfQuiz(quiz);
+      } else {
+        // For question-based quizzes (legacy)
+        setupQuestionBasedQuiz(quiz);
+      }
       
       // Start the timer
       const endTimeStr = quiz.endTime;
@@ -381,6 +443,85 @@
       // Show the quiz container
       document.getElementById('quiz-container').style.display = 'block';
       EduQuiz.showLoading(false);
+    }
+    
+    function setupPdfQuiz(quiz) {
+      // Show PDF section, hide question section
+      document.getElementById('pdf-quiz-section').style.display = 'block';
+      document.getElementById('question-quiz-section').style.display = 'none';
+      
+      // Set up the PDF viewer with the question paper
+      const classroomId = EduQuiz.getClassroomId();
+      const quizId = EduQuiz.getQuizId();
+      const token = localStorage.getItem('access_token');
+      const pdfUrl = `/api/classrooms/${classroomId}/quizzes/${quizId}/pdf/questionPaper?token=${token}`;
+      
+      // Set iframe source
+      document.getElementById('pdf-viewer').src = pdfUrl;
+      
+      // Set download link
+      document.getElementById('download-pdf').href = pdfUrl;
+    }
+    
+    function setupQuestionBasedQuiz(quiz) {
+      // Show question section, hide PDF section
+      document.getElementById('pdf-quiz-section').style.display = 'none';
+      document.getElementById('question-quiz-section').style.display = 'block';
+      
+      // Set up question navigation
+      setupQuestionNavigation(quiz.questions);
+      
+      // Display first question
+      displayQuestion(0);
+    }
+    
+    function submitPdfQuiz() {
+      // Get form data
+      const answerFile = document.getElementById('answer-file').files[0];
+      const formData = new FormData();
+      formData.append('answerFile', answerFile);
+      formData.append('startTime', window.quizData.startTime);
+      
+      // Show loading state
+      const submitBtn = document.getElementById('submit-pdf-quiz');
+      const originalText = submitBtn.innerHTML;
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+      
+      // Get required IDs
+      const classroomId = EduQuiz.getClassroomId();
+      const quizId = EduQuiz.getQuizId();
+      
+      // Submit to server
+      fetch(`/api/classrooms/${classroomId}/quizzes/${quizId}/submit`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+        },
+        body: formData
+      })
+      .then(response => {
+        if (!response.ok) {
+          return response.json().then(errorData => {
+            throw new Error(errorData.msg || 'Failed to submit quiz');
+          });
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('Submission successful:', data);
+        
+        // Redirect to results page
+        window.location.href = `/quiz-results?classroomId=${classroomId}&quizId=${quizId}`;
+      })
+      .catch(error => {
+        console.error('Error submitting PDF quiz:', error);
+        alert('Failed to submit quiz: ' + error.message);
+        
+        // Reset button
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+      });
     }
     
     function setupQuestionNavigation(questions) {

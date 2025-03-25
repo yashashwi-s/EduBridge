@@ -1751,3 +1751,121 @@ button,
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
+
+/* PDF Quiz styles */
+.pdf-quiz-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.download-paper-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--btn-padding);
+  border-radius: var(--border-radius);
+  background-color: #4285f4;
+  color: white;
+  font-weight: 500;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: var(--transition);
+  gap: 8px;
+}
+
+.download-paper-btn:hover {
+  background-color: #2a75f3;
+  box-shadow: var(--shadow-sm);
+}
+
+.upload-answer-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--btn-padding);
+  border-radius: var(--border-radius);
+  background-color: #34a853;
+  color: white;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: var(--transition);
+  gap: 8px;
+}
+
+.upload-answer-btn:hover {
+  background-color: #2d9249;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Upload Answer Modal */
+.quiz-info {
+  background-color: #f8f9fa;
+  padding: 16px;
+  border-radius: var(--border-radius);
+  margin-bottom: 20px;
+}
+
+.quiz-info h4 {
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.quiz-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.upload-form {
+  margin-top: 24px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.form-group input[type="file"] {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: white;
+}
+
+.file-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.error-message {
+  color: var(--error-color);
+  background-color: #fdede9;
+  padding: 12px;
+  border-radius: var(--border-radius);
+  margin-top: 16px;
+}
+
+/* Additional responsive styles */
+@media (min-width: 768px) {
+  .pdf-quiz-actions {
+    flex-direction: row;
+  }
+  
+  .download-paper-btn,
+  .upload-answer-btn {
+    flex: 1;
+  }
+}

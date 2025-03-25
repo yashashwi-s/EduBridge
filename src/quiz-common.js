@@ -15,6 +15,22 @@ let quizTimer = null;       // Timer interval
 let quizStartTime = null;   // When the user started the quiz
 
 /**
+ * Get the current classroom ID
+ * @returns {string} The classroom ID
+ */
+EduQuiz.getClassroomId = function() {
+  return classroomId;
+}
+
+/**
+ * Get the current quiz ID
+ * @returns {string} The quiz ID
+ */
+EduQuiz.getQuizId = function() {
+  return quizId;
+}
+
+/**
  * Initialize a quiz page
  */
 EduQuiz.initQuizPage = function() {
