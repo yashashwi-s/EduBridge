@@ -162,7 +162,7 @@ def get_quiz_status(quiz, user_obj_id, current_time=None):
     # Ensure we're working with datetime objects
     if isinstance(quiz_start, str):
         try:
-            quiz_start = datetime.fromisoformat(quiz_start)
+            quiz_start = datetime.fromisoformat(quiz_start.replace('Z', '+00:00'))
         except ValueError:
             # Try with dateutil parser as fallback
             try:
@@ -586,7 +586,7 @@ def chat():
         if user_id not in chat_sessions:
             # Create and store a new chat session with appropriate system instructions.
             chat_sessions[user_id] = gemini_client.chats.create(
-                model="gemini-2.0-flash",
+                model="gemini-2.5-pro-exp-03-25",
                 config=types.GenerateContentConfig(
                     # max_output_tokens=300,
                     temperature=0.3,
@@ -945,7 +945,7 @@ def post_classroom_announcement(classroom_id):
     scheduled_time = None
     if scheduled_time_str:
         try:
-            scheduled_time = datetime.fromisoformat(scheduled_time_str)
+            scheduled_time = datetime.fromisoformat(scheduled_time_str.replace('Z', '+00:00'))
         except Exception:
             scheduled_time = None
     announcement = {
@@ -2089,7 +2089,7 @@ def submit_quiz(classroom_id, quiz_id):
             # Create submission object for PDF quiz
             submission = {
                 "student_id": user_obj_id,
-                "startTime": datetime.fromisoformat(request.form.get("startTime")) if "startTime" in request.form else current_time - timedelta(minutes=5),
+                "startTime": datetime.fromisoformat(request.form.get("startTime").replace('Z', '+00:00')) if "startTime" in request.form else current_time - timedelta(minutes=5),
                 "endTime": current_time,
                 "answerFile": {
                     "filename": answer_file.filename,
@@ -2118,7 +2118,7 @@ def submit_quiz(classroom_id, quiz_id):
             # Create submission object
             submission = {
                 "student_id": user_obj_id,
-                "startTime": datetime.fromisoformat(data.get("startTime")) if "startTime" in data else current_time - timedelta(minutes=5),
+                "startTime": datetime.fromisoformat(data.get("startTime").replace('Z', '+00:00')) if "startTime" in data else current_time - timedelta(minutes=5),
                 "endTime": current_time,
                 "score": correct_count,
                 "maxScore": total_questions,

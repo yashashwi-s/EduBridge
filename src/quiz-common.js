@@ -882,8 +882,8 @@ EduQuiz.startQuizTimer = function(endTime) {
     return;
   }
   
-  // Parse the endTime if it's a string
-  const parsedEndTime = typeof endTime === 'string' ? new Date(endTime) : endTime;
+  // Parse the endTime if it's a string using our new helper
+  const parsedEndTime = typeof endTime === 'string' ? EduQuiz.parseDate(endTime) : endTime;
   
   // Make sure we have a valid date object
   if (!(parsedEndTime instanceof Date) || isNaN(parsedEndTime)) {
@@ -1030,7 +1030,9 @@ EduQuiz.showLoading = function(isLoading) {
 
 // Format utility functions
 EduQuiz.formatDate = function(dateString) {
-  const date = new Date(dateString);
+  // Handle ISO 8601 strings with Z suffix
+  const normalizedDateString = dateString.replace('Z', '+00:00');
+  const date = new Date(normalizedDateString);
   return date.toLocaleString('en-US', {
     weekday: 'short',
     month: 'short',
@@ -1040,6 +1042,13 @@ EduQuiz.formatDate = function(dateString) {
     minute: 'numeric',
     hour12: true
   });
+}
+
+// Add a new helper function for parsing dates
+EduQuiz.parseDate = function(dateString) {
+  if (!dateString) return null;
+  const normalizedDateString = dateString.replace('Z', '+00:00');
+  return new Date(normalizedDateString);
 }
 
 EduQuiz.formatDuration = function(minutes) {

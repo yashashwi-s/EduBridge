@@ -568,9 +568,9 @@ document.addEventListener('DOMContentLoaded', function () {
     quizzes.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
     
     quizzes.forEach(quiz => {
-      // Create Date objects from ISO strings
-      const startTime = new Date(quiz.startTime);
-      const endTime = quiz.endTime ? new Date(quiz.endTime) : null;
+      // Create Date objects from ISO strings using the helper
+      const startTime = EduQuiz.parseDate(quiz.startTime);
+      const endTime = quiz.endTime ? EduQuiz.parseDate(quiz.endTime) : null;
       const now = new Date();
       
       // Format dates in user-friendly format with timezone consideration
@@ -1948,14 +1948,14 @@ document.addEventListener('DOMContentLoaded', function () {
     .then(data => {
       console.log('Debug data:', data);
       
-      // Format the debug data for display
+      // Format the debug data for display using the helper
       const formattedData = `
-        Server Time (IST): ${new Date(data.serverTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
-        Server Time (UTC): ${new Date(data.serverTimeUTC).toLocaleString('en-US', { timeZone: 'UTC' })}
+        Server Time (IST): ${EduQuiz.parseDate(data.serverTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+        Server Time (UTC): ${EduQuiz.parseDate(data.serverTimeUTC).toLocaleString('en-US', { timeZone: 'UTC' })}
         Timezone: ${data.timezone || 'IST (UTC+5:30)'}
         
-        Quiz Start Time: ${new Date(data.quizStartTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
-        Quiz End Time: ${new Date(data.quizEndTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+        Quiz Start Time: ${EduQuiz.parseDate(data.quizStartTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+        Quiz End Time: ${EduQuiz.parseDate(data.quizEndTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
         Status: ${data.studentStatus}
         
         Time since start: ${data.timeSinceStartInMinutes.toFixed(2)} minutes
