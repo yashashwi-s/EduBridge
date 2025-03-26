@@ -1,6 +1,36 @@
-# Dev environment
-pip
-autopep8
+# Core Framework
+Flask==3.0.2
+Werkzeug==3.0.1
 
-# App
-flask
+# Database
+pymongo==4.6.2
+dnspython==2.5.0
+
+# Authentication & Security
+PyJWT==2.8.0
+bcrypt==4.1.2
+python-dotenv==1.0.1
+
+# PDF Processing
+reportlab==4.1.0
+PyPDF2==3.0.1
+
+# AI/ML
+google-generativeai==0.3.2
+
+# CORS & API
+flask-cors==4.0.0
+requests==2.31.0
+
+# Date/Time
+pytz==2024.1
+
+# Development Tools
+autopep8==2.0.4
+black==24.2.0
+pytest==8.0.2
+python-dotenv==1.0.1
+
+# Utilities
+python-dateutil==2.8.2
+six==1.16.0
