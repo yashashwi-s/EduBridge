@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Simple Grading Page</title>
+</head>
+<body>
+  <h1>PDF Grading Test Page</h1>
+  <p>If you can see this, the route is working correctly.</p>
+  <script>
+    // Get URL parameters
+    const params = new URLSearchParams(window.location.search);
+    const classroomId = params.get('classId');
+    const quizId = params.get('quizId');
+    const studentId = params.get('studentId');
+    
+    document.write(`<div>
+      <p>Classroom ID: ${classroomId || 'Not provided'}</p>
+      <p>Quiz ID: ${quizId || 'Not provided'}</p>
+      <p>Student ID: ${studentId || 'Not provided'}</p>
+    </div>`);
+  </script>
+</body>
+</html> 

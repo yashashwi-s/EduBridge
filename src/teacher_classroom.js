@@ -1670,6 +1670,14 @@ function initializeQuizzes() {
         });
     }
     
+    // Process all quiz PDFs button
+    const processPdfsBtn = document.getElementById('process-pdfs-btn');
+    if (processPdfsBtn) {
+        processPdfsBtn.addEventListener('click', function() {
+            processAllQuizPdfs();
+        });
+    }
+    
     // Close modal when clicking the close button
     const closeModal = document.querySelector('.close-modal');
     if (closeModal) {
@@ -2859,4 +2867,106 @@ function useSubjectBasedImage(subject, headerElement) {
     const subjectLower = (subject || '').toLowerCase();
     let themeImage = 'https://gstatic.com/classroom/themes/Physics.jpg'; // Default
     headerElement.style.backgroundImage = `url('${themeImage}')`;
+}
+
+// Add this function elsewhere in the file
+function processAllQuizPdfs() {
+    // Check for token first
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        console.error('No access token found');
+        showNotification('Authorization error: Please log in again', 'error');
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 2000);
+        return;
+    }
+    
+    // Show a confirmation dialog
+    if (!confirm('This will process all quiz PDFs in this classroom that haven\'t been processed yet. This may take some time. Continue?')) {
+        return;
+    }
+    
+    // Show processing notification
+    showNotification('Processing quiz PDFs. This may take a few minutes...', 'info', 10000);
+    
+    // Disable the button and show loading state
+    const btn = document.getElementById('process-pdfs-btn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    
+    // Call API endpoint to process all PDFs in the classroom
+    fetch(`/api/classrooms/${classroomId}/process-pdfs`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        console.log('Server response status:', response.status);
+        
+        // Check for authentication issues first
+        if (response.status === 401 || response.status === 403) {
+            throw new Error('Authentication failed');
+        }
+        
+        // Get the response as text first
+        return response.text().then(text => {
+            // Try to parse as JSON
+            try {
+                const data = JSON.parse(text);
+                // Add status to the data for easier handling
+                return { ...data, status: response.status, ok: response.ok };
+            } catch (error) {
+                // If it's not valid JSON, return the text with status
+                console.error('Non-JSON response:', text);
+                return { 
+                    msg: 'Server returned non-JSON response', 
+                    rawResponse: text.substring(0, 100), // First 100 chars only
+                    status: response.status,
+                    ok: false
+                };
+            }
+        });
+    })
+    .then(data => {
+        console.log('Server response data:', data);
+        
+        // Handle unsuccessful responses
+        if (!data.ok) {
+            throw new Error(data.msg || 'Error processing quiz PDFs');
+        }
+        
+        // Show success message with details
+        let message = data.msg || 'Processing complete';
+        
+        // If we have detailed stats, show them
+        if (data.processed !== undefined) {
+            message += `: ${data.processed} quiz PDFs processed, ${data.already_processed || 0} already processed, ${data.errors || 0} errors`;
+        }
+        
+        showNotification(message, 'success', 8000);
+        
+        // Refresh quiz list to show updated data
+        loadQuizzes();
+    })
+    .catch(error => {
+        console.error('Error processing PDFs:', error);
+        if (error.message === 'Authentication failed') {
+            showNotification('Session expired. Please log in again.', 'error');
+            setTimeout(() => {
+                localStorage.removeItem('access_token');
+                window.location.href = '/login';
+            }, 2000);
+        } else {
+            showNotification(`Error: ${error.message}`, 'error');
+        }
+    })
+    .finally(() => {
+        // Restore button state
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
 }

@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, timedelta
-from flask import Flask, send_file, redirect, url_for, request, jsonify, render_template, make_response
+from flask import Flask, send_file, redirect, url_for, request, jsonify, render_template, make_response, Response
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from pymongo import MongoClient
 from bson import ObjectId
@@ -14,6 +14,14 @@ import json
 from bson import Binary
 import io
 import traceback
+import tempfile
+from pdf2image import convert_from_bytes
+from io import BytesIO
+from PIL import Image
+import re
+import base64
+from flask_cors import CORS
+from PyPDF2 import PdfReader
 
 # Add a custom JSON encoder to handle ObjectId and datetime
 class MongoJSONEncoder(json.JSONEncoder):
@@ -1217,6 +1225,105 @@ def create_classroom_quiz(classroom_id):
                 "size": len(answer_key_binary)
             }
         
+        # ============ AUTOMATIC PDF TEXT EXTRACTION ============
+        print("\n===== AUTOMATIC PDF TEXT EXTRACTION STARTED =====")
+        print(f"Processing quiz: {quiz['title']}")
+        
+        # Extract text from question paper PDF
+        question_paper_extracted_texts = []
+        try:
+            print(f"\nExtracting text from question paper: {question_paper_file.filename}")
+            
+            # Convert PDF to images
+            print("Converting question paper PDF to images...")
+            question_images = pdf_to_images(question_paper_binary)
+            print(f"Extracted {len(question_images)} pages from question paper PDF")
+            
+            # Process each page
+            for i, img in enumerate(question_images):
+                print(f"Processing question paper page {i+1}/{len(question_images)}...")
+                
+                # Convert image to bytes
+                img_bytes = BytesIO()
+                img.save(img_bytes, format='PNG')
+                img_bytes.seek(0)
+                
+                # Extract text using Gemini Vision
+                print(f"Calling Gemini Vision API for page {i+1}...")
+                page_text = extract_text_from_image(img_bytes.getvalue())
+                print(f"Text extracted from page {i+1}: {len(page_text)} characters")
+                print(f"Sample text: {page_text[:100]}...")
+                
+                question_paper_extracted_texts.append(page_text)
+            
+            print(f"Successfully extracted text from all {len(question_paper_extracted_texts)} question paper pages")
+            
+            # Add extracted text to quiz
+            quiz["extractedText"] = {
+                "questionPaper": question_paper_extracted_texts,
+                "timestamp": datetime.utcnow()
+            }
+            
+        except Exception as e:
+            print(f"ERROR extracting text from question paper: {str(e)}")
+            traceback.print_exc()
+            print("Continuing without question paper text extraction")
+        
+        # Extract text from answer key PDF if provided
+        if answer_key_binary:
+            answer_key_extracted_texts = []
+            try:
+                print(f"\nExtracting text from answer key: {answer_key_file.filename}")
+                
+                # Convert PDF to images
+                print("Converting answer key PDF to images...")
+                answer_key_images = pdf_to_images(answer_key_binary)
+                print(f"Extracted {len(answer_key_images)} pages from answer key PDF")
+                
+                # Process each page
+                for i, img in enumerate(answer_key_images):
+                    print(f"Processing answer key page {i+1}/{len(answer_key_images)}...")
+                    
+                    # Convert image to bytes
+                    img_bytes = BytesIO()
+                    img.save(img_bytes, format='PNG')
+                    img_bytes.seek(0)
+                    
+                    # Extract text using Gemini Vision
+                    print(f"Calling Gemini Vision API for answer key page {i+1}...")
+                    page_text = extract_text_from_image(img_bytes.getvalue())
+                    print(f"Text extracted from answer key page {i+1}: {len(page_text)} characters")
+                    print(f"Sample text: {page_text[:100]}...")
+                    
+                    answer_key_extracted_texts.append(page_text)
+                
+                print(f"Successfully extracted text from all {len(answer_key_extracted_texts)} answer key pages")
+                
+                # Add extracted answer key text to quiz
+                if "extractedText" not in quiz:
+                    quiz["extractedText"] = {"timestamp": datetime.utcnow()}
+                
+                quiz["extractedText"]["answerKey"] = answer_key_extracted_texts
+                
+            except Exception as e:
+                print(f"ERROR extracting text from answer key: {str(e)}")
+                traceback.print_exc()
+                print("Continuing without answer key text extraction")
+        
+        # Print summary
+        if "extractedText" in quiz:
+            question_pages = len(quiz["extractedText"].get("questionPaper", []))
+            answer_pages = len(quiz["extractedText"].get("answerKey", []))
+            
+            print("\n===== PDF TEXT EXTRACTION SUMMARY =====")
+            print(f"Quiz: {quiz['title']}")
+            print(f"Question paper pages processed: {question_pages}")
+            print(f"Answer key pages processed: {answer_pages}")
+            print("Extracted text saved to database")
+        
+        print("===== AUTOMATIC PDF TEXT EXTRACTION COMPLETE =====\n")
+        # ============ END PDF TEXT EXTRACTION ============
+        
         # Add quiz to classroom
         result = classrooms_collection.update_one(
             {"_id": ObjectId(classroom_id)},
@@ -1244,6 +1351,12 @@ def create_classroom_quiz(classroom_id):
                     "contentType": quiz["answerKey"]["contentType"],
                     "size": quiz["answerKey"]["size"]
                 }
+            
+            # Include text extraction status in response
+            if "extractedText" in quiz:
+                response_quiz["textExtractionStatus"] = "completed"
+                response_quiz["questionPaperTextPages"] = len(quiz["extractedText"].get("questionPaper", []))
+                response_quiz["answerKeyTextPages"] = len(quiz["extractedText"].get("answerKey", []))
             
             return jsonify({
                 "msg": "Quiz created successfully", 
@@ -1276,6 +1389,73 @@ def get_classroom_quiz(classroom_id, quiz_id):
         
         # Process quiz based on user type
         is_teacher = classroom["teacher_id"] == ObjectId(user_id)
+        
+        # For teachers, automatically extract PDF text if not already done
+        if is_teacher and not quiz.get("extractedText"):
+            print(f"\n===== AUTOMATIC PDF TEXT EXTRACTION FOR QUIZ =====")
+            print(f"Quiz: {quiz.get('title', 'Untitled Quiz')} (ID: {quiz_id})")
+            
+            # Check for question paper PDF
+            pdf_processed = False
+            if quiz.get("questionPaper") and "content" in quiz.get("questionPaper", {}):
+                try:
+                    print(f"Found question paper PDF: {quiz['questionPaper'].get('filename', 'unnamed')}")
+                    
+                    # Extract question paper PDF content
+                    pdf_binary = quiz["questionPaper"]["content"]
+                    
+                    # Use new robust extraction method
+                    print("Extracting text from question paper PDF...")
+                    question_paper_text = extract_text_from_pdf(pdf_binary)
+                    
+                    # Process answer key PDF if available
+                    answer_key_text = None
+                    if quiz.get("answerKey") and "content" in quiz.get("answerKey", {}):
+                        print(f"\nFound answer key PDF: {quiz['answerKey'].get('filename', 'unnamed')}")
+                        
+                        # Extract answer key PDF content
+                        answer_key_binary = quiz["answerKey"]["content"]
+                        
+                        # Use new robust extraction method
+                        print("Extracting text from answer key PDF...")
+                        answer_key_text = extract_text_from_pdf(answer_key_binary)
+                    
+                    # Save extracted text to database
+                    extracted_text = {
+                        "timestamp": datetime.utcnow()
+                    }
+                    
+                    if question_paper_text:
+                        extracted_text["questionPaper"] = [question_paper_text]
+                        
+                    if answer_key_text:
+                        extracted_text["answerKey"] = [answer_key_text]
+                    
+                    # Only save if we have extracted text
+                    if "questionPaper" in extracted_text or "answerKey" in extracted_text:
+                        print("\nSaving extracted text to database...")
+                        
+                        result = classrooms_collection.update_one(
+                            {"_id": ObjectId(classroom_id), "quizzes.id": ObjectId(quiz_id)},
+                            {"$set": {"quizzes.$.extractedText": extracted_text}}
+                        )
+                        
+                        if result.modified_count == 1:
+                            print("Text extraction saved to database successfully")
+                            
+                            # Update the quiz object with extracted text for the response
+                            quiz["extractedText"] = extracted_text
+                            pdf_processed = True
+                        else:
+                            print("Warning: Failed to save text extraction to database")
+                    else:
+                        print("No text was extracted from either PDF")
+                    
+                except Exception as e:
+                    print(f"Error extracting text from PDF: {str(e)}")
+                    traceback.print_exc()
+            
+            print(f"===== PDF TEXT EXTRACTION {'COMPLETED' if pdf_processed else 'FAILED'} =====\n")
         
         if is_teacher:
             # Teacher view - include all information
@@ -2760,6 +2940,679 @@ def delete_classroom_draft(classroom_id, draft_id):
         error_traceback = traceback.format_exc()
         print(f"Error deleting draft: {str(e)}")
         print(f"Traceback: {error_traceback}")
+        return jsonify({"msg": f"Server error: {str(e)}"}), 500
+
+def get_submission(classroom_id, quiz_id, student_id):
+    """Helper to get classroom, quiz and submission"""
+    classroom, user, error = get_classroom_and_validate_access(classroom_id, get_jwt_identity(), "teacher")
+    if error:
+        return None, None, None
+        
+    quiz = find_quiz_by_id(classroom, quiz_id)
+    if not quiz:
+        return classroom, None, None
+        
+    student_obj_id = ObjectId(student_id)
+    submission = None
+    
+    for sub in quiz.get("submissions", []):
+        if sub["student_id"] == student_obj_id:
+            submission = sub
+            break
+            
+    return classroom, quiz, submission
+
+def update_submission(classroom_id, quiz_id, student_id, updated_submission):
+    """Helper to update a submission in the database"""
+    result = classrooms_collection.update_one(
+        {"_id": ObjectId(classroom_id)},
+        {"$set": {
+            f"quizzes.$[quiz].submissions.$[submission]": updated_submission
+        }},
+        array_filters=[
+            {"quiz.id": ObjectId(quiz_id)},
+            {"submission.student_id": ObjectId(student_id)}
+        ]
+    )
+    return result.modified_count > 0
+
+def pdf_to_images(pdf_bytes):
+    """Convert PDF binary data to a list of PIL images"""
+    try:
+        from pdf2image import convert_from_bytes
+        return convert_from_bytes(pdf_bytes, dpi=300)
+    except Exception as e:
+        print(f"Error converting PDF to images: {str(e)}")
+        raise
+
+def extract_text_from_image(image_bytes):
+    """Extract text from an image using Gemini Vision API"""
+    try:
+        # Generate content from image
+        response = gemini_pro_vision.generate_content(
+            [
+                image_bytes,
+                "Extract all visible text from this image. Preserve structure and formatting as much as possible. Separate paragraphs with newlines. Don't include any commentary, just return the extracted text."
+            ],
+            generation_config=types.GenerateContentConfig(
+                temperature=0.0,
+                max_output_tokens=4000,
+            )
+        )
+        
+        # Check response and return extracted text
+        if response and response.text:
+            return response.text
+        else:
+            return "No text found in the image."
+    except Exception as e:
+        print(f"Error in extract_text_from_image: {str(e)}")
+        return f"Error extracting text: {str(e)}"
+
+def extract_text_from_pdf(pdf_bytes):
+    """
+    Extract text from PDF using a multi-step approach:
+    1. First try PyPDF2 direct extraction
+    2. If that fails or returns empty text, fall back to OCR via pdf2image and Gemini Vision
+    3. If all methods fail, return an error message
+    """
+    try:
+        # First attempt: Try direct extraction with PyPDF2
+        from PyPDF2 import PdfReader
+        from io import BytesIO
+        
+        reader = PdfReader(BytesIO(pdf_bytes))
+        text = ""
+        print(f"Attempting PyPDF2 extraction from {len(reader.pages)} pages...")
+        
+        for page_num, page in enumerate(reader.pages):
+            page_text = page.extract_text()
+            if page_text:
+                print(f"PyPDF2 extracted {len(page_text)} characters from page {page_num+1}")
+                text += page_text + "\n"
+            else:
+                print(f"PyPDF2 extraction returned empty text for page {page_num+1}")
+        
+        # If we got meaningful text, return it
+        if text.strip():
+            print("Successfully extracted text using PyPDF2")
+            return text
+        else:
+            print("PyPDF2 extraction returned empty text. Falling back to OCR...")
+            raise Exception("Empty text extracted with PyPDF2.")
+            
+    except Exception as e:
+        print(f"PyPDF2 extraction failed: {str(e)}. Falling back to OCR...")
+        
+        # Second attempt: Convert to images and use Gemini Vision OCR
+        try:
+            images = pdf_to_images(pdf_bytes)
+            ocr_text = ""
+            
+            print(f"PDF converted to {len(images)} images. Processing with Gemini Vision...")
+            
+            for i, img in enumerate(images):
+                print(f"Processing image {i+1}/{len(images)} with Gemini Vision...")
+                
+                # Convert image to bytes
+                img_bytes = BytesIO()
+                img.save(img_bytes, format='PNG')
+                img_bytes.seek(0)
+                
+                # Extract text using Gemini Vision
+                page_text = extract_text_from_image(img_bytes.getvalue())
+                print(f"Gemini Vision extracted {len(page_text)} characters from page {i+1}")
+                
+                ocr_text += page_text + "\n"
+            
+            if ocr_text.strip():
+                print("Successfully extracted text using Gemini Vision OCR")
+                return ocr_text
+            else:
+                print("Gemini Vision OCR returned empty text.")
+                raise Exception("Empty text extracted via OCR.")
+                
+        except Exception as ex:
+            print(f"OCR extraction failed: {str(ex)}")
+            return f"Error extracting text from PDF: {str(ex)}"
+
+def map_answers_to_questions(extracted_texts, questions):
+    """Map extracted text to exam questions"""
+    combined_text = " ".join(extracted_texts)
+    app.logger.info(f"Mapping {len(extracted_texts)} extracted text segments to {len(questions)} questions")
+    
+    # Limit the text size if it's too large
+    if len(combined_text) > 20000:
+        app.logger.warning(f"Extracted text is very large ({len(combined_text)} chars), truncating to 20000 chars")
+        combined_text = combined_text[:20000]
+    
+    # Use Gemini to map answers to questions
+    prompt = f"""
+    I have the following exam questions:
+    {json.dumps(questions, indent=2)}
+    
+    And the following extracted text from a student's exam:
+    {combined_text}
+    
+    For each question, extract the student's answer. Return a JSON array where each object has:
+    1. question_id: The ID of the question
+    2. student_answer: The student's answer for this question
+    
+    Return ONLY valid JSON.
+    """
+    
+    generation_config = {
+        "temperature": 0.0,
+        "top_p": 0.95,
+        "top_k": 0,
+        "max_output_tokens": 8192,
+    }
+    
+    try:
+        app.logger.info("Calling Gemini API to map answers to questions")
+        response = genai.generate_content(
+            model="gemini-pro",
+            contents=[{"role": "user", "parts": [{"text": prompt}]}],
+            generation_config=generation_config
+        )
+        
+        # Extract JSON from response
+        response_text = response.text
+        app.logger.info("Successfully received response from Gemini API")
+        
+        # Find JSON in the response (it might be surrounded by markdown code blocks)
+        json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', response_text)
+        if json_match:
+            response_text = json_match.group(1)
+        
+        result = json.loads(response_text)
+        app.logger.info(f"Successfully mapped {len(result)} answers")
+        return result
+    
+    except Exception as e:
+        app.logger.error(f"Error mapping answers to questions: {str(e)}")
+        
+        # Try a simpler approach as a fallback
+        try:
+            app.logger.info("Trying fallback approach for mapping answers")
+            
+            # If the original attempt failed, try a simpler approach
+            fallback_results = []
+            
+            for question in questions:
+                question_id = str(question["id"])
+                question_text = question["text"]
+                
+                # Look for the question text in the combined text and extract what follows
+                question_pattern = re.escape(question_text)
+                match = re.search(f"{question_pattern}[\\s\\:]+([\\s\\S]+?)(?=\\b(?:{'|'.join([re.escape(q['text']) for q in questions if q['text'] != question_text])})|$)", combined_text)
+                
+                if match:
+                    answer = match.group(1).strip()
+                else:
+                    answer = "Unable to extract answer for this question"
+                
+                fallback_results.append({
+                    "question_id": question_id,
+                    "student_answer": answer
+                })
+            
+            app.logger.info(f"Fallback approach found {len(fallback_results)} answers")
+            return fallback_results
+            
+        except Exception as fallback_error:
+            app.logger.error(f"Fallback approach also failed: {str(fallback_error)}")
+            return []
+
+def grade_answer(question, student_answer, model_answer, max_score):
+    """Grade a single answer using Gemini"""
+    app.logger.info(f"Grading answer for question: {question[:50]}...")
+    
+    # Limit the size of text to prevent API issues
+    if len(student_answer) > 5000:
+        app.logger.warning(f"Student answer is very large ({len(student_answer)} chars), truncating to 5000 chars")
+        student_answer = student_answer[:5000] + "... [truncated due to length]"
+        
+    if len(model_answer) > 5000:
+        app.logger.warning(f"Model answer is very large ({len(model_answer)} chars), truncating to 5000 chars")
+        model_answer = model_answer[:5000] + "... [truncated due to length]"
+    
+    prompt = f"""
+    You are an expert exam grader. Grade the following student answer:
+    
+    QUESTION: {question}
+    MODEL ANSWER: {model_answer}
+    STUDENT ANSWER: {student_answer}
+    MAXIMUM SCORE: {max_score}
+    
+    Return your response in valid JSON format with these fields:
+    1. score (number between 0 and {max_score})
+    2. feedback (detailed explanation of why points were given or deducted)
+    3. key_points_addressed (array of important points the student covered)
+    4. key_points_missed (array of important points the student missed)
+    
+    Return ONLY valid JSON.
+    """
+    
+    generation_config = {
+        "temperature": 0.0,
+        "top_p": 0.95,
+        "top_k": 0,
+        "max_output_tokens": 8192,
+    }
+    
+    try:
+        app.logger.info("Calling Gemini API to grade answer")
+        response = genai.generate_content(
+            model="gemini-pro",
+            contents=[{"role": "user", "parts": [{"text": prompt}]}],
+            generation_config=generation_config
+        )
+        
+        # Extract JSON from response
+        response_text = response.text
+        app.logger.info("Successfully received grading response from Gemini API")
+        
+        # Find JSON in the response (it might be surrounded by markdown code blocks)
+        json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', response_text)
+        if json_match:
+            response_text = json_match.group(1)
+        
+        result = json.loads(response_text)
+        # Ensure the score is a number within the allowed range
+        result["score"] = max(0, min(float(result["score"]), max_score))
+        return result
+        
+    except Exception as e:
+        app.logger.error(f"Error grading answer: {str(e)}")
+        
+        # Attempt a fallback with a simpler prompt
+        try:
+            app.logger.info("Trying fallback approach for grading")
+            fallback_prompt = f"""
+            Question: {question}
+            Student answer: {student_answer}
+            
+            Grade this answer out of {max_score} points. Return JSON with fields:
+            - score: a number between 0 and {max_score}
+            - feedback: brief explanation
+            - key_points_addressed: list of key points the student included
+            - key_points_missed: list of key points the student missed
+            
+            JSON ONLY.
+            """
+            
+            response = genai.generate_content(
+                model="gemini-pro",
+                contents=[{"role": "user", "parts": [{"text": fallback_prompt}]}]
+            )
+            
+            response_text = response.text
+            json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', response_text)
+            if json_match:
+                response_text = json_match.group(1)
+                
+            fallback_result = json.loads(response_text)
+            fallback_result["score"] = max(0, min(float(fallback_result["score"]), max_score))
+            return fallback_result
+            
+        except Exception as fallback_error:
+            app.logger.error(f"Fallback grading also failed: {str(fallback_error)}")
+            
+            # Use a very basic fallback with default values
+            return {
+                "score": 0,
+                "feedback": f"Error grading answer: {str(e)}",
+                "key_points_addressed": [],
+                "key_points_missed": []
+            }
+
+def grade_all_answers(mapped_answers, quiz_questions, model_answers):
+    """Grade all answers for a quiz"""
+    graded_answers = []
+    total_score = 0
+    max_total = 0
+    
+    for answer in mapped_answers:
+        question_id = answer["question_id"]
+        student_answer = answer["student_answer"]
+        
+        # Find the corresponding question and model answer
+        question_info = next((q for q in quiz_questions if str(q["id"]) == question_id), None)
+        if not question_info:
+            continue
+            
+        question_text = question_info["text"]
+        max_score = question_info.get("points", 10)
+        max_total += max_score
+        
+        # Get model answer for this question
+        model_answer = next((m["answer"] for m in model_answers if str(m["question_id"]) == question_id), "")
+        
+        # Grade the answer
+        grading_result = grade_answer(question_text, student_answer, model_answer, max_score)
+        
+        # Add question text to result for frontend display
+        grading_result["question_text"] = question_text
+        grading_result["question_id"] = question_id
+        grading_result["student_answer"] = student_answer
+        
+        graded_answers.append(grading_result)
+        total_score += grading_result["score"]
+    
+    return {
+        "graded_answers": graded_answers,
+        "total_score": total_score,
+        "max_total": max_total,
+        "percentage": round((total_score / max_total * 100) if max_total > 0 else 0, 2)
+    }
+
+@app.route("/api/teacher/grade_pdf_advanced", methods=["POST"])
+@jwt_required()
+def advanced_pdf_grading():
+    """Process a student PDF submission with OCR and grade it question by question"""
+    try:
+        data = request.json
+        classroom_id = data.get("classId")
+        quiz_id = data.get("quizId")
+        student_id = data.get("studentId")
+        
+        app.logger.info(f"Advanced PDF grading request: Class: {classroom_id}, Quiz: {quiz_id}, Student: {student_id}")
+        
+        # Get classroom, quiz and submission
+        classroom, quiz, submission = get_submission(classroom_id, quiz_id, student_id)
+        
+        if not classroom or not quiz:
+            return jsonify({"error": "Invalid classroom or quiz ID"}), 400
+            
+        if not submission:
+            return jsonify({"error": "No submission found for this student"}), 404
+        
+        # Check if we already have advanced grading results to avoid reprocessing
+        if submission.get("advanced_grading") and submission.get("advanced_grading_status") == "completed":
+            app.logger.info(f"Returning cached advanced grading results for submission")
+            return jsonify({
+                "message": "Retrieved cached advanced grading results",
+                "grading_results": submission.get("advanced_grading"),
+                "cached": True
+            })
+        
+        # Update status to indicate processing has started
+        submission["advanced_grading_status"] = "processing"
+        update_submission(classroom_id, quiz_id, student_id, submission)
+        
+        # Get PDF file from submission
+        pdf_file_id = submission.get("pdf_file_id")
+        if not pdf_file_id:
+            return jsonify({"error": "No PDF submission found"}), 404
+            
+        # Get the PDF file
+        pdf_file = fs.get(ObjectId(pdf_file_id))
+        pdf_bytes = pdf_file.read()
+        
+        # Get quiz questions
+        quiz_questions = quiz.get("questions", [])
+        if not quiz_questions:
+            return jsonify({"error": "No questions found for this quiz"}), 400
+            
+        # Get model answers
+        model_answers = quiz.get("model_answers", [])
+        
+        app.logger.info(f"Starting OCR processing for PDF with {len(quiz_questions)} questions")
+        
+        # Step 1: Process PDF and extract text using OCR
+        extracted_texts = extract_text_from_pdf(pdf_bytes)
+        if not extracted_texts:
+            submission["advanced_grading_status"] = "failed"
+            submission["advanced_grading_error"] = "Failed to extract text from PDF"
+            update_submission(classroom_id, quiz_id, student_id, submission)
+            return jsonify({"error": "Failed to extract text from PDF"}), 500
+            
+        app.logger.info(f"Successfully extracted text from {len(extracted_texts)} PDF pages")
+        
+        # Step 2: Map extracted text to questions
+        mapped_answers = map_answers_to_questions(extracted_texts, quiz_questions)
+        if not mapped_answers:
+            submission["advanced_grading_status"] = "failed"
+            submission["advanced_grading_error"] = "Failed to map answers to questions"
+            update_submission(classroom_id, quiz_id, student_id, submission)
+            return jsonify({"error": "Failed to map answers to questions"}), 500
+            
+        app.logger.info(f"Successfully mapped answers to {len(mapped_answers)} questions")
+        
+        # Step 3: Grade each answer
+        grading_results = grade_all_answers(mapped_answers, quiz_questions, model_answers)
+        
+        # Step 4: Save results to submission
+        submission["advanced_grading"] = grading_results
+        submission["advanced_grading_status"] = "completed"
+        submission["advanced_grading_timestamp"] = datetime.datetime.utcnow()
+        
+        # Update submission in database
+        success = update_submission(classroom_id, quiz_id, student_id, submission)
+        if not success:
+            return jsonify({"error": "Failed to update submission"}), 500
+            
+        app.logger.info(f"Advanced grading completed successfully with score: {grading_results['total_score']}/{grading_results['max_total']}")
+        
+        return jsonify({
+            "message": "Advanced grading completed successfully",
+            "grading_results": grading_results
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error in advanced PDF grading: {str(e)}")
+        traceback.print_exc()
+        
+        # Try to update submission status if classroom_id, quiz_id and student_id are defined
+        try:
+            if 'classroom_id' in locals() and 'quiz_id' in locals() and 'student_id' in locals() and 'submission' in locals():
+                submission["advanced_grading_status"] = "failed"
+                submission["advanced_grading_error"] = str(e)
+                update_submission(classroom_id, quiz_id, student_id, submission)
+        except:
+            pass
+            
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+@app.route("/api/teacher/model_answers", methods=["POST"])
+@jwt_required()
+def set_model_answers():
+    """Save model answers for a quiz"""
+    try:
+        data = request.json
+        classroom_id = data.get("classId")
+        quiz_id = data.get("quizId")
+        model_answers = data.get("modelAnswers", [])
+        
+        # Validate classroom and quiz
+        classroom, user, error = get_classroom_and_validate_access(classroom_id, get_jwt_identity(), "teacher")
+        if error:
+            return jsonify({"error": error}), 401
+            
+        quiz = find_quiz_by_id(classroom, quiz_id)
+        if not quiz:
+            return jsonify({"error": "Quiz not found"}), 404
+            
+        # Update quiz with model answers
+        result = classrooms_collection.update_one(
+            {"_id": ObjectId(classroom_id)},
+            {"$set": {f"quizzes.$[quiz].model_answers": model_answers}},
+            array_filters=[{"quiz.id": ObjectId(quiz_id)}]
+        )
+        
+        if result.modified_count == 0:
+            return jsonify({"error": "Failed to update model answers"}), 500
+            
+        return jsonify({"message": "Model answers saved successfully"})
+        
+    except Exception as e:
+        app.logger.error(f"Error setting model answers: {str(e)}")
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/pdf-to-text", methods=["POST"])
+@jwt_required()
+def convert_quiz_pdf_to_text(classroom_id, quiz_id):
+    """Simple endpoint to convert quiz PDFs to text using Gemini and save to DB"""
+    try:
+        # This function is being removed as we now extract text automatically during quiz creation
+        return jsonify({"error": "This endpoint is deprecated. PDFs are now automatically processed during quiz creation."}), 410
+    except Exception as e:
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+def process_classroom_quizzes_pdfs(classroom_id):
+    """Process all quizzes in a classroom, converting PDFs to text if needed"""
+    try:
+        # Find the classroom
+        classroom = classrooms_collection.find_one({"_id": ObjectId(classroom_id)})
+        if not classroom:
+            print(f"Classroom not found: {classroom_id}")
+            return {"success": False, "message": "Classroom not found"}
+        
+        print(f"\n===== PROCESSING ALL QUIZZES IN CLASSROOM: {classroom.get('name', 'Unknown')} =====")
+        
+        # Check if classroom has quizzes
+        if not classroom.get("quizzes"):
+            print("No quizzes found in classroom")
+            return {"success": True, "processed": 0, "already_processed": 0, "errors": 0, "message": "No quizzes found in classroom"}
+        
+        processed_count = 0
+        already_processed_count = 0
+        error_count = 0
+        
+        # Iterate through quizzes
+        for quiz in classroom["quizzes"]:
+            quiz_id = str(quiz["id"])
+            title = quiz.get("title", "Untitled Quiz")
+            print(f"\nProcessing quiz: {title} (ID: {quiz_id})")
+            
+            # Skip if already processed
+            if quiz.get("extractedText"):
+                print(f"Quiz already has extracted text (processed on {quiz['extractedText'].get('timestamp', 'unknown date')})")
+                already_processed_count += 1
+                continue
+            
+            pdf_processed = False
+            # Check for question paper PDF
+            if quiz.get("questionPaper") and "content" in quiz.get("questionPaper", {}):
+                try:
+                    print(f"Found question paper PDF: {quiz['questionPaper'].get('filename', 'unnamed')}")
+                    
+                    # Extract question paper PDF content
+                    pdf_binary = quiz["questionPaper"]["content"]
+                    
+                    # Use the more robust text extraction method
+                    print("Extracting text from question paper PDF...")
+                    question_paper_text = extract_text_from_pdf(pdf_binary)
+                    
+                    # Process answer key PDF if available
+                    answer_key_text = None
+                    if quiz.get("answerKey") and "content" in quiz.get("answerKey", {}):
+                        print(f"\nFound answer key PDF: {quiz['answerKey'].get('filename', 'unnamed')}")
+                        
+                        # Extract answer key PDF content
+                        answer_key_binary = quiz["answerKey"]["content"]
+                        
+                        # Use the more robust text extraction method
+                        print("Extracting text from answer key PDF...")
+                        answer_key_text = extract_text_from_pdf(answer_key_binary)
+                    
+                    # Save extracted text to database
+                    extracted_text = {
+                        "timestamp": datetime.utcnow()
+                    }
+                    
+                    if question_paper_text:
+                        extracted_text["questionPaper"] = [question_paper_text]
+                        
+                    if answer_key_text:
+                        extracted_text["answerKey"] = [answer_key_text]
+                    
+                    # Check if we have any text to save
+                    if "questionPaper" in extracted_text or "answerKey" in extracted_text:
+                        print("\nSaving extracted text to database...")
+                        
+                        result = classrooms_collection.update_one(
+                            {"_id": ObjectId(classroom_id), "quizzes.id": ObjectId(quiz_id)},
+                            {"$set": {"quizzes.$.extractedText": extracted_text}}
+                        )
+                        
+                        if result.modified_count == 1:
+                            print("Text extraction saved to database successfully")
+                            processed_count += 1
+                            pdf_processed = True
+                        else:
+                            print("Warning: Failed to save text extraction to database")
+                            error_count += 1
+                    else:
+                        print("No text was extracted from either PDF")
+                        error_count += 1
+                        
+                except Exception as e:
+                    print(f"Error extracting text from PDF: {str(e)}")
+                    traceback.print_exc()
+                    error_count += 1
+            else:
+                print("No PDF found or PDF content is missing")
+                error_count += 1
+            
+            print(f"Quiz processing {'COMPLETED' if pdf_processed else 'FAILED'}\n")
+        
+        # Print summary
+        print("\n===== PDF TEXT EXTRACTION SUMMARY =====")
+        print(f"Total quizzes processed: {processed_count}")
+        print(f"Total quizzes already processed: {already_processed_count}")
+        print(f"Total quizzes with errors: {error_count}")
+        print("===== PDF TEXT EXTRACTION COMPLETE =====\n")
+        
+        return {
+            "success": True,
+            "processed": processed_count,
+            "already_processed": already_processed_count,
+            "errors": error_count,
+            "message": f"Processed {processed_count} quizzes, {already_processed_count} already had text, {error_count} errors"
+        }
+        
+    except Exception as e:
+        print(f"ERROR processing classroom quizzes: {str(e)}")
+        traceback.print_exc()
+        return {"success": False, "message": f"Server error: {str(e)}"}
+
+@app.route("/api/classrooms/<classroom_id>/process-pdfs", methods=["POST"])
+@jwt_required()
+def process_classroom_pdfs_endpoint(classroom_id):
+    """Endpoint to trigger processing of all PDFs in a classroom's quizzes"""
+    user_id = get_jwt_identity()
+    
+    # Validate teacher access
+    classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "teacher")
+    if error:
+        return jsonify({"msg": error}), 401
+    
+    # Process PDFs
+    try:
+        result = process_classroom_quizzes_pdfs(classroom_id)
+        
+        if isinstance(result, dict):
+            # New format with detailed information
+            if result.get("success", False):
+                return jsonify({
+                    "msg": result.get("message", "PDF processing completed"),
+                    "processed": result.get("processed", 0),
+                    "already_processed": result.get("already_processed", 0),
+                    "errors": result.get("errors", 0)
+                }), 200
+            else:
+                return jsonify({"msg": result.get("message", "Error processing PDFs")}), 500
+        else:
+            # Old boolean format for backward compatibility
+            if result:
+                return jsonify({"msg": "PDF processing completed successfully"}), 200
+            else:
+                return jsonify({"msg": "Error processing PDFs"}), 500
+            
+    except Exception as e:
+        traceback.print_exc()
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
 if __name__ == "__main__":

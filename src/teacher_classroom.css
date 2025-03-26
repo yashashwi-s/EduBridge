@@ -2174,6 +2174,22 @@ button,
     gap: 8px;
 }
 
+.quiz-action-buttons {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.btn-secondary {
+    background-color: #f1f3f4;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background-color: #e8eaed;
+}
+
 /* Modal */
 .modal {
     display: none;
