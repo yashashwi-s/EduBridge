@@ -1659,20 +1659,20 @@ def get_quiz_results(classroom_id, quiz_id):
                     "pending": 0
                 }
             
-            # Check each answer
-            if "questions" in quiz and isinstance(quiz["questions"], list):
-                for question in quiz["questions"]:
-                    q_id = str(question["id"])
-                    q_type = question.get("type", "single_choice")
-                    
-                    if q_type == "subjective" and q_id in submission.get("answers", {}):
-                        subjective_status["total"] += 1
-                        if submission["answers"][q_id].get("isGraded", False):
-                            subjective_status["graded"] += 1
-                        else:
-                            subjective_status["pending"] += 1
-            
-            submission_copy["subjectiveStatus"] = subjective_status
+                # Check each answer
+                if "questions" in quiz:
+                    for question in quiz["questions"]:
+                        q_id = str(question["id"])
+                        q_type = question.get("type", "single_choice")
+                        
+                        if q_type == "subjective" and q_id in submission.get("answers", {}):
+                            subjective_status["total"] += 1
+                            if submission["answers"][q_id].get("isGraded", False):
+                                subjective_status["graded"] += 1
+                            else:
+                                subjective_status["pending"] += 1
+                
+                submission_copy["subjectiveStatus"] = subjective_status
             
             submissions.append(submission_copy)
         
