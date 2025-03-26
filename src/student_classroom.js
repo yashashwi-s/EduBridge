@@ -607,30 +607,30 @@ document.addEventListener('DOMContentLoaded', function () {
       const questionCount = isPdfQuiz ? 'PDF Quiz' : 
                           (quiz.questions && quiz.questions.length ? `${quiz.questions.length} Questions` : 'N/A');
       
-      const quizHtml = `
-        <div class="quiz-card" data-id="${quiz.id}">
-          <div class="quiz-card-header">
-            <div class="quiz-card-title">
-              <h3>${quiz.title}</h3>
-              <p>${quiz.description}</p>
-            </div>
-          </div>
-          <div class="quiz-card-meta">
-            <span class="meta-item"><i class="fas fa-calendar-check"></i> ${formattedStartTime} - ${formattedEndTime}</span>
-            <span class="meta-item"><i class="fas fa-clock"></i> ${quiz.duration} minutes</span>
-            <span class="meta-item">
-              ${quiz.quizType === 'pdf' ? '<i class="fas fa-file-pdf"></i>' : '<i class="fas fa-question-circle"></i>'} 
-              ${questionCount}
-            </span>
-            <span class="quiz-status-badge status-${quiz.studentStatus === 'submitted' ? 'completed' : quiz.studentStatus}">${status}</span>
-          </div>
-          <div class="quiz-card-actions">
-            ${status === 'In Progress' ? '<button class="take-quiz-btn">Take Quiz</button>' : ''}
-            ${status === 'Completed' ? '<button class="view-result-btn">View Results</button>' : ''}
-            ${status === 'Upcoming' ? '<button class="view-details-btn">View Details</button>' : ''}
-          </div>
-        </div>
-      `;
+      // const quizHtml = `
+      //   <div class="quiz-card" data-id="${quiz.id}">
+      //     <div class="quiz-card-header">
+      //       <div class="quiz-card-title">
+      //         <h3>${quiz.title}</h3>
+      //         <p>${quiz.description}</p>
+      //       </div>
+      //     </div>
+      //     <div class="quiz-card-meta">
+      //       <span class="meta-item"><i class="fas fa-calendar-check"></i> ${formattedStartTime} - ${formattedEndTime}</span>
+      //       <span class="meta-item"><i class="fas fa-clock"></i> ${quiz.duration} minutes</span>
+      //       <span class="meta-item">
+      //         ${quiz.quizType === 'pdf' ? '<i class="fas fa-file-pdf"></i>' : '<i class="fas fa-question-circle"></i>'} 
+      //         ${questionCount}
+      //       </span>
+      //       <span class="quiz-status-badge status-${quiz.studentStatus === 'submitted' ? 'completed' : quiz.studentStatus}">${status}</span>
+      //     </div>
+      //     <div class="quiz-card-actions">
+      //       ${status === 'In Progress' ? '<button class="take-quiz-btn">Take Quiz</button>' : ''}
+      //       ${status === 'Completed' ? '<button class="view-result-btn">View Results</button>' : ''}
+      //       ${status === 'Upcoming' ? '<button class="view-details-btn">View Details</button>' : ''}
+      //     </div>
+      //   </div>
+      // `;
       container.insertAdjacentHTML('beforeend', quizHtml);
     });
     
