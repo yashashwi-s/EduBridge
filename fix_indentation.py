@@ -1,3 +1,0 @@
-with open("/home/rahul/Desktop/EduBridge/main.py", "r") as file: lines = file.readlines(); with open("/home/rahul/Desktop/EduBridge/main.py.bak", "w") as file: file.writelines(lines)
-lines[1406] = "        else:\\n"; lines[1407] = "            # Handle regular quiz update with JSON data\\n"; lines[1408] = "            data = request.get_json()\\n"; lines[1409] = "            if not data:\\n"; lines[1410] = "                return jsonify({\"msg\": \"Quiz data is required\"}), 400\\n"
-with open("/home/rahul/Desktop/EduBridge/main.py", "w") as file: file.writelines(lines); print("Indentation issue fixed!")
