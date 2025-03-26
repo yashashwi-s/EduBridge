@@ -8,8 +8,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 import random
 import string
-from google import genai
-from google.genai import types
+import google.generativeai as genai
+from google.generativeai import types
 import json
 from bson import Binary
 import io
