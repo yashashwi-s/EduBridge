@@ -50,7 +50,12 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     raise Exception("GEMINI_API_KEY not set in .env file")
 
-gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+# Configure the Gemini API
+genai.configure(api_key=GEMINI_API_KEY)
+# Initialize the model
+gemini_model = genai.GenerativeModel('gemini-pro')
+gemini_pro_vision = genai.GenerativeModel('gemini-pro-vision')
+
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-key")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
 app.config["JWT_TOKEN_LOCATION"] = ["headers", "query_string"]  # Allow tokens in query string
@@ -585,10 +590,9 @@ def chat():
         global chat_sessions
         if user_id not in chat_sessions:
             # Create and store a new chat session with appropriate system instructions.
-            chat_sessions[user_id] = gemini_client.chats.create(
-                model="gemini-2.5-pro-exp-03-25",
+            chat_sessions[user_id] = gemini_model.generate_content(
+                prompt=query,
                 config=types.GenerateContentConfig(
-                    # max_output_tokens=300,
                     temperature=0.3,
                     system_instruction=(
                         "You are an AI academic assistant. Answer the user's doubt clearly and concisely."
@@ -599,8 +603,7 @@ def chat():
             )
         chat = chat_sessions[user_id]
         try:
-            response = chat.send_message(query)
-            answer = response.text
+            answer = chat.text
         except Exception as e:
             answer = f"Error occurred: {str(e)}"
     elif function_type == "navigate":
@@ -631,17 +634,14 @@ def chat():
                 "Provide clear instructions with clickable links (in HTML) for common actions such as 'Manage Classes' or 'View Profile'."
             )
         config = types.GenerateContentConfig(
-            # max_output_tokens=300,
             temperature=0.3,
             system_instruction=system_instruction
         )
         try:
-            response = gemini_client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=[query],
+            answer = gemini_pro_vision.generate_content(
+                prompt=query,
                 config=config
             )
-            answer = response.text
         except Exception as e:
             answer = f"Error occurred: {str(e)}"
     else:
