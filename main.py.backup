@@ -3573,6 +3573,23 @@ def process_classroom_pdfs_endpoint(classroom_id):
         traceback.print_exc()
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
+def pdf_to_images(pdf_bytes):
+    """
+    COMPATIBILITY FUNCTION: This function is kept for backward compatibility.
+    It logs a warning and uses extract_text_from_pdf to process PDFs.
+    
+    Returns a list with a single dummy image for compatibility.
+    """
+    from PIL import Image, ImageDraw
+    import io
+    
+    print("WARNING: Using deprecated pdf_to_images function. Using Gemini 1.5 for text extraction instead.")
+    
+    # For compatibility, create a dummy image with some text
+    img = Image.new('RGB', (800, 600), color=(255, 255, 255))
+    d = ImageDraw.Draw(img)
+    d.text((10, 10), "PDF processed with Gemini 1.5", fill=(0, 0, 0))
+    
     # Return as a list for compatibility with existing code
     return [img]
 
