@@ -1822,6 +1822,17 @@ def get_quiz_results(classroom_id, quiz_id):
                         "filename": submission["answerFile"].get("filename", "answer.pdf"),
                         "size": submission["answerFile"].get("size", 0)
                     }
+                    
+                # Add extracted text info if available
+                if "extractedText" in submission:
+                    text_length = len(submission["extractedText"])
+                    submission_copy["textExtracted"] = True
+                    submission_copy["textLength"] = text_length
+                    submission_copy["textPreview"] = submission["extractedText"][:200] + "..." if text_length > 200 else submission["extractedText"]
+                    submission_copy["extractedTextUrl"] = f"/api/classrooms/{classroom_id}/quizzes/{quiz_id}/submissions/{str(submission['student_id'])}/extracted-text"
+                elif "extractionError" in submission:
+                    submission_copy["textExtracted"] = False
+                    submission_copy["extractionError"] = submission["extractionError"]
             else:
                 # For question-based quizzes, process subjective questions
                 subjective_status = {
@@ -2208,7 +2219,12 @@ def start_quiz(classroom_id, quiz_id):
 @app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/submit", methods=["POST"])
 @jwt_required()
 def submit_quiz(classroom_id, quiz_id):
-    """Submit a quiz with student answers or PDF submission"""
+    """
+    Submit a quiz with student answers or PDF submission.
+    For PDF submissions, the API extracts text using Google's Gemini 1.5 AI model
+    to make the content searchable and accessible. The extracted text is stored
+    alongside the original PDF submission for future reference and analysis.
+    """
     user_id = get_jwt_identity()
     
     classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "student")
@@ -2257,21 +2273,52 @@ def submit_quiz(classroom_id, quiz_id):
             # Read the file
             answer_file_binary = answer_file.read()
             
-            # Create submission object for PDF quiz
-            submission = {
-                "student_id": user_obj_id,
-                "startTime": datetime.fromisoformat(request.form.get("startTime").replace('Z', '+00:00')) if "startTime" in request.form else current_time - timedelta(minutes=5),
-                "endTime": current_time,
-                "answerFile": {
-                    "filename": answer_file.filename,
-                    "content": Binary(answer_file_binary),
-                    "contentType": "application/pdf",
-                    "size": len(answer_file_binary)
-                },
-                "score": 0,  # Score will be set by teacher after grading
-                "maxScore": 100,  # Default max score
-                "isGraded": False
-            }
+            # Extract text from the submitted PDF using Gemini 1.5
+            try:
+                print(f"\nExtracting text from student answer file: {answer_file.filename}")
+                print("Processing with Gemini 1.5...")
+                
+                # Extract text using Gemini 1.5
+                extracted_text = extract_text_from_pdf(answer_file_binary)
+                print(f"Successfully extracted {len(extracted_text)} characters from student answer")
+                print(f"Sample text: {extracted_text[:100]}...")
+                
+                # Create submission object with extracted text
+                submission = {
+                    "student_id": user_obj_id,
+                    "startTime": datetime.fromisoformat(request.form.get("startTime").replace('Z', '+00:00')) if "startTime" in request.form else current_time - timedelta(minutes=5),
+                    "endTime": current_time,
+                    "answerFile": {
+                        "filename": answer_file.filename,
+                        "content": Binary(answer_file_binary),
+                        "contentType": "application/pdf",
+                        "size": len(answer_file_binary)
+                    },
+                    "extractedText": extracted_text,  # Store the extracted text
+                    "score": 0,  # Score will be set by teacher after grading
+                    "maxScore": 100,  # Default max score
+                    "isGraded": False
+                }
+            except Exception as e:
+                print(f"Error extracting text from student answer: {str(e)}")
+                traceback.print_exc()
+                
+                # Create submission without extracted text if extraction fails
+                submission = {
+                    "student_id": user_obj_id,
+                    "startTime": datetime.fromisoformat(request.form.get("startTime").replace('Z', '+00:00')) if "startTime" in request.form else current_time - timedelta(minutes=5),
+                    "endTime": current_time,
+                    "answerFile": {
+                        "filename": answer_file.filename,
+                        "content": Binary(answer_file_binary),
+                        "contentType": "application/pdf",
+                        "size": len(answer_file_binary)
+                    },
+                    "extractionError": str(e),  # Store error message
+                    "score": 0,  # Score will be set by teacher after grading
+                    "maxScore": 100,  # Default max score
+                    "isGraded": False
+                }
         else:
             # Legacy quiz submission with questions and answers
             # Get submitted answers
@@ -2308,12 +2355,24 @@ def submit_quiz(classroom_id, quiz_id):
         # Create response based on quiz type
         if quiz_type == "pdf":
             # For PDF quizzes, just confirm submission
-            return jsonify({
+            response_data = {
                 "msg": "Quiz submitted successfully",
                 "submissionTime": current_time.isoformat(),
                 "filename": submission["answerFile"]["filename"],
                 "fileSize": submission["answerFile"]["size"]
-            }), 200
+            }
+            
+            # Add text extraction info if available
+            if "extractedText" in submission:
+                text_length = len(submission["extractedText"])
+                response_data["textExtracted"] = True
+                response_data["textLength"] = text_length
+                response_data["textPreview"] = submission["extractedText"][:100] + "..." if text_length > 100 else submission["extractedText"]
+            elif "extractionError" in submission:
+                response_data["textExtracted"] = False
+                response_data["extractionError"] = submission["extractionError"]
+            
+            return jsonify(response_data), 200
         else:
             # For legacy quizzes, return detailed results
             results = create_quiz_results_response(quiz, scored_answers, correct_count, total_questions)
@@ -2392,6 +2451,17 @@ def get_student_quiz_results(classroom_id, quiz_id):
                     "size": submission["answerFile"].get("size", 0),
                     "downloadUrl": f"/api/classrooms/{classroom_id}/quizzes/{quiz_id}/submissions/{user_id}/answer-pdf"
                 }
+                
+            # Add text extraction info if available
+            if "extractedText" in submission:
+                text_length = len(submission["extractedText"])
+                results["submission"]["textExtracted"] = True
+                results["submission"]["textLength"] = text_length
+                results["submission"]["textPreview"] = submission["extractedText"][:150] + "..." if text_length > 150 else submission["extractedText"]
+                results["submission"]["extractedTextUrl"] = f"/api/classrooms/{classroom_id}/quizzes/{quiz_id}/submissions/{str(submission['student_id'])}/extracted-text"
+            elif "extractionError" in submission:
+                results["submission"]["textExtracted"] = False
+                results["submission"]["extractionError"] = submission["extractionError"]
         else:
             # For legacy quizzes, use the existing results creation
             scored_answers = submission.get("answers", {})
@@ -3575,6 +3645,90 @@ def process_classroom_pdfs_endpoint(classroom_id):
 
     # Return as a list for compatibility with existing code
     return [img]
+
+@jwt_required()
+def get_submission_extracted_text(classroom_id, quiz_id, student_id):
+    """
+    Get the full extracted text from a student's PDF submission.
+    
+    This endpoint retrieves the text that was automatically extracted from the student's
+    PDF submission using Google's Gemini 1.5 AI model. The text extraction makes
+    handwritten and typed content searchable and accessible.
+    
+    This endpoint can be accessed by:
+    1. The teacher of the classroom
+    2. The student who submitted the quiz (can only access their own submission)
+    """
+    user_id = get_jwt_identity()
+    
+    # Check if user is a teacher for this classroom or the student who submitted
+    is_teacher = False
+    is_owner = (user_id == student_id)
+    
+    if not is_owner:
+        # If not the owner, must be a teacher
+        classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "teacher")
+        if error:
+            return error
+        is_teacher = True
+    else:
+        # Student accessing their own submission
+        classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "student")
+        if error:
+            return error
+    
+    try:
+        # Find the quiz
+        quiz = find_quiz_by_id(classroom, quiz_id)
+        if not quiz:
+            return jsonify({"msg": "Quiz not found"}), 404
+        
+        # Find student's submission
+        student_obj_id = ObjectId(student_id)
+        submission = None
+        
+        for sub in quiz.get("submissions", []):
+            if sub["student_id"] == student_obj_id:
+                submission = sub
+                break
+                
+        if not submission:
+            return jsonify({"msg": "Submission not found"}), 404
+        
+        # Check if text was extracted
+        if "extractedText" not in submission:
+            if "extractionError" in submission:
+                return jsonify({
+                    "msg": "Text extraction failed",
+                    "error": submission["extractionError"]
+                }), 400
+            else:
+                return jsonify({"msg": "No extracted text available for this submission"}), 404
+        
+        # Get student info for teachers
+        student_info = {}
+        if is_teacher:
+            student = users_collection.find_one({"_id": student_obj_id})
+            if student:
+                student_info = {
+                    "name": student.get("fullName", "Unknown"),
+                    "email": student.get("email", "")
+                }
+        
+        # Return the extracted text
+        return jsonify({
+            "quizTitle": quiz.get("title", "Untitled Quiz"),
+            "studentInfo": student_info,
+            "extractedText": submission["extractedText"],
+            "submissionDate": submission.get("endTime", "").isoformat() if isinstance(submission.get("endTime"), datetime) else submission.get("endTime", ""),
+            "textLength": len(submission["extractedText"])
+        }), 200
+        
+    except Exception as e:
+        error_traceback = traceback.format_exc()
+        print(f"Error retrieving extracted text: {str(e)}")
+        print(f"Traceback: {error_traceback}")
+        return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
