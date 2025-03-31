@@ -1257,7 +1257,7 @@ def create_classroom_quiz(classroom_id):
             print("Extracting text from question paper PDF...")
             question_paper_text = extract_text_from_pdf(question_paper_binary)
             print(f"Extracted text from question paper: {len(question_paper_text)} characters")
-            print(f"Sample text: {question_paper_text[:100]}...")
+            print(f"Sample text: {question_paper_text}...")
             
             question_paper_extracted_texts.append(question_paper_text)
             
@@ -1284,7 +1284,7 @@ def create_classroom_quiz(classroom_id):
                 print("Extracting text from answer key PDF...")
                 answer_key_text = extract_text_from_pdf(answer_key_binary)
                 print(f"Extracted text from answer key: {len(answer_key_text)} characters")
-                print(f"Sample text: {answer_key_text[:100]}...")
+                print(f"Sample text: {answer_key_text}...")
                 
                 answer_key_extracted_texts.append(answer_key_text)
                 
@@ -2281,7 +2281,7 @@ def submit_quiz(classroom_id, quiz_id):
                 # Extract text using Gemini 1.5
                 extracted_text = extract_text_from_pdf(answer_file_binary)
                 print(f"Successfully extracted {len(extracted_text)} characters from student answer")
-                print(f"Sample text: {extracted_text[:100]}...")
+                print(f"Sample text: {extracted_text}...")
                 
                 # Create submission object with extracted text
                 submission = {
@@ -3078,7 +3078,7 @@ def extract_text_from_pdf(pdf_bytes):
             
             # Send to Gemini 1.5 for processing
             # Initialize a Gemini-1.5 model
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-2.5-pro-exp-03-25')
             
             # Read the PDF file
             pdf_data = filepath.read_bytes()
