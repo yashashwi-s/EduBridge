@@ -80,8 +80,8 @@ if not GEMINI_API_KEY:
 # Configure the Gemini API
 genai.configure(api_key=GEMINI_API_KEY)
 # Initialize the model
-gemini_model = genai.GenerativeModel('gemini-pro')
-gemini_pro_vision = genai.GenerativeModel('gemini-pro-vision')
+gemini_model = genai.GenerativeModel('gemini-2.5-pro-exp-03-25')
+gemini_pro_vision = genai.GenerativeModel('gemini-2.5-pro-exp-03-25')
 
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-key")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
@@ -1259,6 +1259,10 @@ def create_classroom_quiz(classroom_id):
             print(f"Extracted text from question paper: {len(question_paper_text)} characters")
             print(f"Sample text: {question_paper_text}...")
             
+            # Segregate questions by number
+            print("Segregating questions by number...")
+            segregated_questions = segregate_questions_by_number(question_paper_text, is_question_paper=True)
+            
             question_paper_extracted_texts.append(question_paper_text)
             
             print(f"Successfully extracted text from question paper")
@@ -1266,6 +1270,7 @@ def create_classroom_quiz(classroom_id):
             # Add extracted text to quiz
             quiz["extractedText"] = {
                 "questionPaper": question_paper_extracted_texts,
+                "segregatedQuestions": segregated_questions,
                 "timestamp": datetime.utcnow()
             }
             
@@ -1286,6 +1291,10 @@ def create_classroom_quiz(classroom_id):
                 print(f"Extracted text from answer key: {len(answer_key_text)} characters")
                 print(f"Sample text: {answer_key_text}...")
                 
+                # Segregate answer key by question number
+                print("Segregating answer key by question number...")
+                segregated_answers = segregate_questions_by_number(answer_key_text, is_question_paper=False)
+                
                 answer_key_extracted_texts.append(answer_key_text)
                 
                 print(f"Successfully extracted text from answer key")
@@ -1295,6 +1304,7 @@ def create_classroom_quiz(classroom_id):
                     quiz["extractedText"] = {"timestamp": datetime.utcnow()}
                 
                 quiz["extractedText"]["answerKey"] = answer_key_extracted_texts
+                quiz["extractedText"]["segregatedAnswers"] = segregated_answers
                 
             except Exception as e:
                 print(f"ERROR extracting text from answer key: {str(e)}")
@@ -1816,649 +1826,31 @@ def get_quiz_results(classroom_id, quiz_id):
                 submission_copy["isGraded"] = submission.get("isGraded", False)
                 submission_copy["feedback"] = submission.get("feedback", "")
                 
+                # Add auto-grading info if available
+                if submission.get("autoGraded"):
+                    submission_copy["autoGraded"] = True
+                    
+                    # Include summary of auto-graded questions
+                    if "questionGradingResults" in submission:
+                        question_count = len(submission["questionGradingResults"])
+                        submission_copy["autoGradedQuestionCount"] = question_count
+                        
+                        # Add preview of question scores
+                        submission_copy["gradedQuestionSummary"] = {
+                            "totalQuestions": question_count,
+                            "totalScore": submission.get("score", 0),
+                            "maxScore": submission.get("maxScore", 0)
+                        }
+                
                 # Add file info if available
                 if "answerFile" in submission:
                     submission_copy["answerFile"] = {
-                        "filename": submission["answerFile"].get("filename", "answer.pdf"),
-                        "size": submission["answerFile"].get("size", 0)
-                    }
+                        results["questionGradingResults"] = submission["questionGradingResults"]
                     
-                # Add extracted text info if available
-                if "extractedText" in submission:
-                    text_length = len(submission["extractedText"])
-                    submission_copy["textExtracted"] = True
-                    submission_copy["textLength"] = text_length
-                    submission_copy["textPreview"] = submission["extractedText"][:200] + "..." if text_length > 200 else submission["extractedText"]
-                    submission_copy["extractedTextUrl"] = f"/api/classrooms/{classroom_id}/quizzes/{quiz_id}/submissions/{str(submission['student_id'])}/extracted-text"
-                elif "extractionError" in submission:
-                    submission_copy["textExtracted"] = False
-                    submission_copy["extractionError"] = submission["extractionError"]
-            else:
-                # For question-based quizzes, process subjective questions
-                subjective_status = {
-                    "total": 0,
-                    "graded": 0,
-                    "pending": 0
-                }
-            
-                # Check each answer
-                if "questions" in quiz:
-                    for question in quiz["questions"]:
-                        q_id = str(question["id"])
-                        q_type = question.get("type", "single_choice")
-                        
-                        if q_type == "subjective" and q_id in submission.get("answers", {}):
-                            subjective_status["total"] += 1
-                            if submission["answers"][q_id].get("isGraded", False):
-                                subjective_status["graded"] += 1
-                            else:
-                                subjective_status["pending"] += 1
+                    # Include any auto-grading errors
+                    if "autoGradingError" in submission:
+                        results["autoGradingError"] = submission["autoGradingError"]
                 
-                submission_copy["subjectiveStatus"] = subjective_status
-            
-            submissions.append(submission_copy)
-        
-        # Calculate statistics
-        stats = {
-            "totalSubmissions": len(submissions),
-            "averageScore": 0,
-            "highestScore": 0,
-            "lowestScore": 100 if submissions else 0,
-            "needsManualGrading": False,
-            "questionsStatistics": {}  # Initialize here for all quiz types
-        }
-        
-        if submissions:
-            percentages = [s["percentage"] for s in submissions]
-            stats["averageScore"] = round(sum(percentages) / len(percentages), 1)
-            stats["highestScore"] = max(percentages)
-            stats["lowestScore"] = min(percentages)
-            
-            if quiz_type == "pdf":
-                # For PDF quizzes, check if any need grading
-                stats["needsManualGrading"] = any(not s.get("isGraded", False) for s in submissions)
-            else:
-                # For question-based quizzes, check subjective questions
-                stats["needsManualGrading"] = any(
-                    s.get("subjectiveStatus", {}).get("pending", 0) > 0 for s in submissions
-                )
-                
-                # Remove this line since we already initialized questionsStatistics above
-                # if "questions" in quiz:
-                #    stats["questionsStatistics"] = {}
-            
-            # Calculate per-question statistics based on question type
-            if "questions" in quiz and isinstance(quiz["questions"], list):
-                for question in quiz["questions"]:
-                    q_id = str(question["id"])
-                    q_type = question.get("type", "single_choice")
-                    
-                    # Initialize stats for this question
-                    question_stats = {
-                        "type": q_type,
-                        "text": question["text"],
-                        "points": question.get("points", 1)
-                    }
-                    
-                    if q_type == "subjective":
-                        # For subjective questions, track graded vs ungraded
-                        answered_count = 0
-                        graded_count = 0
-                        total_score = 0
-                        
-                        for submission in submissions:
-                            if q_id in submission.get("answers", {}):
-                                answered_count += 1
-                                answer = submission["answers"][q_id]
-                                if answer.get("isGraded", False):
-                                    graded_count += 1
-                                    total_score += answer.get("score", 0)
-                        
-                        question_stats.update({
-                            "answered": answered_count,
-                            "graded": graded_count,
-                            "pending": answered_count - graded_count,
-                            "averageScore": round(total_score / graded_count, 1) if graded_count > 0 else 0,
-                            "maxScore": question.get("points", 1)
-                        })
-                    
-                    elif q_type == "multiple_choice":
-                        # For multiple choice, track selection of each option
-                        option_stats = {}
-                        answered_count = 0
-                        correct_count = 0
-                        partial_count = 0
-                        
-                        # Initialize option statistics
-                        for option in question.get("options", []):
-                            opt_id = option["id"]
-                            option_stats[opt_id] = {
-                                "text": option["text"],
-                                "isCorrect": opt_id in question.get("correctOptions", []),
-                                "count": 0
-                            }
-                        
-                        for submission in submissions:
-                            if q_id in submission.get("answers", {}):
-                                answer = submission["answers"][q_id]
-                                answered_count += 1
-                                
-                                # Track correctness
-                                if answer.get("isCorrect", False):
-                                    correct_count += 1
-                                elif answer.get("score", 0) > 0:
-                                    partial_count += 1
-                                    
-                                # Track selected options
-                                for selected_id in answer.get("selected", []):
-                                    if selected_id in option_stats:
-                                        option_stats[selected_id]["count"] += 1
-                        
-                        question_stats.update({
-                            "options": option_stats,
-                            "answered": answered_count,
-                            "correct": correct_count,
-                            "partial": partial_count,
-                            "incorrect": answered_count - correct_count - partial_count,
-                            "correctPercentage": round((correct_count / answered_count) * 100, 1) if answered_count > 0 else 0
-                        })
-                        
-                    else:
-                        # For single choice, track selection rate of each option
-                        option_stats = {}
-                        answered_count = 0
-                        correct_count = 0
-                        
-                        # Initialize option statistics
-                        for option in question.get("options", []):
-                            opt_id = option["id"]
-                            option_stats[opt_id] = {
-                                "text": option["text"],
-                                "isCorrect": opt_id == question.get("correctOption", ""),
-                                "count": 0
-                            }
-                        
-                        for submission in submissions:
-                            if q_id in submission.get("answers", {}):
-                                answer = submission["answers"][q_id]
-                                answered_count += 1
-                                
-                                # Track correctness
-                                if answer.get("isCorrect", False):
-                                    correct_count += 1
-                                    
-                                # Track selected option
-                                selected_id = answer.get("selected", "")
-                                if selected_id in option_stats:
-                                    option_stats[selected_id]["count"] += 1
-                        
-                        question_stats.update({
-                            "options": option_stats,
-                            "answered": answered_count,
-                            "correct": correct_count,
-                            "incorrect": answered_count - correct_count,
-                            "correctPercentage": round((correct_count / answered_count) * 100, 1) if answered_count > 0 else 0
-                        })
-                    
-                    # Add to overall statistics
-                    stats["questionsStatistics"][q_id] = question_stats
-        
-        # Compile results based on quiz type
-        result = {
-            "quizId": quiz_id,
-            "quizTitle": quiz["title"],
-            "quizDescription": quiz["description"],
-            "startTime": quiz["startTime"],
-            "endTime": calculate_quiz_end_time(quiz),
-            "duration": quiz["duration"],
-            "submissions": submissions,
-            "statistics": stats,
-            "quizType": quiz_type
-        }
-        
-        # Add specific fields based on quiz type
-        if quiz_type == "pdf":
-            # For PDF quizzes, add file information
-            if "questionPaper" in quiz:
-                result["questionPaper"] = {
-                    "filename": quiz["questionPaper"].get("filename", "question_paper.pdf"),
-                    "size": quiz["questionPaper"].get("size", 0)
-                }
-                
-            if "answerKey" in quiz:
-                result["answerKey"] = {
-                    "filename": quiz["answerKey"].get("filename", "answer_key.pdf"),
-                    "size": quiz["answerKey"].get("size", 0)
-                }
-        else:
-            # For question-based quizzes, add question count and subjective question flag
-            if "questions" in quiz and isinstance(quiz["questions"], list):
-                result["totalQuestions"] = len(quiz["questions"])
-                result["hasSubjectiveQuestions"] = any(q.get("type") == "subjective" for q in quiz["questions"])
-            else:
-                result["totalQuestions"] = 0
-                result["hasSubjectiveQuestions"] = False
-        
-        return jsonify(mongo_to_json_serializable(result)), 200
-        
-    except Exception as e:
-        error_traceback = traceback.format_exc()
-        print(f"Error getting quiz results: {str(e)}")
-        print(f"Traceback: {error_traceback}")
-        return jsonify({"msg": f"Server error: {str(e)}"}), 500
-
-# Student endpoints
-@app.route("/api/classrooms/<classroom_id>/quizzes/student", methods=["GET"])
-@jwt_required()
-def get_student_quizzes(classroom_id):
-    """Get all quizzes for a classroom - student view"""
-    user_id = get_jwt_identity()
-    
-    classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id)
-    if error:
-        return error
-    
-    try:
-        # Process quizzes for student view
-        current_time = get_current_ist_time()
-        
-        user_obj_id = ObjectId(user_id)
-        processed_quizzes = []
-        
-        for quiz in classroom.get("quizzes", []):
-            # Skip unpublished quizzes for students (but not for teachers)
-            if not quiz.get("published", True) and classroom["teacher_id"] != user_obj_id:
-                continue
-            
-            # Determine quiz status for this student
-            student_status = get_quiz_status(quiz, user_obj_id, current_time)
-            
-            # Identify quiz type
-            quiz_type = quiz.get("quizType", "question")  # Default to question type for backwards compatibility
-            
-            # Create base student-friendly quiz object
-            student_quiz = {
-                "id": str(quiz["id"]),
-                "title": quiz.get("title", "Untitled Quiz"),
-                "description": quiz.get("description", ""),
-                "startTime": quiz["startTime"],
-                "endTime": calculate_quiz_end_time(quiz),
-                "duration": int(quiz["duration"]),
-                "quizType": quiz_type,
-                "studentStatus": student_status,
-                "serverProvidedStatus": True  # Mark status as coming from server to prevent frontend recalculation
-            }
-            
-            # For PDF quizzes, add file information
-            if quiz_type == "pdf":
-                if "questionPaper" in quiz:
-                    student_quiz["questionPaper"] = {
-                        "filename": quiz["questionPaper"].get("filename", "question_paper.pdf"),
-                        "size": quiz["questionPaper"].get("size", 0)
-                    }
-            else:
-                # For legacy quizzes, use the existing prepare_quiz_for_student function
-                legacy_quiz = prepare_quiz_for_student(quiz)
-                student_quiz["questions"] = legacy_quiz.get("questions", [])
-            
-            # If quiz is submitted, include the submission time and score info
-            if student_status == "submitted":
-                for submission in quiz.get("submissions", []):
-                    if submission["student_id"] == user_obj_id:
-                        student_quiz["submittedAt"] = submission.get("endTime")
-                        student_quiz["score"] = submission.get("score", 0)
-                        student_quiz["maxScore"] = submission.get("maxScore", 0)
-                        student_quiz["percentage"] = round((submission.get("score", 0) / submission.get("maxScore", 1)) * 100, 1)
-                        
-                        # For PDF quizzes, add grading status
-                        if quiz_type == "pdf":
-                            student_quiz["isGraded"] = submission.get("isGraded", False)
-                            if "answerFile" in submission:
-                                student_quiz["submission"] = {
-                                    "filename": submission["answerFile"].get("filename", "answer.pdf"),
-                                    "size": submission["answerFile"].get("size", 0)
-                                }
-                            if submission.get("isGraded", False):
-                                student_quiz["feedback"] = submission.get("feedback", "")
-                        break
-            
-            processed_quizzes.append(student_quiz)
-        
-        # Sort quizzes by status and start time
-        def quiz_sort_key(quiz):
-            status_priority = {
-                "available": 0,
-                "upcoming": 1,
-                "submitted": 2,
-                "missed": 3
-            }
-            return (status_priority.get(quiz["studentStatus"], 4), quiz["startTime"])
-            
-        processed_quizzes.sort(key=quiz_sort_key)
-        
-        return jsonify(mongo_to_json_serializable(processed_quizzes)), 200
-        
-    except Exception as e:
-        error_traceback = traceback.format_exc()
-        print(f"Error getting student quizzes: {str(e)}")
-        print(f"Traceback: {error_traceback}")
-        return jsonify({"msg": f"Server error: {str(e)}"}), 500
-
-@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/start", methods=["POST"])
-@jwt_required()
-def start_quiz(classroom_id, quiz_id):
-    """Mark a quiz as started by a student"""
-    user_id = get_jwt_identity()
-    
-    classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "student")
-    if error:
-        return error
-    
-    try:
-        # Find the quiz
-        quiz = find_quiz_by_id(classroom, quiz_id)
-        if not quiz:
-            return jsonify({"msg": "Quiz not found"}), 404
-        
-        # Check if quiz is published
-        if not quiz.get("published", True):
-            return jsonify({"msg": "This quiz is not available"}), 400
-        
-        # Check if quiz is available
-        user_obj_id = ObjectId(user_id)
-        current_time = get_current_ist_time()
-        
-        quiz_status = get_quiz_status(quiz, user_obj_id, current_time)
-        
-        # Only allow available quizzes to be started
-        if quiz_status == "submitted":
-            return jsonify({"msg": "You have already submitted this quiz"}), 400
-            
-        if quiz_status == "missed":
-            # Add detailed logging
-            quiz_end = calculate_quiz_end_time(quiz)
-            time_diff = current_time - quiz_end
-            print(f"Quiz missed: {quiz['title']}, End time: {quiz_end}, Current time: {current_time}, Difference: {time_diff}")
-            
-            # Be more lenient with small timing differences (within 15 minutes after end)
-            if time_diff <= timedelta(minutes=15):
-                print(f"Allowing quiz start despite missed status, time difference is only {time_diff.total_seconds() / 60} minutes")
-            else:
-                return jsonify({"msg": "This quiz has already ended"}), 400
-            
-        if quiz_status != "available" and quiz_status != "upcoming":
-            # Add a manual time check as backup 
-            quiz_start = quiz["startTime"]
-            quiz_end = calculate_quiz_end_time(quiz)
-            within_time_range = quiz_start - timedelta(minutes=15) <= current_time <= quiz_end + timedelta(minutes=15)
-            
-            if within_time_range:
-                print(f"Allowing quiz start despite status '{quiz_status}'. Current time: {current_time}, Quiz window: {quiz_start} - {quiz_end}")
-            else:
-                print(f"Rejecting quiz start. Status: {quiz_status}, Current time: {current_time}, Quiz window: {quiz_start} - {quiz_end}")
-            return jsonify({"msg": f"This quiz is not available for taking. Status: {quiz_status}"}), 400
-        
-        # Return basic quiz info for the student to start
-        student_quiz = prepare_quiz_for_student(quiz)
-        
-        # Add time tracking
-        result = {
-            "msg": "Quiz started successfully", 
-            "quiz": student_quiz,
-            "startTime": current_time.isoformat()
-        }
-        
-        return jsonify(result), 200
-        
-    except Exception as e:
-        error_traceback = traceback.format_exc()
-        print(f"Error starting quiz: {str(e)}")
-        print(f"Traceback: {error_traceback}")
-        return jsonify({"msg": f"Server error: {str(e)}"}), 500
-
-@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/submit", methods=["POST"])
-@jwt_required()
-def submit_quiz(classroom_id, quiz_id):
-    """
-    Submit a quiz with student answers or PDF submission.
-    For PDF submissions, the API extracts text using Google's Gemini 1.5 AI model
-    to make the content searchable and accessible. The extracted text is stored
-    alongside the original PDF submission for future reference and analysis.
-    """
-    user_id = get_jwt_identity()
-    
-    classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "student")
-    if error:
-        return error
-    
-    try:
-        # Find the quiz
-        quiz = find_quiz_by_id(classroom, quiz_id)
-        if not quiz:
-            return jsonify({"msg": "Quiz not found"}), 404
-        
-        # Check if quiz is published
-        if not quiz.get("published", True):
-            return jsonify({"msg": "This quiz is not available"}), 400
-        
-        # Check if student has already submitted
-        user_obj_id = ObjectId(user_id)
-        if any(s["student_id"] == user_obj_id for s in quiz.get("submissions", [])):
-            return jsonify({"msg": "You have already submitted this quiz"}), 400
-        
-        # Check if quiz is still available (we'll be lenient for development)
-        current_time = get_current_ist_time()
-        
-        quiz_status = get_quiz_status(quiz, user_obj_id, current_time)
-        
-        if quiz_status == "missed":
-            return jsonify({"msg": "This quiz has ended and cannot be submitted"}), 400
-            
-        # Get submission data based on quiz type
-        quiz_type = quiz.get("quizType", "question")  # Default to question type for backwards compatibility
-        
-        if quiz_type == "pdf":
-            # For PDF quizzes, expect a file upload
-            if 'answerFile' not in request.files:
-                return jsonify({"msg": "No answer file provided"}), 400
-                
-            answer_file = request.files['answerFile']
-            if not answer_file.filename:
-                return jsonify({"msg": "No answer file selected"}), 400
-                
-            # Validate file is a PDF
-            if not answer_file.filename.lower().endswith('.pdf'):
-                return jsonify({"msg": "Answer file must be a PDF"}), 400
-                
-            # Read the file
-            answer_file_binary = answer_file.read()
-            
-            # Extract text from the submitted PDF using Gemini 1.5
-            try:
-                print(f"\nExtracting text from student answer file: {answer_file.filename}")
-                print("Processing with Gemini 1.5...")
-                
-                # Extract text using Gemini 1.5
-                extracted_text = extract_text_from_pdf(answer_file_binary)
-                print(f"Successfully extracted {len(extracted_text)} characters from student answer")
-                print(f"Sample text: {extracted_text}...")
-                
-                # Create submission object with extracted text
-                submission = {
-                    "student_id": user_obj_id,
-                    "startTime": datetime.fromisoformat(request.form.get("startTime").replace('Z', '+00:00')) if "startTime" in request.form else current_time - timedelta(minutes=5),
-                    "endTime": current_time,
-                    "answerFile": {
-                        "filename": answer_file.filename,
-                        "content": Binary(answer_file_binary),
-                        "contentType": "application/pdf",
-                        "size": len(answer_file_binary)
-                    },
-                    "extractedText": extracted_text,  # Store the extracted text
-                    "score": 0,  # Score will be set by teacher after grading
-                    "maxScore": 100,  # Default max score
-                    "isGraded": False
-                }
-            except Exception as e:
-                print(f"Error extracting text from student answer: {str(e)}")
-                traceback.print_exc()
-                
-                # Create submission without extracted text if extraction fails
-                submission = {
-                    "student_id": user_obj_id,
-                    "startTime": datetime.fromisoformat(request.form.get("startTime").replace('Z', '+00:00')) if "startTime" in request.form else current_time - timedelta(minutes=5),
-                    "endTime": current_time,
-                    "answerFile": {
-                        "filename": answer_file.filename,
-                        "content": Binary(answer_file_binary),
-                        "contentType": "application/pdf",
-                        "size": len(answer_file_binary)
-                    },
-                    "extractionError": str(e),  # Store error message
-                    "score": 0,  # Score will be set by teacher after grading
-                    "maxScore": 100,  # Default max score
-                    "isGraded": False
-                }
-        else:
-            # Legacy quiz submission with questions and answers
-            # Get submitted answers
-            data = request.get_json()
-            if not data:
-                return jsonify({"msg": "No data provided"}), 400
-                
-            # Ensure we have answers
-            if "answers" not in data or not isinstance(data["answers"], dict):
-                return jsonify({"msg": "Invalid answers format"}), 400
-            
-            # Score the submission
-            correct_count, total_questions, scored_answers = score_quiz_submission(quiz, data["answers"])
-            
-            # Create submission object
-            submission = {
-                "student_id": user_obj_id,
-                "startTime": datetime.fromisoformat(data.get("startTime").replace('Z', '+00:00')) if "startTime" in data else current_time - timedelta(minutes=5),
-                "endTime": current_time,
-                "score": correct_count,
-                "maxScore": total_questions,
-                "answers": scored_answers
-            }
-        
-        # Add submission to quiz
-        result = classrooms_collection.update_one(
-            {"_id": ObjectId(classroom_id), "quizzes.id": ObjectId(quiz_id)},
-            {"$push": {"quizzes.$.submissions": submission}}
-        )
-        
-        if not result.modified_count:
-            return jsonify({"msg": "Failed to submit quiz"}), 500
-        
-        # Create response based on quiz type
-        if quiz_type == "pdf":
-            # For PDF quizzes, just confirm submission
-            response_data = {
-                "msg": "Quiz submitted successfully",
-                "submissionTime": current_time.isoformat(),
-                "filename": submission["answerFile"]["filename"],
-                "fileSize": submission["answerFile"]["size"]
-            }
-            
-            # Add text extraction info if available
-            if "extractedText" in submission:
-                text_length = len(submission["extractedText"])
-                response_data["textExtracted"] = True
-                response_data["textLength"] = text_length
-                response_data["textPreview"] = submission["extractedText"][:100] + "..." if text_length > 100 else submission["extractedText"]
-            elif "extractionError" in submission:
-                response_data["textExtracted"] = False
-                response_data["extractionError"] = submission["extractionError"]
-            
-            return jsonify(response_data), 200
-        else:
-            # For legacy quizzes, return detailed results
-            results = create_quiz_results_response(quiz, scored_answers, correct_count, total_questions)
-            results["submittedAt"] = current_time.isoformat()
-            return jsonify(results), 200
-        
-    except ValueError as e:
-        # Handle date parsing errors
-        return jsonify({"msg": f"Invalid data format: {str(e)}"}), 400
-    except Exception as e:
-        error_traceback = traceback.format_exc()
-        print(f"Error submitting quiz: {str(e)}")
-        print(f"Traceback: {error_traceback}")
-        return jsonify({"msg": f"Server error: {str(e)}"}), 500
-
-@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/results/student", methods=["GET"])
-@jwt_required()
-def get_student_quiz_results(classroom_id, quiz_id):
-    """Get a student's results for a specific quiz"""
-    user_id = get_jwt_identity()
-    
-    classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "student")
-    if error:
-        return error
-    
-    try:
-        # Find the quiz
-        quiz = find_quiz_by_id(classroom, quiz_id)
-        if not quiz:
-            return jsonify({"msg": "Quiz not found"}), 404
-        
-        # Identify quiz type
-        quiz_type = quiz.get("quizType", "question")  # Default to question type for backwards compatibility
-        
-        # Find student's submission
-        user_obj_id = ObjectId(user_id)
-        submission = None
-        
-        for sub in quiz.get("submissions", []):
-            if sub["student_id"] == user_obj_id:
-                submission = sub
-                break
-                
-        if not submission:
-            return jsonify({"msg": "You have not submitted this quiz"}), 404
-        
-        # Common quiz metadata for all quiz types
-        results = {
-            "quizTitle": quiz["title"],
-            "quizDescription": quiz["description"],
-            "startTime": quiz["startTime"],
-            "endTime": calculate_quiz_end_time(quiz),
-            "duration": quiz["duration"],
-            "submissionDate": submission.get("endTime"),
-            "timeSpent": int((submission.get("endTime", get_current_ist_time()) - 
-                           submission.get("startTime", submission.get("endTime", get_current_ist_time()))).total_seconds() / 60),
-            "quizType": quiz_type,
-            "studentId": user_id  # Add the user ID to the results
-        }
-        
-        # Handle results based on quiz type
-        if quiz_type == "pdf":
-            # For PDF quizzes, get submission and grading info
-            results.update({
-                "score": submission.get("score", 0),
-                "maxScore": submission.get("maxScore", 100),
-                "percentage": round((submission.get("score", 0) / submission.get("maxScore", 100)) * 100, 1),
-                "isGraded": submission.get("isGraded", False),
-                "feedback": submission.get("feedback", "")
-            })
-            
-            # Add submission file info if available
-            if "answerFile" in submission:
-                results["submission"] = {
-                    "filename": submission["answerFile"].get("filename", "answer.pdf"),
-                    "size": submission["answerFile"].get("size", 0),
-                    "downloadUrl": f"/api/classrooms/{classroom_id}/quizzes/{quiz_id}/submissions/{user_id}/answer-pdf"
-                }
-                
-            # Add text extraction info if available
-            if "extractedText" in submission:
-                text_length = len(submission["extractedText"])
-                results["submission"]["textExtracted"] = True
-                results["submission"]["textLength"] = text_length
-                results["submission"]["textPreview"] = submission["extractedText"][:150] + "..." if text_length > 150 else submission["extractedText"]
-                results["submission"]["extractedTextUrl"] = f"/api/classrooms/{classroom_id}/quizzes/{quiz_id}/submissions/{str(submission['student_id'])}/extracted-text"
             elif "extractionError" in submission:
                 results["submission"]["textExtracted"] = False
                 results["submission"]["extractionError"] = submission["extractionError"]
@@ -3104,6 +2496,101 @@ def extract_text_from_pdf(pdf_bytes):
         print(f"Error extracting text from PDF with Gemini: {str(e)}")
         return f"Error extracting text from PDF: {str(e)}"
 
+def segregate_questions_by_number(extracted_text, is_question_paper=True):
+    """
+    Use Gemini to segregate questions by number from extracted text.
+    For question papers or solution scripts, this identifies individual questions
+    and returns them in a structured format.
+    
+    Args:
+        extracted_text (str): The text extracted from the PDF
+        is_question_paper (bool): Whether this is a question paper or a student answer
+    
+    Returns:
+        dict: A dictionary where keys are question numbers and values are the text of each question
+    """
+    try:
+        print(f"Segregating {'questions' if is_question_paper else 'answers'} by number...")
+        
+        # Prepare prompt for Gemini
+        if is_question_paper:
+            prompt = """
+            I have extracted text from a question paper. Please help me segregate the questions by their numbers.
+            Identify each question by its number (like "1.", "2.", "Question 1", etc.) and split the text accordingly.
+            
+            Return the result as a valid JSON object where:
+            - Keys are the question numbers as strings (e.g., "1", "2", "3")
+            - Values are the complete text of each question
+            
+            If parts of the text don't belong to any numbered question (like instructions or headers), 
+            include them under key "0" as "preamble".
+            
+            Here's the extracted text:
+            
+            """
+        else:
+            prompt = """
+            I have extracted text from a student's answer or solution script. Please help me segregate the answers by question numbers.
+            Identify each answer by its corresponding question number (like "1.", "2.", "Answer 1", etc.) and split the text accordingly.
+            
+            Return the result as a valid JSON object where:
+            - Keys are the question numbers as strings (e.g., "1", "2", "3")
+            - Values are the complete text of each answer
+            
+            If parts of the text don't belong to any numbered answer (like notes or headers), 
+            include them under key "0" as "notes".
+            
+            Here's the extracted text:
+            
+            """
+            
+        prompt += extracted_text
+        
+        # Initialize Gemini model
+        model = genai.GenerativeModel('gemini-2.5-pro-exp-03-25')
+        
+        # Call Gemini with the prompt
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                temperature=0.0,
+                top_p=0.95,
+                top_k=0,
+                max_output_tokens=8192,
+            )
+        )
+        
+        # Extract JSON from response
+        response_text = response.text
+        print("Received response from Gemini for question segregation")
+        
+        # Find JSON in the response (it might be surrounded by markdown code blocks)
+        json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', response_text)
+        if json_match:
+            response_text = json_match.group(1)
+        
+        result = json.loads(response_text)
+        
+        # Print the segregated questions
+        print(f"Successfully segregated questions into {len(result)} sections")
+        for q_num, q_text in result.items():
+            if q_num == "0":
+                print(f"Preamble/Notes ({len(q_text)} characters)")
+            else:
+                print(f"Question {q_num} ({len(q_text)} characters)")
+                if len(q_text) > 100:
+                    print(f"Preview: {q_text[:100]}...")
+                else:
+                    print(f"Content: {q_text}")
+        
+        return result
+        
+    except Exception as e:
+        print(f"Error segregating questions: {str(e)}")
+        traceback.print_exc()
+        # Return the original text as a single item if segregation fails
+        return {"0": extracted_text}
+
 def map_answers_to_questions(extracted_texts, questions):
     """Map extracted text to exam questions"""
     combined_text = " ".join(extracted_texts)
@@ -3139,7 +2626,7 @@ def map_answers_to_questions(extracted_texts, questions):
     try:
         app.logger.info("Calling Gemini API to map answers to questions")
         response = genai.generate_content(
-            model="gemini-pro",
+            model="gemini-2.5-pro-exp-03-25",
             contents=[{"role": "user", "parts": [{"text": prompt}]}],
             generation_config=generation_config
         )
@@ -3232,7 +2719,7 @@ def grade_answer(question, student_answer, model_answer, max_score):
     try:
         app.logger.info("Calling Gemini API to grade answer")
         response = genai.generate_content(
-            model="gemini-pro",
+            model="gemini-2.5-pro-exp-03-25",
             contents=[{"role": "user", "parts": [{"text": prompt}]}],
             generation_config=generation_config
         )
@@ -3271,7 +2758,7 @@ def grade_answer(question, student_answer, model_answer, max_score):
             """
             
             response = genai.generate_content(
-                model="gemini-pro",
+                model="gemini-2.5-pro-exp-03-25",
                 contents=[{"role": "user", "parts": [{"text": fallback_prompt}]}]
             )
             
@@ -3716,17 +3203,607 @@ def get_submission_extracted_text(classroom_id, quiz_id, student_id):
                 }
         
         # Return the extracted text
-        return jsonify({
+        response_data = {
             "quizTitle": quiz.get("title", "Untitled Quiz"),
             "studentInfo": student_info,
             "extractedText": submission["extractedText"],
             "submissionDate": submission.get("endTime", "").isoformat() if isinstance(submission.get("endTime"), datetime) else submission.get("endTime", ""),
             "textLength": len(submission["extractedText"])
-        }), 200
+        }
+        
+        # Add segregated answers if available
+        if "segregatedAnswers" in submission:
+            response_data["segregatedAnswers"] = submission["segregatedAnswers"]
+            response_data["questionCount"] = len(submission["segregatedAnswers"]) - (1 if "0" in submission["segregatedAnswers"] else 0)
+        
+        return jsonify(response_data), 200
         
     except Exception as e:
         error_traceback = traceback.format_exc()
         print(f"Error retrieving extracted text: {str(e)}")
+        print(f"Traceback: {error_traceback}")
+        return jsonify({"msg": f"Server error: {str(e)}"}), 500
+
+@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/segregated-questions", methods=["GET"])
+@jwt_required()
+def get_segregated_quiz_questions(classroom_id, quiz_id):
+    """
+    Get segregated questions from a quiz.
+    
+    This endpoint retrieves the questions that were automatically segregated from
+    the quiz's PDF question paper using Gemini. It returns the questions organized
+    by question number.
+    """
+    user_id = get_jwt_identity()
+    
+    # Check if user has access to this classroom
+    classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id)
+    if error:
+        return error
+    
+    try:
+        # Find the quiz
+        quiz = find_quiz_by_id(classroom, quiz_id)
+        if not quiz:
+            return jsonify({"msg": "Quiz not found"}), 404
+        
+        # Check if quiz has extracted and segregated text
+        if not quiz.get("extractedText") or not quiz["extractedText"].get("segregatedQuestions"):
+            return jsonify({
+                "msg": "This quiz does not have segregated questions",
+                "hasExtractedText": "extractedText" in quiz,
+                "hasPDF": "questionPaper" in quiz
+            }), 404
+        
+        # Get the segregated questions
+        segregated_questions = quiz["extractedText"]["segregatedQuestions"]
+        
+        # Create a response with quiz metadata and segregated questions
+        response_data = {
+            "quizTitle": quiz.get("title", "Untitled Quiz"),
+            "quizDescription": quiz.get("description", ""),
+            "questionCount": len(segregated_questions) - (1 if "0" in segregated_questions else 0),
+            "segregatedQuestions": segregated_questions
+        }
+        
+        # Include answer key info if user is teacher
+        is_teacher = classroom["teacher_id"] == ObjectId(user_id)
+        if is_teacher and "extractedText" in quiz and "segregatedAnswers" in quiz["extractedText"]:
+            response_data["hasAnswerKey"] = True
+        else:
+            response_data["hasAnswerKey"] = False
+        
+        return jsonify(response_data), 200
+        
+    except Exception as e:
+        error_traceback = traceback.format_exc()
+        print(f"Error retrieving segregated questions: {str(e)}")
+        print(f"Traceback: {error_traceback}")
+        return jsonify({"msg": f"Server error: {str(e)}"}), 500
+
+@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/segregated-answer-key", methods=["GET"])
+@jwt_required()
+def get_segregated_answer_key(classroom_id, quiz_id):
+    """
+    Get segregated answer key from a quiz (teacher only).
+    
+    This endpoint retrieves the solution answers that were automatically segregated
+    from the quiz's answer key PDF using Gemini. It returns the answers organized
+    by question number.
+    """
+    user_id = get_jwt_identity()
+    
+    # Only teachers can access the answer key
+    classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "teacher")
+    if error:
+        return error
+    
+    try:
+        # Find the quiz
+        quiz = find_quiz_by_id(classroom, quiz_id)
+        if not quiz:
+            return jsonify({"msg": "Quiz not found"}), 404
+        
+        # Check if quiz has extracted and segregated answer key
+        if not quiz.get("extractedText") or not quiz["extractedText"].get("segregatedAnswers"):
+            return jsonify({
+                "msg": "This quiz does not have a segregated answer key",
+                "hasExtractedText": "extractedText" in quiz,
+                "hasAnswerKey": "answerKey" in quiz
+            }), 404
+        
+        # Get the segregated answer key
+        segregated_answers = quiz["extractedText"]["segregatedAnswers"]
+        
+        # Create a response with quiz metadata and segregated answer key
+        response_data = {
+            "quizTitle": quiz.get("title", "Untitled Quiz"),
+            "quizDescription": quiz.get("description", ""),
+            "answerCount": len(segregated_answers) - (1 if "0" in segregated_answers else 0),
+            "segregatedAnswers": segregated_answers
+        }
+        
+        # Include link to questions
+        response_data["questionsLink"] = f"/api/classrooms/{classroom_id}/quizzes/{quiz_id}/segregated-questions"
+        
+        return jsonify(response_data), 200
+        
+    except Exception as e:
+        error_traceback = traceback.format_exc()
+        print(f"Error retrieving segregated answer key: {str(e)}")
+        print(f"Traceback: {error_traceback}")
+        return jsonify({"msg": f"Server error: {str(e)}"}), 500
+
+@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/submissions/<student_id>/segregated-answers", methods=["GET"])
+@jwt_required()
+def get_segregated_student_answers(classroom_id, quiz_id, student_id):
+    """
+    Get segregated answers from a student's submission.
+    
+    This endpoint retrieves the answers that were automatically segregated from
+    the student's submission PDF using Gemini. It returns the answers organized
+    by question number.
+    
+    This endpoint can be accessed by:
+    1. The teacher of the classroom
+    2. The student who submitted the quiz (can only access their own submission)
+    """
+    user_id = get_jwt_identity()
+    
+    # Check if user is a teacher for this classroom or the student who submitted
+    is_teacher = False
+    is_owner = (user_id == student_id)
+    
+    if not is_owner:
+        # If not the owner, must be a teacher
+        classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "teacher")
+        if error:
+            return error
+        is_teacher = True
+    else:
+        # Student accessing their own submission
+        classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "student")
+        if error:
+            return error
+    
+    try:
+        # Find the quiz
+        quiz = find_quiz_by_id(classroom, quiz_id)
+        if not quiz:
+            return jsonify({"msg": "Quiz not found"}), 404
+        
+        # Find student's submission
+        student_obj_id = ObjectId(student_id)
+        submission = None
+        
+        for sub in quiz.get("submissions", []):
+            if sub["student_id"] == student_obj_id:
+                submission = sub
+                break
+                
+        if not submission:
+            return jsonify({"msg": "Submission not found"}), 404
+        
+        # Check if submission has segregated answers
+        if "segregatedAnswers" not in submission:
+            if "extractedText" not in submission:
+                return jsonify({"msg": "No extracted text available for this submission"}), 404
+            elif "extractionError" in submission:
+                return jsonify({
+                    "msg": "Text extraction failed",
+                    "error": submission["extractionError"]
+                }), 400
+            else:
+                return jsonify({"msg": "This submission does not have segregated answers"}), 404
+        
+        # Get student info for teachers
+        student_info = {}
+        if is_teacher:
+            student = users_collection.find_one({"_id": student_obj_id})
+            if student:
+                student_info = {
+                    "name": student.get("fullName", "Unknown"),
+                    "email": student.get("email", "")
+                }
+        
+        # Get the quiz questions for comparison
+        has_questions = quiz.get("extractedText") and quiz["extractedText"].get("segregatedQuestions")
+        
+        # Create response
+        response_data = {
+            "quizTitle": quiz.get("title", "Untitled Quiz"),
+            "studentInfo": student_info,
+            "submissionDate": submission.get("endTime", "").isoformat() if isinstance(submission.get("endTime"), datetime) else submission.get("endTime", ""),
+            "answerCount": len(submission["segregatedAnswers"]) - (1 if "0" in submission["segregatedAnswers"] else 0),
+            "segregatedAnswers": submission["segregatedAnswers"],
+            "hasQuestions": has_questions
+        }
+        
+        # For teachers, include question-answer matching data
+        if is_teacher and has_questions:
+            # Include a comparison of questions and answers
+            question_answer_mapping = []
+            segregated_questions = quiz["extractedText"]["segregatedQuestions"]
+            
+            # Remove preambles (key "0")
+            question_keys = [k for k in segregated_questions.keys() if k != "0"]
+            answer_keys = [k for k in submission["segregatedAnswers"].keys() if k != "0"]
+            
+            # Match questions with answers
+            for q_key in sorted(question_keys, key=lambda x: int(x) if x.isdigit() else float('inf')):
+                matching = {
+                    "questionNumber": q_key,
+                    "questionText": segregated_questions[q_key],
+                    "hasAnswer": q_key in submission["segregatedAnswers"],
+                }
+                
+                if q_key in submission["segregatedAnswers"]:
+                    matching["answerText"] = submission["segregatedAnswers"][q_key]
+                
+                question_answer_mapping.append(matching)
+            
+            # Check for answers without matching questions
+            for a_key in sorted(answer_keys, key=lambda x: int(x) if x.isdigit() else float('inf')):
+                if a_key not in segregated_questions:
+                    question_answer_mapping.append({
+                        "questionNumber": a_key,
+                        "questionText": "No matching question found",
+                        "hasAnswer": True,
+                        "answerText": submission["segregatedAnswers"][a_key],
+                        "unmatchedAnswer": True
+                    })
+            
+            response_data["questionAnswerMapping"] = question_answer_mapping
+            
+            # Add answer key link if available
+            if "extractedText" in quiz and "segregatedAnswers" in quiz["extractedText"]:
+                response_data["answerKeyLink"] = f"/api/classrooms/{classroom_id}/quizzes/{quiz_id}/segregated-answer-key"
+        
+        return jsonify(response_data), 200
+        
+    except Exception as e:
+        error_traceback = traceback.format_exc()
+        print(f"Error retrieving segregated student answers: {str(e)}")
+        print(f"Traceback: {error_traceback}")
+        return jsonify({"msg": f"Server error: {str(e)}"}), 500
+
+def grade_student_answer_by_question(student_answer, model_answer, question_number, max_marks=20):
+    """
+    Use Gemini to grade a student's answer for a specific question by comparing it to the model answer.
+    
+    Args:
+        student_answer (str): The student's answer text
+        model_answer (str): The model/correct answer text from the teacher
+        question_number (str): The question number being graded
+        max_marks (int): Maximum marks for this question (default: 20)
+        
+    Returns:
+        dict: Grading result with score, feedback, and analysis
+    """
+    try:
+        print(f"Grading question {question_number} using Gemini...")
+        
+        # Prepare the prompt for Gemini
+        prompt = f"""
+        You are an expert educator grading a student's answer to an exam question.
+        
+        Question Number: {question_number}
+        
+        MODEL ANSWER (correct solution):
+        {model_answer}
+        
+        STUDENT'S ANSWER:
+        {student_answer}
+        
+        Please evaluate the student's answer based on the model answer. The question is worth {max_marks} marks.
+        
+        Assign a score out of {max_marks} based on correctness, completeness, and clarity.
+        Provide brief, constructive feedback explaining the grading decision.
+        
+        Return your evaluation as a valid JSON object with these fields:
+        - score: The numerical score (between 0 and {max_marks})
+        - feedback: Brief explanation of the grade (1-3 sentences)
+        - key_points_addressed: List of important points from the model answer that the student covered
+        - key_points_missed: List of important points from the model answer that the student missed
+        - improvement_suggestions: Brief suggestions for improvement
+        
+        Be fair but thorough in your assessment.
+        """
+        
+        # Generate grading using Gemini
+        response = genai.generate_content(
+            model="gemini-2.5-pro-exp-03-25",
+            contents=[{"role": "user", "parts": [{"text": prompt}]}],
+            generation_config=genai.GenerationConfig(
+                temperature=0.2,
+                top_p=0.95,
+                top_k=40,
+                max_output_tokens=8192,
+            )
+        )
+        
+        # Extract and parse JSON from response
+        response_text = response.text
+        print(f"Received grading response from Gemini for question {question_number}")
+        
+        # Find JSON in the response (it might be surrounded by markdown code blocks)
+        json_match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', response_text)
+        if json_match:
+            response_text = json_match.group(1)
+        
+        result = json.loads(response_text)
+        
+        # Ensure the score is within bounds
+        result["score"] = max(0, min(max_marks, result["score"]))
+        
+        print(f"Question {question_number} grading complete: {result['score']}/{max_marks}")
+        return result
+        
+    except Exception as e:
+        print(f"Error grading question {question_number}: {str(e)}")
+        traceback.print_exc()
+        
+        # Return a basic result if grading fails
+        return {
+            "score": 0,
+            "feedback": f"Error during automated grading: {str(e)}",
+            "error": str(e),
+            "grading_failed": True
+        }
+
+def auto_grade_submission(quiz, submission):
+    """
+    Automatically grade a student submission using Gemini by comparing segregated 
+    answers to the teacher's answer key.
+    
+    Args:
+        quiz (dict): The quiz object containing answer key
+        submission (dict): The student's submission with segregated answers
+        
+    Returns:
+        dict: Updated submission with grading results
+    """
+    print(f"Starting auto-grading for student submission...")
+    
+    # Make a copy of the submission to avoid modifying the original
+    graded_submission = submission.copy()
+    
+    # Check if we have the necessary data for grading
+    if not quiz.get("extractedText") or not quiz["extractedText"].get("segregatedAnswers"):
+        print("Cannot grade: Quiz does not have segregated answer key")
+        graded_submission["autoGradingError"] = "Quiz does not have segregated answer key"
+        return graded_submission
+        
+    if not submission.get("segregatedAnswers"):
+        print("Cannot grade: Student submission does not have segregated answers")
+        graded_submission["autoGradingError"] = "Submission does not have segregated answers"
+        return graded_submission
+    
+    # Get the model answers (teacher's answer key)
+    model_answers = quiz["extractedText"]["segregatedAnswers"]
+    
+    # Get the student's answers
+    student_answers = submission["segregatedAnswers"]
+    
+    # Initialize grading
+    total_score = 0
+    max_score = 0
+    graded_questions = {}
+    question_grading_results = []
+    
+    # Get all unique question numbers across both model and student answers
+    # Skip the preamble/notes (key "0")
+    all_question_numbers = set(
+        [k for k in model_answers.keys() if k != "0"] +
+        [k for k in student_answers.keys() if k != "0"]
+    )
+    
+    print(f"Found {len(all_question_numbers)} questions to grade")
+    
+    # Grade each question
+    for question_number in sorted(all_question_numbers, key=lambda x: int(x) if x.isdigit() else float('inf')):
+        # Skip if it's the preamble (key "0")
+        if question_number == "0":
+            continue
+            
+        model_answer = model_answers.get(question_number, "")
+        student_answer = student_answers.get(question_number, "")
+        
+        if not model_answer:
+            print(f"Warning: No model answer for question {question_number}")
+            continue
+            
+        if not student_answer:
+            print(f"Student did not answer question {question_number}")
+            # Create an empty grading result for unanswered questions
+            grading_result = {
+                "questionNumber": question_number,
+                "score": 0,
+                "maxScore": 20,
+                "feedback": "No answer provided for this question.",
+                "key_points_addressed": [],
+                "key_points_missed": ["All points missed - no answer provided"],
+                "improvement_suggestions": ["Please provide an answer to this question."],
+                "answered": False
+            }
+        else:
+            # Grade this answer using Gemini
+            grading_result = grade_student_answer_by_question(
+                student_answer=student_answer,
+                model_answer=model_answer,
+                question_number=question_number,
+                max_marks=20  # Each question is worth 20 marks
+            )
+            
+            # Add question metadata
+            grading_result["questionNumber"] = question_number
+            grading_result["maxScore"] = 20
+            grading_result["answered"] = True
+            
+            # Update total score
+            total_score += grading_result["score"]
+            
+        # Add to results
+        max_score += 20
+        graded_questions[question_number] = grading_result
+        question_grading_results.append(grading_result)
+    
+    # Calculate overall results
+    overall_percentage = (total_score / max_score * 100) if max_score > 0 else 0
+    
+    # Update the submission with grading results
+    graded_submission["score"] = total_score
+    graded_submission["maxScore"] = max_score
+    graded_submission["percentage"] = round(overall_percentage, 1)
+    graded_submission["isGraded"] = True
+    graded_submission["gradedQuestions"] = graded_questions
+    graded_submission["questionGradingResults"] = question_grading_results
+    graded_submission["autoGraded"] = True
+    graded_submission["gradedAt"] = datetime.utcnow()
+    
+    # Generate overall feedback
+    if len(question_grading_results) > 0:
+        overall_feedback = f"You scored {total_score} out of {max_score} ({round(overall_percentage, 1)}%). "
+        
+        if overall_percentage >= 90:
+            overall_feedback += "Excellent work! You demonstrated a comprehensive understanding of the material."
+        elif overall_percentage >= 80:
+            overall_feedback += "Very good work. You showed strong knowledge with a few areas for improvement."
+        elif overall_percentage >= 70:
+            overall_feedback += "Good work. You've grasped most concepts, but there are some areas to strengthen."
+        elif overall_percentage >= 60:
+            overall_feedback += "Satisfactory work. You've understood the basic concepts, but need to develop deeper understanding."
+        elif overall_percentage >= 50:
+            overall_feedback += "You've met minimum requirements, but need significant improvement in understanding key concepts."
+        else:
+            overall_feedback += "You need to review the material more thoroughly and improve your understanding of key concepts."
+    else:
+        overall_feedback = "Your submission could not be fully graded automatically."
+    
+    graded_submission["feedback"] = overall_feedback
+    
+    print(f"Auto-grading complete: Score {total_score}/{max_score} ({round(overall_percentage, 1)}%)")
+    return graded_submission
+
+@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/submissions/<student_id>/grading", methods=["GET"])
+@jwt_required()
+def get_submission_grading_details(classroom_id, quiz_id, student_id):
+    """
+    Get detailed grading results for a student's quiz submission.
+    
+    This endpoint retrieves the question-by-question grading generated by Gemini AI
+    for a student's submission, including scores, feedback, and analysis for each answer.
+    
+    This endpoint can be accessed by:
+    1. The teacher of the classroom
+    2. The student who submitted the quiz (can only access their own submission)
+    """
+    user_id = get_jwt_identity()
+    
+    # Check if user is a teacher for this classroom or the student who submitted
+    is_teacher = False
+    is_owner = (user_id == student_id)
+    
+    if not is_owner:
+        # If not the owner, must be a teacher
+        classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "teacher")
+        if error:
+            return error
+        is_teacher = True
+    else:
+        # Student accessing their own submission
+        classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "student")
+        if error:
+            return error
+    
+    try:
+        # Find the quiz
+        quiz = find_quiz_by_id(classroom, quiz_id)
+        if not quiz:
+            return jsonify({"msg": "Quiz not found"}), 404
+        
+        # Find student's submission
+        student_obj_id = ObjectId(student_id)
+        submission = None
+        
+        for sub in quiz.get("submissions", []):
+            if sub["student_id"] == student_obj_id:
+                submission = sub
+                break
+                
+        if not submission:
+            return jsonify({"msg": "Submission not found"}), 404
+        
+        # Check if submission has been auto-graded
+        if not submission.get("autoGraded", False) or not submission.get("isGraded", False):
+            return jsonify({"msg": "This submission has not been auto-graded"}), 404
+            
+        if "questionGradingResults" not in submission:
+            return jsonify({"msg": "No question-by-question grading results available"}), 404
+        
+        # Get student info for teachers
+        student_info = {}
+        if is_teacher:
+            student = users_collection.find_one({"_id": student_obj_id})
+            if student:
+                student_info = {
+                    "name": student.get("fullName", "Unknown"),
+                    "email": student.get("email", "")
+                }
+        
+        # Get quiz questions and answer key if available
+        has_questions = quiz.get("extractedText") and quiz["extractedText"].get("segregatedQuestions")
+        has_answer_key = quiz.get("extractedText") and quiz["extractedText"].get("segregatedAnswers")
+        
+        # Create response
+        response_data = {
+            "quizTitle": quiz.get("title", "Untitled Quiz"),
+            "studentInfo": student_info,
+            "submissionDate": submission.get("endTime", "").isoformat() if isinstance(submission.get("endTime"), datetime) else submission.get("endTime", ""),
+            "score": submission.get("score", 0),
+            "maxScore": submission.get("maxScore", 0),
+            "percentage": submission.get("percentage", 0),
+            "feedback": submission.get("feedback", ""),
+            "autoGraded": True,
+            "questionGradingResults": submission["questionGradingResults"],
+            "hasQuestions": has_questions,
+            "hasAnswerKey": has_answer_key,
+            "gradedAt": submission.get("gradedAt", "").isoformat() if isinstance(submission.get("gradedAt"), datetime) else submission.get("gradedAt", "")
+        }
+        
+        # Add links to related resources
+        if has_questions:
+            response_data["questionPaperLink"] = f"/api/classrooms/{classroom_id}/quizzes/{quiz_id}/segregated-questions"
+            
+        if has_answer_key and is_teacher:
+            response_data["answerKeyLink"] = f"/api/classrooms/{classroom_id}/quizzes/{quiz_id}/segregated-answer-key"
+            
+        if "segregatedAnswers" in submission:
+            response_data["studentAnswersLink"] = f"/api/classrooms/{classroom_id}/quizzes/{quiz_id}/submissions/{student_id}/segregated-answers"
+        
+        # Include more detailed information for teachers
+        if is_teacher:
+            # Provide summary statistics by question
+            question_stats = {}
+            
+            for result in submission["questionGradingResults"]:
+                q_num = result["questionNumber"]
+                question_stats[q_num] = {
+                    "score": result["score"],
+                    "maxScore": result["maxScore"],
+                    "percentage": round(result["score"] / result["maxScore"] * 100, 1) if result["maxScore"] > 0 else 0,
+                    "keyPointsCovered": len(result.get("key_points_addressed", [])),
+                    "keyPointsMissed": len(result.get("key_points_missed", [])),
+                    "answered": result.get("answered", False)
+                }
+            
+            response_data["questionStats"] = question_stats
+        
+        return jsonify(response_data), 200
+        
+    except Exception as e:
+        error_traceback = traceback.format_exc()
+        print(f"Error retrieving grading details: {str(e)}")
         print(f"Traceback: {error_traceback}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
