@@ -1845,37 +1845,82 @@ def get_quiz_results(classroom_id, quiz_id):
                 # Add file info if available
                 if "answerFile" in submission:
                     submission_copy["answerFile"] = {
-                        results["questionGradingResults"] = submission["questionGradingResults"]
-                    
-                    # Include any auto-grading errors
-                    if "autoGradingError" in submission:
-                        results["autoGradingError"] = submission["autoGradingError"]
+                        "filename": submission["answerFile"].get("filename", "answer.pdf"),
+                        "size": submission["answerFile"].get("size", 0)
+                    }
                 
-            elif "extractionError" in submission:
-                results["submission"]["textExtracted"] = False
-                results["submission"]["extractionError"] = submission["extractionError"]
-        else:
-            # For legacy quizzes, use the existing results creation
-            scored_answers = submission.get("answers", {})
-            legacy_results = create_quiz_results_response(
-                quiz, 
-                scored_answers, 
-                submission["score"], 
-                submission["maxScore"]
-            )
+                # Add extracted text info if available
+                if "extractedText" in submission:
+                    text_length = len(submission["extractedText"])
+                    submission_copy["textExtracted"] = True
+                    submission_copy["textLength"] = text_length
+                    submission_copy["textPreview"] = submission["extractedText"][:200] + "..." if text_length > 200 else submission["extractedText"]
+                    submission_copy["extractedTextUrl"] = f"/api/classrooms/{classroom_id}/quizzes/{quiz_id}/submissions/{str(submission['student_id'])}/extracted-text"
+                    
+                    # Add segregated answers info if available
+                    if "segregatedAnswers" in submission:
+                        answer_count = len(submission["segregatedAnswers"]) - (1 if "0" in submission["segregatedAnswers"] else 0)
+                        submission_copy["answersSegregated"] = True
+                        submission_copy["answerCount"] = answer_count
+                        submission_copy["segregatedAnswersPreview"] = {
+                            k: v[:50] + "..." if len(v) > 50 else v
+                            for k, v in list(submission["segregatedAnswers"].items())[:3]
+                        }
+                        submission_copy["segregatedAnswersUrl"] = f"/api/classrooms/{classroom_id}/quizzes/{quiz_id}/submissions/{str(submission['student_id'])}/segregated-answers"
+                
+                elif "extractionError" in submission:
+                    submission_copy["textExtracted"] = False
+                    submission_copy["extractionError"] = submission["extractionError"]
+            else:
+                # For question-based quizzes, process subjective questions
+                subjective_status = {
+                    "total": 0,
+                    "graded": 0,
+                    "pending": 0
+                }
             
-            # Merge legacy results with common metadata
-            results.update({
-                "score": legacy_results["score"],
-                "totalPossible": legacy_results["totalPossible"],
-                "percentage": legacy_results["percentage"],
-                "correctCount": legacy_results["correctCount"],
-                "totalQuestions": legacy_results["totalQuestions"],
-                "questions": legacy_results["questions"],
-                "summary": legacy_results["summary"]
-            })
+                # Check each answer
+                if "questions" in quiz:
+                    for question in quiz["questions"]:
+                        q_id = str(question["id"])
+                        q_type = question.get("type", "single_choice")
+                        
+                        if q_type == "subjective" and q_id in submission.get("answers", {}):
+                            subjective_status["total"] += 1
+                            if submission["answers"][q_id].get("isGraded", False):
+                                subjective_status["graded"] += 1
+                            else:
+                                subjective_status["pending"] += 1
+                
+                submission_copy["subjectiveStatus"] = subjective_status
+            
+            submissions.append(submission_copy)
         
-        return jsonify(mongo_to_json_serializable(results)), 200
+        # Calculate statistics
+        total_score = sum(submission["score"] for submission in submissions)
+        max_score = sum(submission["maxScore"] for submission in submissions)
+        avg_score = total_score / len(submissions) if submissions else 0
+        max_per_submission = max(submission["maxScore"] for submission in submissions) if submissions else 0
+        
+        # Create a summary of auto-scored and manual questions
+        summary = {
+            "totalScore": total_score,
+            "totalPossible": max_score,
+            "autoGradedScore": sum(submission["score"] for submission in submissions if submission.get("isGraded", False)),
+            "autoGradedMaxScore": sum(submission["maxScore"] for submission in submissions if submission.get("isGraded", False)),
+            "manualGradingNeeded": any(q.get("type") == "subjective" for q in quiz["questions"]),
+        }
+        
+        return jsonify({
+            "score": total_score,
+            "totalPossible": max_score,
+            "percentage": round((total_score / max_score) * 100, 1) if max_score > 0 else 0,
+            "autoGradedPercentage": round((summary["autoGradedScore"] / summary["autoGradedMaxScore"]) * 100, 1) if summary["autoGradedMaxScore"] > 0 else 0,
+            "correctCount": sum(1 for submission in submissions if submission.get("isCorrect", False)),
+            "totalQuestions": len(quiz["questions"]),
+            "questions": submissions,
+            "summary": summary
+        }), 200
         
     except Exception as e:
         error_traceback = traceback.format_exc()
