@@ -381,11 +381,179 @@ body {
 .chart-container {
   margin-top: 16px;
   position: relative;
+  min-height: 250px;
 }
 
 canvas {
   max-width: 100%;
   height: auto;
+}
+
+/* Loading spinner for charts */
+.loading-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(66, 133, 244, 0.2);
+  border-radius: 50%;
+  border-top-color: rgba(66, 133, 244, 0.8);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* No data message */
+.no-data {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #757575;
+  font-size: 14px;
+  text-align: center;
+  width: 100%;
+}
+
+/* Performance statistics */
+.performance-stats {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.stat-item {
+  text-align: center;
+  padding: 10px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #1a73e8;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #5f6368;
+  margin-top: 5px;
+}
+
+/* Trend analysis */
+.trend-analysis {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.trend-analysis h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #202124;
+}
+
+.trend-analysis p {
+  margin-bottom: 15px;
+  color: #5f6368;
+  font-size: 14px;
+}
+
+.trend-indicator {
+  display: inline-block;
+  padding: 8px 12px;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.trend-indicator.improving {
+  background-color: rgba(52, 168, 83, 0.1);
+  color: #34A853;
+}
+
+.trend-indicator.declining {
+  background-color: rgba(234, 67, 53, 0.1);
+  color: #EA4335;
+}
+
+.trend-indicator.stable {
+  background-color: rgba(66, 133, 244, 0.1);
+  color: #4285F4;
+}
+
+.trend-indicator.fluctuating {
+  background-color: rgba(251, 188, 5, 0.1);
+  color: #FBBC05;
+}
+
+.trend-indicator.neutral {
+  background-color: rgba(95, 99, 104, 0.1);
+  color: #5F6368;
+}
+
+.trend-indicator i {
+  margin-right: 5px;
+}
+
+/* Quiz list table */
+.quiz-list {
+  margin-top: 10px;
+  overflow-x: auto;
+}
+
+.quiz-list-toggle {
+  cursor: pointer;
+  color: #1a73e8;
+  font-size: 14px;
+  margin-top: 10px;
+  display: inline-block;
+}
+
+.quiz-list-toggle:hover {
+  text-decoration: underline;
+}
+
+.quiz-list-toggle i {
+  margin-right: 5px;
+  transition: transform 0.2s ease;
+}
+
+.quiz-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.quiz-table th {
+  background-color: #f8f9fa;
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+  color: #5f6368;
+}
+
+.quiz-table td {
+  padding: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.quiz-table tr:last-child td {
+  border-bottom: none;
+}
+
+.quiz-table tr:hover {
+  background-color: #f5f7fa;
 }
 
 /* Class Performance Section */
@@ -408,8 +576,8 @@ canvas {
 }
 
 .class-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
 }
 
 .class-card-header {
@@ -429,6 +597,10 @@ canvas {
   font-size: 18px;
   font-weight: 700;
   color: var(--primary-color);
+  padding: 5px 10px;
+  border-radius: 12px;
+  background-color: rgba(52, 168, 83, 0.1);
+  color: #34A853;
 }
 
 .class-card-details {
@@ -448,19 +620,26 @@ canvas {
   margin-top: 10px;
 }
 
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #5f6368;
+  margin-bottom: 5px;
+}
+
 .class-progress-bar {
-  height: 6px;
-  background-color: #e0e0e0;
-  border-radius: 3px;
-  margin-top: 4px;
+  height: 8px;
+  background-color: #f1f3f4;
+  border-radius: 4px;
   overflow: hidden;
 }
 
 .class-progress-fill {
   height: 100%;
-  background-color: var(--primary-color);
-  border-radius: 3px;
-  transition: width 1s ease;
+  background-color: #1a73e8;
+  border-radius: 4px;
+  transition: width 0.5s ease;
 }
 
 /* Tab System */

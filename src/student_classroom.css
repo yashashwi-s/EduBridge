@@ -1869,3 +1869,40 @@ button,
     flex: 1;
   }
 }
+
+/* Add styles for quiz error messages and retry button */
+.no-quizzes {
+  text-align: center;
+  padding: 30px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin: 20px 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.no-quizzes i {
+  font-size: 32px;
+  color: #ea4335;
+  margin-bottom: 10px;
+}
+
+.no-quizzes p {
+  color: #5f6368;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+.retry-btn {
+  background-color: #1a73e8;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.retry-btn:hover {
+  background-color: #1765cc;
+}

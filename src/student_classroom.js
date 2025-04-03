@@ -41,6 +41,15 @@ document.addEventListener('DOMContentLoaded', function () {
       tabContents.forEach(content => content.classList.remove('active'));
       button.classList.add('active');
       document.getElementById(tabId).classList.add('active');
+      
+      // If switching to quizzes tab, reload quizzes to ensure they're up to date
+      if (tabId === 'quizzes') {
+        // Only reload if the quiz tab exists and we have a classroom ID
+        if (document.getElementById('quizzes') && classroomId) {
+          console.log('Switching to quizzes tab, reloading quizzes');
+          loadStudentQuizzes();
+        }
+      }
     });
   });
 
@@ -1063,7 +1072,15 @@ document.addEventListener('DOMContentLoaded', function () {
     
     quizList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading quizzes...</div>';
     
-    // Fetch quizzes from the database
+    // Keep track of attempts to load quizzes
+    let attemptCount = 0;
+    const maxAttempts = 3;
+    
+    function attemptLoadQuizzes() {
+      attemptCount++;
+      console.log(`Attempt ${attemptCount} to load quizzes`);
+      
+      // Try multiple approaches to get quizzes - the student-specific endpoint first
     fetch(`/api/classrooms/${classroomId}/quizzes/student`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('access_token')}`
@@ -1071,30 +1088,217 @@ document.addEventListener('DOMContentLoaded', function () {
     })
       .then(response => {
         if (!response.ok) {
-          throw new Error('Failed to fetch quizzes');
+            // If the student endpoint fails, try the general quizzes endpoint as fallback
+            if (attemptCount < maxAttempts) {
+              console.warn('Failed to fetch student quizzes, trying general quizzes endpoint');
+              return Promise.reject('Try alternative endpoint');
+            }
+            throw new Error(`Server returned ${response.status}: ${response.statusText}`);
         }
         return response.json();
       })
       .then(data => {
-        // Mark all quizzes as having server-provided status
-        data.forEach(quiz => {
+          // Successfully got data, process it
+          processQuizData(data);
+        })
+        .catch(error => {
+          if (error === 'Try alternative endpoint') {
+            // Try alternative endpoint to get quizzes
+            return fetch(`/api/classrooms/${classroomId}`, {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+              }
+            })
+              .then(response => {
+                if (!response.ok) {
+                  throw new Error('Failed to fetch classroom data');
+                }
+                return response.json();
+              })
+              .then(classroomData => {
+                // Extract quizzes from classroom data if available
+                if (classroomData && classroomData.quizzes && classroomData.quizzes.length > 0) {
+                  console.log('Successfully fetched quizzes from classroom data');
+                  processQuizData(classroomData.quizzes);
+                } else if (attemptCount < maxAttempts) {
+                  // Try third approach - get all quizzes
+                  return fetch(`/api/classrooms/${classroomId}/quizzes`, {
+                    headers: {
+                      'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                    }
+                  })
+                    .then(response => {
+                      if (!response.ok) {
+                        throw new Error('Failed to fetch all quizzes');
+                      }
+                      return response.json();
+                    })
+                    .then(quizzesData => {
+                      console.log('Successfully fetched quizzes from general endpoint');
+                      processQuizData(quizzesData);
+                    })
+                    .catch(finalError => {
+                      console.error('All attempts to fetch quizzes failed:', finalError);
+                      showNoQuizzesMessage();
+                    });
+                } else {
+                  showNoQuizzesMessage();
+                }
+              })
+              .catch(altError => {
+                console.error('Error fetching from alternative endpoints:', altError);
+                showNoQuizzesMessage();
+              });
+          } else {
+            console.error('Error loading quizzes:', error);
+            showNoQuizzesMessage();
+          }
+        });
+    }
+    
+    function showNoQuizzesMessage() {
+      quizList.innerHTML = `
+        <div class="no-quizzes">
+          <i class="fas fa-exclamation-circle"></i>
+          <p>We're having trouble loading your quizzes. Please try refreshing the page or notify your teacher.</p>
+          <button class="retry-btn">Try Again</button>
+        </div>
+      `;
+      quizList.querySelector('.retry-btn')?.addEventListener('click', () => {
+        loadStudentQuizzes();
+      });
+    }
+    
+    function processQuizData(data) {
+      try {
+        // Debug: log the quizzes returned from the API
+        console.log('Quizzes from API:', data.quizzes || data);
+        
+        // Ensure we're working with the right data structure
+        let quizzes = [];
+        
+        // Handle various response structures
+        if (Array.isArray(data.quizzes)) {
+          quizzes = data.quizzes;
+        } else if (Array.isArray(data)) {
+          quizzes = data;
+        } else if (data.classroom && Array.isArray(data.classroom.quizzes)) {
+          quizzes = data.classroom.quizzes;
+        } else {
+          console.warn('Unexpected quiz data format', data);
+          quizzes = []; // Empty array as fallback
+        }
+        
+        // Safety check - ensure we have valid quizzes
+        if (!Array.isArray(quizzes)) {
+          console.warn('Quizzes is not an array, setting to empty array');
+          quizzes = [];
+        }
+        
+        // Make sure all quizzes have the serverProvidedStatus flag and valid studentStatus
+        quizzes = quizzes.map(quiz => {
+          // Guard against null/undefined quiz objects
+          if (!quiz) {
+            console.warn('Encountered null/undefined quiz in data');
+            return {
+              id: 'unknown-' + Math.random().toString(36).substring(2, 9),
+              title: 'Unknown Quiz',
+              description: 'This quiz has missing data',
+              startTime: new Date().toISOString(),
+              endTime: new Date(Date.now() + 86400000).toISOString(), // 24 hours from now
+              studentStatus: 'upcoming',
+              serverProvidedStatus: true
+            };
+          }
+          
+          // Ensure the quiz has a studentStatus field
+          if (!quiz.studentStatus) {
+            // Calculate status based on dates if not provided
+            try {
+              const now = new Date();
+              const startTime = new Date(quiz.startTime || Date.now());
+              const endTime = new Date(quiz.endTime || (Date.now() + 3600000)); // Default 1 hour from now
+              
+              if (now < startTime) {
+                quiz.studentStatus = 'upcoming';
+              } else if (now >= startTime && now <= endTime) {
+                quiz.studentStatus = 'available';
+              } else {
+                quiz.studentStatus = 'missed';
+              }
+            } catch (dateError) {
+              console.warn('Error calculating quiz dates:', dateError);
+              quiz.studentStatus = 'upcoming'; // Default fallback
+            }
+          }
+          
+          // If a submission exists, mark as completed/submitted
+          if (quiz.hasSubmitted || quiz.submitted) {
+            quiz.studentStatus = 'submitted';
+          }
+          
+          // Ensure all needed fields have defaults
+          quiz.id = quiz.id || quiz._id || ('unknown-' + Math.random().toString(36).substring(2, 9));
+          quiz.title = quiz.title || 'Untitled Quiz';
+          quiz.description = quiz.description || '';
+          quiz.duration = quiz.duration || 30; // Default 30 minutes
+          
+          // Both flags just to be safe
           quiz.serverProvidedStatus = true;
+          return quiz;
         });
         
-        availableQuizzes = data;
+        availableQuizzes = quizzes;
+        
+        // Apply the "all" filter by default to show everything
+        if (document.getElementById('quiz-status-filter')) {
+          document.getElementById('quiz-status-filter').value = 'all';
+        }
+        
         renderQuizzes();
-      })
-      .catch(error => {
-        console.error('Error loading quizzes:', error);
-        quizList.innerHTML = '<div class="no-quizzes">Failed to load quizzes. Please try again later.</div>';
-      });
+        
+        // Double-check to ensure quizzes are displayed
+        setTimeout(() => {
+          if (quizzes.length > 0 && document.querySelectorAll('.quiz-card').length === 0) {
+            console.log('No quizzes displayed after filter, showing all quizzes');
+            if (document.getElementById('quiz-status-filter')) {
+              document.getElementById('quiz-status-filter').value = 'all';
+            }
+            renderQuizzes();
+          }
+        }, 100);
+      } catch (processingError) {
+        console.error('Error processing quiz data:', processingError);
+        // Show error message but with the raw data to help debugging
+        quizList.innerHTML = `
+          <div class="no-quizzes">
+            <p>Error processing quiz data. Please try refreshing.</p>
+            <button class="retry-btn">Try Again</button>
+          </div>
+        `;
+        quizList.querySelector('.retry-btn')?.addEventListener('click', () => {
+          loadStudentQuizzes();
+        });
+      }
+    }
+    
+    // Start the quiz loading process
+    attemptLoadQuizzes();
   }
 
   function renderQuizzes() {
     const quizList = document.querySelector('.quiz-list');
     if (!quizList) return;
     
+    // Backup original quizzes list before applying filters
+    const originalQuizzes = [...availableQuizzes];
+    
+    // Get the selected filter value
     const filterValue = document.getElementById('quiz-status-filter')?.value || 'all';
+    console.log('Filter value:', filterValue);
+    
+    // Debug: log the quizzes we have available
+    console.log('Available quizzes before filtering:', availableQuizzes);
     
     // Filter quizzes based on selected filter
     let filteredQuizzes = [...availableQuizzes];
@@ -1110,8 +1314,20 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }
     
+    console.log('Filtered quizzes count:', filteredQuizzes.length);
+    
+    // If no quizzes match the filter, show all quizzes instead
+    if (filteredQuizzes.length === 0 && availableQuizzes.length > 0) {
+      console.log('No quizzes matched the filter, showing all quizzes');
+      filteredQuizzes = [...availableQuizzes];
+      if (document.getElementById('quiz-status-filter')) {
+        document.getElementById('quiz-status-filter').value = 'all';
+      }
+    }
+    
+    // If we still have no quizzes, show a message
     if (filteredQuizzes.length === 0) {
-      quizList.innerHTML = `<div class="no-quizzes">No ${filterValue} quizzes found.</div>`;
+      quizList.innerHTML = `<div class="no-quizzes">No quizzes found for this classroom.</div>`;
       return;
     }
     
@@ -1122,16 +1338,21 @@ document.addEventListener('DOMContentLoaded', function () {
     
     filteredQuizzes.sort((a, b) => {
       // First sort by status
-      const statusDiff = statusOrder[a.studentStatus] - statusOrder[b.studentStatus];
+      const aStatus = a.studentStatus || 'upcoming';
+      const bStatus = b.studentStatus || 'upcoming';
+      const statusDiff = (statusOrder[aStatus] || 0) - (statusOrder[bStatus] || 0);
       if (statusDiff !== 0) return statusDiff;
       
       // Then by date (newest first for available, oldest first for upcoming)
-      if (a.studentStatus === 'available' || a.studentStatus === 'completed' || a.studentStatus === 'submitted') {
+      if (aStatus === 'available' || aStatus === 'completed' || aStatus === 'submitted') {
         return new Date(b.startTime) - new Date(a.startTime);
       } else {
         return new Date(a.startTime) - new Date(b.startTime);
       }
     });
+    
+    // Debug: log the final quizzes we're displaying
+    console.log('Final quizzes to display:', filteredQuizzes);
     
     filteredQuizzes.forEach(quiz => {
       const startDate = new Date(quiz.startTime);
@@ -1156,12 +1377,15 @@ document.addEventListener('DOMContentLoaded', function () {
         'missed': 'Missed'
       };
       
+      // Default status to upcoming if not set
+      const quizStatus = quiz.studentStatus || 'upcoming';
+      
       // Check if quiz is PDF type
       const isPdfQuiz = quiz.quizType === 'pdf';
       
       let actionButton = '';
       
-      if (quiz.studentStatus === 'available') {
+      if (quizStatus === 'available') {
         if (isPdfQuiz) {
           // For PDF quizzes, add download and upload buttons
           const token = localStorage.getItem('access_token');
@@ -1181,11 +1405,11 @@ document.addEventListener('DOMContentLoaded', function () {
           // For regular quizzes, change to directly start the quiz instead of showing instructions
           actionButton = `<button class="start-quiz-direct-btn" data-quiz-id="${quiz.id}"><i class="fas fa-play"></i> Take Quiz</button>`;
         }
-      } else if (quiz.studentStatus === 'upcoming') {
+      } else if (quizStatus === 'upcoming') {
         actionButton = `<button class="take-quiz-btn disabled-btn" disabled><i class="fas fa-clock"></i> Not Available Yet</button>`;
-      } else if (quiz.studentStatus === 'completed' || quiz.studentStatus === 'submitted') {
+      } else if (quizStatus === 'completed' || quizStatus === 'submitted') {
         actionButton = `<button class="view-results-btn" data-quiz-id="${quiz.id}"><i class="fas fa-chart-bar"></i> View Results</button>`;
-      } else if (quiz.studentStatus === 'missed') {
+      } else if (quizStatus === 'missed') {
         actionButton = `<button class="missed-quiz-btn disabled-btn" disabled><i class="fas fa-times-circle"></i> Missed</button>`;
       }
       
@@ -1198,17 +1422,17 @@ document.addEventListener('DOMContentLoaded', function () {
           <div class="quiz-card-header">
             <div class="quiz-card-title">
               <h3>${quiz.title}</h3>
-              <p>${quiz.description}</p>
+              <p>${quiz.description || ''}</p>
             </div>
           </div>
           <div class="quiz-card-meta">
             <span class="meta-item"><i class="fas fa-calendar-check"></i> ${formattedDate} - ${formattedTime}</span>
-            <span class="meta-item"><i class="fas fa-clock"></i> ${quiz.duration} minutes</span>
+            <span class="meta-item"><i class="fas fa-clock"></i> ${quiz.duration || 'N/A'} minutes</span>
             <span class="meta-item">
               ${quiz.quizType === 'pdf' ? '<i class="fas fa-file-pdf"></i>' : '<i class="fas fa-question-circle"></i>'} 
               ${quiz.questions && quiz.questions.length ? `${quiz.questions.length} Questions` : isPdfQuiz ? 'PDF Quiz' : 'N/A'}
             </span>
-            <span class="quiz-status-badge status-${quiz.studentStatus === 'submitted' ? 'completed' : quiz.studentStatus}">${statusLabels[quiz.studentStatus]}</span>
+            <span class="quiz-status-badge status-${quizStatus === 'submitted' ? 'completed' : quizStatus}">${statusLabels[quizStatus] || 'Unknown'}</span>
           </div>
           <div class="quiz-card-actions">
             ${actionButton}
