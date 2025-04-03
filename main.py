@@ -3200,6 +3200,7 @@ def get_submission_extracted_text(classroom_id, quiz_id, student_id):
     """
     user_id = get_jwt_identity()
     
+    # Check if user is a teacher for this classroom or the student who submitted
     is_teacher = False
     is_owner = (user_id == student_id)
     
@@ -3637,7 +3638,7 @@ def auto_grade_submission(quiz, submission):
     
     # Initialize grading
     total_score = 0
-    max_score = 100
+    max_score = 0
     graded_questions = {}
     question_grading_results = []
     
