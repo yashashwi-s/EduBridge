@@ -616,23 +616,30 @@ def chat():
         # Use a chat session for multi-turn conversation.
         global chat_sessions
         if user_id not in chat_sessions:
-            # Create and store a new chat session with appropriate system instructions.
-            chat_sessions[user_id] = gemini_model.generate_content(
-                prompt=query,
-                config=genai.GenerationConfig(
-                    temperature=0.3,
-                    system_instruction=(
-                        "You are an AI academic assistant. Answer the user's doubt clearly and concisely."
-                        "If User asks for navigation help, give them clear instructions to switch to navigate function of the chatbot."
-                        "If User asks for non-academic help, give them clear instructions to be diligent to their studies."
-                        )
-                )
-            )
-        chat = chat_sessions[user_id]
-        try:
-            answer = chat.text
-        except Exception as e:
-            answer = f"Error occurred: {str(e)}"
+            # Define system instruction for the doubt function
+            system_instruction = "You are an AI academic assistant. Answer the user's doubt clearly and concisely. If the user asks for navigation help, instruct them to use the 'navigate' function. If they ask non-academic questions, gently guide them back to their studies."
+            # Create and store a new chat session using start_chat
+            # Initialize with system instructions and first user query
+            chat_sessions[user_id] = gemini_model.start_chat(history=[
+                {'role': 'user', 'parts': [system_instruction]},
+                {'role': 'model', 'parts': ["Understood. I am ready to help with academic doubts."]}
+            ])
+            chat = chat_sessions[user_id]
+            try:
+                # Send the first user query
+                response = chat.send_message(query)
+                answer = response.text
+            except Exception as e:
+                answer = f"Error occurred: {str(e)}"
+        else:
+            # Retrieve existing chat session
+            chat = chat_sessions[user_id]
+            try:
+                # Send the new query to the existing chat session
+                response = chat.send_message(query) # Send the new query
+                answer = response.text             # Get the text from the new response
+            except Exception as e:
+                answer = f"Error occurred: {str(e)}"
     elif function_type == "navigate":
         # Stateless call for navigation assistance.
         if user_role == "student":
@@ -662,13 +669,16 @@ def chat():
             )
         config = genai.GenerationConfig(
             temperature=0.3,
-            system_instruction=system_instruction
         )
         try:
-            answer = gemini_pro_vision.generate_content(
-                prompt=query,
-                config=config
+            # Using gemini_model instead of gemini_pro_vision as vision model requires images
+            # Also passing system instruction directly if needed, or pre-pending to query
+            # For now, let's just remove it to fix the immediate error
+            answer = gemini_model.generate_content( 
+                contents=[system_instruction, query],
+                generation_config=config
             )
+            answer = answer.text # Get text from the response object
         except Exception as e:
             answer = f"Error occurred: {str(e)}"
     else:
