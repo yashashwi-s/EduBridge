@@ -124,12 +124,12 @@ const fields = [
   { id: 'teacherOrg', validate: (val) => val.length >= 2 },
   { id: 'teacherEmail', validate: validateEmail },
   { id: 'teacherPhone', validate: validatePhone },
-  { id: 'teacherProfileImage', validate: validateImage, optional: true },
+  // { id: 'teacherProfileImage', validate: validateImage, optional: true }, // Removed
   { id: 'studentName', validate: (val) => val.length >= 3 },
   { id: 'studentOrg', validate: (val) => val.length >= 2 },
   { id: 'studentEmail', validate: validateEmail },
   { id: 'studentPhone', validate: validatePhone },
-  { id: 'studentProfileImage', validate: validateImage, optional: true }
+  // { id: 'studentProfileImage', validate: validateImage, optional: true } // Removed
 ];
 
 fields.forEach(field => {
@@ -168,9 +168,9 @@ fields.forEach(field => {
   });
 });
 
-// Setup image preview functionality
-setupImagePreview('teacherProfileImage', 'teacherImagePreview');
-setupImagePreview('studentProfileImage', 'studentImagePreview');
+// Setup image preview functionality - REMOVED
+// setupImagePreview('teacherProfileImage', 'teacherImagePreview');
+// setupImagePreview('studentProfileImage', 'studentImagePreview');
 }
 
 function validateURL(url) {
@@ -305,7 +305,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const password = document.getElementById('teacherPassword').value;
     const institution = document.getElementById('teacherOrg').value;
     const phoneNumber = document.getElementById('teacherPhone').value;
-    const profileImage = document.getElementById('teacherProfileImage');
     
     // Check if all required fields are valid
     if (!name || !email || !password || !institution || !phoneNumber) {
@@ -320,8 +319,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     try {
-      // Convert image to base64 if provided
-      const profileImageBase64 = await getBase64Image(profileImage);
+
       
       // Send signup request
       const response = await fetch('/api/signup', {
@@ -333,7 +331,6 @@ document.addEventListener('DOMContentLoaded', function() {
           password: password,
           institution: institution,
           phone: phoneNumber,
-          profileImage: profileImageBase64,
           userType: 'teacher'
         })
       });
@@ -364,7 +361,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const password = document.getElementById('studentPassword').value;
     const institution = document.getElementById('studentOrg').value;
     const phoneNumber = document.getElementById('studentPhone').value;
-    const profileImage = document.getElementById('studentProfileImage');
     
     // Check if all required fields are valid
     if (!name || !email || !password || !institution || !phoneNumber) {
@@ -379,8 +375,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     try {
-      // Convert image to base64 if provided
-      const profileImageBase64 = await getBase64Image(profileImage);
+      // Convert image to base64 if provided - REMOVED
+      // const profileImageBase64 = await getBase64Image(profileImage);
       
       // Send signup request
       const response = await fetch('/api/signup', {
@@ -392,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function() {
           password: password,
           institution: institution,
           phone: phoneNumber,
-          profileImage: profileImageBase64,
+          // profileImage: profileImageBase64, // Removed
           userType: 'student'
         })
       });
@@ -412,77 +408,3 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 });
-
-// Function to validate image files
-function validateImage(value) {
-  if (!value) return true; // Optional
-  
-  // If it's a DOM element (file input), check the files property
-  if (value.files && value.files[0]) {
-    const file = value.files[0];
-    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    
-    // Check file type and size
-    return validTypes.includes(file.type) && file.size <= maxSize;
-  }
-  
-  return false;
-}
-
-// Function to setup image preview
-function setupImagePreview(inputId, previewId) {
-  const input = document.getElementById(inputId);
-  const preview = document.getElementById(previewId);
-  
-  if (!input || !preview) return;
-  
-  input.addEventListener('change', function() {
-    // Clear previous preview
-    preview.innerHTML = '';
-    
-    if (this.files && this.files[0]) {
-      const file = this.files[0];
-      
-      // Validate file
-      if (!validateImage(this)) {
-        showNotification('Please select a valid image (JPG, PNG, GIF) under 5MB', 'error');
-        this.value = '';
-        return;
-      }
-      
-      // Create preview
-      const img = document.createElement('img');
-      img.className = 'image-preview';
-      
-      // Set up file reader to load the image
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        img.src = e.target.result;
-        preview.appendChild(img);
-      };
-      
-      // Read the file as data URL
-      reader.readAsDataURL(file);
-      
-      // Mark input as valid
-      const formControl = input.closest('.form-control');
-      formControl.classList.add('valid');
-    }
-  });
-}
-
-// Function to convert file to base64
-function getBase64Image(fileInput) {
-  return new Promise((resolve, reject) => {
-    if (!fileInput.files || !fileInput.files[0]) {
-      resolve(null);
-      return;
-    }
-    
-    const reader = new FileReader();
-    reader.onload = (e) => resolve(e.target.result);
-    reader.onerror = (e) => reject(e);
-    reader.readAsDataURL(fileInput.files[0]);
-  });
-}

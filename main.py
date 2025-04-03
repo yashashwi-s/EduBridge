@@ -710,7 +710,7 @@ def api_signup():
         "department": data.get("department", ""),
         "title": data.get("title", ""),
         "bio": data.get("bio", ""),
-        "profileImage": data.get("profileImage", ""),
+        # "profileImage": data.get("profileImage", ""), # Removed
         "userType": data.get("userType"),
         "createdAt": datetime.utcnow()
     }
