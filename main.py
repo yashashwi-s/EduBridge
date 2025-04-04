@@ -73,15 +73,46 @@ def pdf_to_images(pdf_bytes):
 load_dotenv()
 app = Flask(__name__, template_folder="src", static_folder="src", static_url_path="")
 app.json_encoder = MongoJSONEncoder
+
+# Debug logging for API key
+print("\n=== Gemini API Configuration Debug ===")
+print("Current working directory:", os.getcwd())
+print("Checking .env file exists:", os.path.exists(".env"))
+if os.path.exists(".env"):
+    with open(".env", "r") as f:
+        env_contents = f.read()
+        print("Number of lines in .env:", len(env_contents.splitlines()))
+
+# Force reload environment variables
+load_dotenv(override=True)
+
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+print(f"API Key loaded from .env: {'Yes' if GEMINI_API_KEY else 'No'}")
+print(f"API Key length: {len(GEMINI_API_KEY) if GEMINI_API_KEY else 0}")
+print(f"First 4 chars of API key: {GEMINI_API_KEY[:4] if GEMINI_API_KEY else 'None'}")
+print("=====================================\n")
+
 if not GEMINI_API_KEY:
     raise Exception("GEMINI_API_KEY not set in .env file")
 
-# Configure the Gemini API
-genai.configure(api_key=GEMINI_API_KEY)
-# Initialize the model
-gemini_model = genai.GenerativeModel('gemini-2.0-flash')
-gemini_pro_vision = genai.GenerativeModel('gemini-2.0-flash')
+if not GEMINI_API_KEY.startswith("AIza"):
+    raise Exception("Invalid GEMINI_API_KEY format. Should start with 'AIza'")
+
+try:
+    # Configure the Gemini API with debug mode
+    print("Attempting to configure Gemini API...")
+    genai.configure(api_key=GEMINI_API_KEY, transport="rest")
+    # Initialize the model
+    gemini_model = genai.GenerativeModel('gemini-2.0-flash')
+    gemini_pro_vision = genai.GenerativeModel('gemini-2.0-flash')
+
+    # Test the API connection
+    print("Testing API connection...")
+    response = gemini_model.generate_content("Hello, Gemini!")
+    print("API connection test successful.")
+except Exception as e:
+    print(f"Error configuring Gemini API: {e}")
+    raise
 
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-key")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
@@ -3918,7 +3949,7 @@ def get_student_quizzes(classroom_id):
                         student_quiz["submittedAt"] = submission.get("endTime")
                         student_quiz["score"] = submission.get("score", 0)
                         student_quiz["maxScore"] = submission.get("maxScore", 0)
-                        student_quiz["percentage"] = round((submission.get("score", 0) / submission.get("maxScore", 1)) * 100, 1)
+                        student_quiz["percentage"] = round((submission.get("score", 0) / submission.get("maxScore", 1)) * 100, 1) if submission.get("maxScore", 0) > 0 else 0
                         
                         # For PDF quizzes, add grading status
                         if quiz_type == "pdf":
