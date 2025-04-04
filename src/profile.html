@@ -33,54 +33,51 @@
 
       <!-- Profile Main -->
       <div class="profile-main">
-        <!-- Performance Overview Card -->
+        <!-- Performance Summary Cards -->
         <div class="info-card">
-          <h3 class="card-title"><i class="fas fa-chart-line"></i> Performance Overview</h3>
+          <h3 class="card-title"><i class="fas fa-chart-pie"></i> Performance Summary</h3>
+          <div class="performance-summary">
+            <!-- Summary cards will be inserted here by JS -->
+            <div class="loading-spinner"></div>
+          </div>
+        </div>
+        
+        <!-- Performance Analytics Card -->
+        <div class="info-card">
+          <h3 class="card-title"><i class="fas fa-chart-line"></i> Performance Analytics</h3>
           <div class="tab-container">
             <div class="tabs">
-              <div class="tab active" data-tab="overall">Overall</div>
-              <div class="tab" data-tab="classes">Class-wise</div>
-              <div class="tab" data-tab="trends">Trends</div>
+              <div class="tab active" data-tab="overall">Quiz Performance</div>
+              <div class="tab" data-tab="classes">Class Overview</div>
             </div>
-            <!-- Overall Performance Tab -->
+            
+            <!-- Quiz Performance Tab -->
             <div class="tab-content active" id="overall-tab">
               <div class="chart-container">
-                <canvas id="performanceChart" width="400" height="200"></canvas>
+                <canvas id="performanceChart" width="400" height="300"></canvas>
               </div>
             </div>
-            <!-- Class-wise Performance Tab -->
+            
+            <!-- Class Overview Tab -->
             <div class="tab-content" id="classes-tab">
               <div class="class-performance">
-                <div class="class-card">
-                  <div class="class-card-header">
-                    <div class="class-card-title">Physics 101</div>
-                    <div class="class-card-grade">A-</div>
-                  </div>
-                  <div class="class-card-details">
-                    <i class="fas fa-user-tie"></i> Dr. Albert Einstein
-                  </div>
-                  <div class="class-card-details">
-                    <i class="fas fa-chart-bar"></i> Current Score: 92%
-                  </div>
-                  <div class="class-progress-container">
-                    <div class="progress-label">Course Completion: 75%</div>
-                    <div class="class-progress-bar">
-                      <div class="class-progress-fill" style="width: 75%"></div>
-                    </div>
-                  </div>
-                </div>
-                <!-- Additional class cards can be added dynamically -->
-              </div>
-            </div>
-            <!-- Trends Tab -->
-            <div class="tab-content" id="trends-tab">
-              <div class="chart-container">
-                <canvas id="trendsChart" width="400" height="200"></canvas>
+                <!-- Class cards will be inserted here by JS -->
+                <div class="loading-spinner"></div>
               </div>
             </div>
           </div>
         </div>
-        <!-- Achievements Card (static for now) -->
+        
+        <!-- Recent Quizzes Card -->
+        <div class="info-card">
+          <h3 class="card-title"><i class="fas fa-history"></i> Recent Quizzes</h3>
+          <div class="recent-quizzes">
+            <!-- Recent quiz cards will be inserted here by JS -->
+            <div class="loading-spinner"></div>
+          </div>
+        </div>
+        
+        <!-- Achievements Card -->
         <div class="info-card">
           <h3 class="card-title"><i class="fas fa-award"></i> Achievements</h3>
           <div class="class-performance">

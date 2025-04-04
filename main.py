@@ -4220,6 +4220,424 @@ def submit_quiz(classroom_id, quiz_id):
         print(f"Traceback: {error_traceback}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
+@app.route("/api/student/analytics", methods=["GET"])
+@jwt_required()
+def get_student_analytics():
+    """Get comprehensive analytics for a student across all classrooms and quizzes"""
+    user_id = get_jwt_identity()
+    user_obj_id = ObjectId(user_id)
+    
+    try:
+        # Get all classrooms where student is enrolled
+        classrooms = list(classrooms_collection.find({"enrolled_students": user_obj_id}))
+        
+        # Initialize analytics data
+        analytics = {
+            "overall": {
+                "totalQuizzes": 0,
+                "quizzesAttempted": 0,
+                "averageScore": 0,
+                "highestScore": 0,
+                "lowestScore": 100,
+                "quizzesByType": {"pdf": 0, "question": 0},
+                "performanceByMonth": {},
+                "rankHistory": []
+            },
+            "classroomWise": {},
+            "recentQuizzes": [],
+            "performanceTrends": {
+                "monthly": [],
+                "bySubject": {},
+                "byQuizType": {"pdf": [], "question": []}
+            }
+        }
+        
+        total_score = 0
+        total_attempted = 0
+        
+        # Process each classroom
+        for classroom in classrooms:
+            classroom_id = str(classroom["_id"])
+            classroom_name = classroom.get("className", "Unnamed Class")
+            subject = classroom.get("subject", "No Subject")
+            
+            classroom_analytics = {
+                "className": classroom_name,
+                "subject": subject,
+                "totalQuizzes": 0,
+                "attempted": 0,
+                "averageScore": 0,
+                "highestScore": 0,
+                "quizzes": []
+            }
+            
+            # Process quizzes in this classroom
+            for quiz in classroom.get("quizzes", []):
+                if not quiz.get("published", True):
+                    continue
+                    
+                quiz_id = str(quiz["id"])
+                quiz_type = quiz.get("quizType", "question")
+                analytics["overall"]["quizzesByType"][quiz_type] += 1
+                classroom_analytics["totalQuizzes"] += 1
+                
+                # Find student's submission
+                submission = next((sub for sub in quiz.get("submissions", []) 
+                                if sub["student_id"] == user_obj_id), None)
+                
+                if submission:
+                    # Get submission details
+                    score = submission.get("score", 0)
+                    max_score = submission.get("maxScore", 100)
+                    percentage = round((score / max_score * 100), 1) if max_score > 0 else 0
+                    submission_time = submission.get("endTime")
+                    
+                    # Update overall stats
+                    total_score += percentage
+                    total_attempted += 1
+                    analytics["overall"]["highestScore"] = max(analytics["overall"]["highestScore"], percentage)
+                    analytics["overall"]["lowestScore"] = min(analytics["overall"]["lowestScore"], percentage)
+                    
+                    # Update classroom stats
+                    classroom_analytics["attempted"] += 1
+                    classroom_analytics["highestScore"] = max(classroom_analytics["highestScore"], percentage)
+                    
+                    # Add to recent quizzes
+                    quiz_result = {
+                        "quizId": quiz_id,
+                        "classroomId": classroom_id,
+                        "className": classroom_name,
+                        "subject": subject,
+                        "title": quiz.get("title", "Untitled Quiz"),
+                        "type": quiz_type,
+                        "score": score,
+                        "maxScore": max_score,
+                        "percentage": percentage,
+                        "submissionTime": submission_time.isoformat() if isinstance(submission_time, datetime) else submission_time,
+                        "feedback": submission.get("feedback", ""),
+                        "isGraded": submission.get("isGraded", False)
+                    }
+                    
+                    # Add detailed grading if available
+                    if submission.get("questionGradingResults"):
+                        quiz_result["detailedGrading"] = {
+                            "questionCount": len(submission["questionGradingResults"]),
+                            "questions": submission["questionGradingResults"]
+                        }
+                    
+                    classroom_analytics["quizzes"].append(quiz_result)
+                    analytics["recentQuizzes"].append(quiz_result)
+                    
+                    # Update monthly performance
+                    if submission_time:
+                        month_key = submission_time.strftime("%Y-%m") if isinstance(submission_time, datetime) else "unknown"
+                        if month_key not in analytics["overall"]["performanceByMonth"]:
+                            analytics["overall"]["performanceByMonth"][month_key] = {
+                                "totalScore": 0,
+                                "count": 0,
+                                "average": 0
+                            }
+                        month_data = analytics["overall"]["performanceByMonth"][month_key]
+                        month_data["totalScore"] += percentage
+                        month_data["count"] += 1
+                        month_data["average"] = round(month_data["totalScore"] / month_data["count"], 1)
+                    
+                    # Update subject-wise performance
+                    if subject not in analytics["performanceTrends"]["bySubject"]:
+                        analytics["performanceTrends"]["bySubject"][subject] = []
+                    analytics["performanceTrends"]["bySubject"][subject].append({
+                        "quizId": quiz_id,
+                        "title": quiz.get("title", "Untitled Quiz"),
+                        "percentage": percentage,
+                        "date": submission_time.isoformat() if isinstance(submission_time, datetime) else submission_time
+                    })
+                    
+                    # Update quiz type performance
+                    analytics["performanceTrends"]["byQuizType"][quiz_type].append({
+                        "quizId": quiz_id,
+                        "title": quiz.get("title", "Untitled Quiz"),
+                        "percentage": percentage,
+                        "date": submission_time.isoformat() if isinstance(submission_time, datetime) else submission_time
+                    })
+            
+            # Calculate classroom averages
+            if classroom_analytics["attempted"] > 0:
+                classroom_analytics["averageScore"] = round(
+                    sum(q["percentage"] for q in classroom_analytics["quizzes"]) / classroom_analytics["attempted"],
+                    1
+                )
+            
+            # Sort classroom quizzes by date
+            classroom_analytics["quizzes"].sort(
+                key=lambda x: x["submissionTime"] if isinstance(x["submissionTime"], str) else "0",
+                reverse=True
+            )
+            
+            analytics["classroomWise"][classroom_id] = classroom_analytics
+        
+        # Calculate overall statistics
+        analytics["overall"]["totalQuizzes"] = sum(c["totalQuizzes"] for c in analytics["classroomWise"].values())
+        analytics["overall"]["quizzesAttempted"] = total_attempted
+        analytics["overall"]["averageScore"] = round(total_score / total_attempted, 1) if total_attempted > 0 else 0
+        
+        # Sort recent quizzes by date
+        analytics["recentQuizzes"].sort(
+            key=lambda x: x["submissionTime"] if isinstance(x["submissionTime"], str) else "0",
+            reverse=True
+        )
+        
+        # Prepare monthly trend data
+        sorted_months = sorted(analytics["overall"]["performanceByMonth"].keys())
+        analytics["performanceTrends"]["monthly"] = [
+            {
+                "month": month,
+                "average": analytics["overall"]["performanceByMonth"][month]["average"]
+            }
+            for month in sorted_months
+        ]
+        
+        # Calculate and sort rankings for each quiz
+        for classroom_id, classroom_data in analytics["classroomWise"].items():
+            for quiz in classroom_data["quizzes"]:
+                # Get all submissions for this quiz
+                classroom = classrooms_collection.find_one({"_id": ObjectId(classroom_id)})
+                if not classroom:
+                    continue
+                    
+                quiz_obj = next((q for q in classroom.get("quizzes", []) if str(q["id"]) == quiz["quizId"]), None)
+                if not quiz_obj:
+                    continue
+                    
+                # Calculate rankings
+                submissions = quiz_obj.get("submissions", [])
+                sorted_submissions = sorted(
+                    submissions,
+                    key=lambda x: (x.get("score", 0) / x.get("maxScore", 1)) if x.get("maxScore", 0) > 0 else 0,
+                    reverse=True
+                )
+                
+                # Find student's rank
+                student_rank = next((i + 1 for i, sub in enumerate(sorted_submissions)
+                                  if sub["student_id"] == user_obj_id), None)
+                
+                if student_rank:
+                    quiz["rank"] = student_rank
+                    quiz["totalParticipants"] = len(sorted_submissions)
+                    
+                    # Add to rank history
+                    analytics["overall"]["rankHistory"].append({
+                        "quizId": quiz["quizId"],
+                        "title": quiz["title"],
+                        "rank": student_rank,
+                        "totalParticipants": len(sorted_submissions),
+                        "date": quiz["submissionTime"]
+                    })
+        
+        # Sort rank history by date
+        analytics["overall"]["rankHistory"].sort(
+            key=lambda x: x["date"] if isinstance(x["date"], str) else "0",
+            reverse=True
+        )
+        
+        return jsonify(analytics), 200
+        
+    except Exception as e:
+        print(f"Error generating analytics: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"msg": f"Error generating analytics: {str(e)}"}), 500
+
+@app.route("/api/classrooms/<classroom_id>/analytics", methods=["GET"])
+@jwt_required()
+def get_classroom_analytics(classroom_id):
+    """Get detailed analytics for a specific classroom"""
+    user_id = get_jwt_identity()
+    
+    try:
+        # Get classroom and validate access
+        classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id)
+        if error:
+            return error
+            
+        is_teacher = classroom["teacher_id"] == ObjectId(user_id)
+        
+        # Initialize analytics
+        analytics = {
+            "overview": {
+                "totalStudents": len(classroom.get("enrolled_students", [])),
+                "totalQuizzes": len(classroom.get("quizzes", [])),
+                "averageParticipation": 0,
+                "averageScore": 0
+            },
+            "quizzes": [],
+            "studentPerformance": [] if is_teacher else None,
+            "participationTrend": [],
+            "scoreTrend": [],
+            "quizTypeDistribution": {"pdf": 0, "question": 0}
+        }
+        
+        total_participation = 0
+        total_score = 0
+        total_submissions = 0
+        
+        # Process each quiz
+        for quiz in classroom.get("quizzes", []):
+            quiz_id = str(quiz["id"])
+            quiz_type = quiz.get("quizType", "question")
+            submissions = quiz.get("submissions", [])
+            
+            # Update quiz type count
+            analytics["quizTypeDistribution"][quiz_type] += 1
+            
+            # Calculate quiz statistics
+            participation_rate = len(submissions) / analytics["overview"]["totalStudents"] if analytics["overview"]["totalStudents"] > 0 else 0
+            total_participation += participation_rate
+            
+            quiz_scores = []
+            for submission in submissions:
+                score = submission.get("score", 0)
+                max_score = submission.get("maxScore", 100)
+                percentage = round((score / max_score * 100), 1) if max_score > 0 else 0
+                quiz_scores.append(percentage)
+                total_score += percentage
+                total_submissions += 1
+            
+            avg_score = round(sum(quiz_scores) / len(quiz_scores), 1) if quiz_scores else 0
+            
+            # Create quiz analytics
+            quiz_analytics = {
+                "quizId": quiz_id,
+                "title": quiz.get("title", "Untitled Quiz"),
+                "type": quiz_type,
+                "participationRate": round(participation_rate * 100, 1),
+                "averageScore": avg_score,
+                "submissionCount": len(submissions),
+                "scoreDistribution": {
+                    "90-100": len([s for s in quiz_scores if s >= 90]),
+                    "80-89": len([s for s in quiz_scores if 80 <= s < 90]),
+                    "70-79": len([s for s in quiz_scores if 70 <= s < 80]),
+                    "60-69": len([s for s in quiz_scores if 60 <= s < 70]),
+                    "below-60": len([s for s in quiz_scores if s < 60])
+                }
+            }
+            
+            # Add detailed question analysis for teachers
+            if is_teacher and "questionGradingResults" in quiz:
+                question_analysis = {}
+                for submission in submissions:
+                    if "questionGradingResults" in submission:
+                        for result in submission["questionGradingResults"]:
+                            q_num = result["questionNumber"]
+                            if q_num not in question_analysis:
+                                question_analysis[q_num] = {
+                                    "totalScore": 0,
+                                    "attempts": 0,
+                                    "averageScore": 0
+                                }
+                            question_analysis[q_num]["totalScore"] += result.get("score", 0)
+                            question_analysis[q_num]["attempts"] += 1
+                
+                # Calculate averages
+                for q_num in question_analysis:
+                    attempts = question_analysis[q_num]["attempts"]
+                    if attempts > 0:
+                        question_analysis[q_num]["averageScore"] = round(
+                            question_analysis[q_num]["totalScore"] / attempts,
+                            1
+                        )
+                
+                quiz_analytics["questionAnalysis"] = question_analysis
+            
+            analytics["quizzes"].append(quiz_analytics)
+            
+            # Add to trends
+            analytics["participationTrend"].append({
+                "quizId": quiz_id,
+                "title": quiz.get("title", "Untitled Quiz"),
+                "participation": round(participation_rate * 100, 1),
+                "date": quiz.get("startTime", "").isoformat() if isinstance(quiz.get("startTime"), datetime) else quiz.get("startTime", "")
+            })
+            
+            analytics["scoreTrend"].append({
+                "quizId": quiz_id,
+                "title": quiz.get("title", "Untitled Quiz"),
+                "averageScore": avg_score,
+                "date": quiz.get("startTime", "").isoformat() if isinstance(quiz.get("startTime"), datetime) else quiz.get("startTime", "")
+            })
+        
+        # Calculate overall statistics
+        quiz_count = len(classroom.get("quizzes", []))
+        if quiz_count > 0:
+            analytics["overview"]["averageParticipation"] = round((total_participation / quiz_count) * 100, 1)
+        
+        if total_submissions > 0:
+            analytics["overview"]["averageScore"] = round(total_score / total_submissions, 1)
+        
+        # For teachers, add student performance analysis
+        if is_teacher:
+            student_performance = {}
+            
+            # Process each student's performance
+            for student_id in classroom.get("enrolled_students", []):
+                student = users_collection.find_one({"_id": student_id})
+                if not student:
+                    continue
+                    
+                student_data = {
+                    "studentId": str(student_id),
+                    "name": student.get("fullName", "Unknown Student"),
+                    "email": student.get("email", ""),
+                    "quizzesAttempted": 0,
+                    "averageScore": 0,
+                    "totalScore": 0,
+                    "quizScores": []
+                }
+                
+                # Get student's submissions across all quizzes
+                for quiz in classroom.get("quizzes", []):
+                    submission = next((sub for sub in quiz.get("submissions", [])
+                                    if sub["student_id"] == student_id), None)
+                    
+                    if submission:
+                        score = submission.get("score", 0)
+                        max_score = submission.get("maxScore", 100)
+                        percentage = round((score / max_score * 100), 1) if max_score > 0 else 0
+                        
+                        student_data["quizzesAttempted"] += 1
+                        student_data["totalScore"] += percentage
+                        student_data["quizScores"].append({
+                            "quizId": str(quiz["id"]),
+                            "title": quiz.get("title", "Untitled Quiz"),
+                            "score": score,
+                            "maxScore": max_score,
+                            "percentage": percentage,
+                            "submissionTime": submission.get("endTime", "").isoformat() if isinstance(submission.get("endTime"), datetime) else submission.get("endTime", "")
+                        })
+                
+                if student_data["quizzesAttempted"] > 0:
+                    student_data["averageScore"] = round(
+                        student_data["totalScore"] / student_data["quizzesAttempted"],
+                        1
+                    )
+                
+                analytics["studentPerformance"].append(student_data)
+            
+            # Sort student performance by average score
+            analytics["studentPerformance"].sort(
+                key=lambda x: x["averageScore"],
+                reverse=True
+            )
+        
+        # Sort trends by date
+        analytics["participationTrend"].sort(key=lambda x: x["date"])
+        analytics["scoreTrend"].sort(key=lambda x: x["date"])
+        
+        return jsonify(analytics), 200
+        
+    except Exception as e:
+        print(f"Error generating classroom analytics: {str(e)}")
+        traceback.print_exc()
+        return jsonify({"msg": f"Error generating classroom analytics: {str(e)}"}), 500
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     host = os.environ.get("HOST", "0.0.0.0")
