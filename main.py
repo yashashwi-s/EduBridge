@@ -80,8 +80,8 @@ if not GEMINI_API_KEY:
 # Configure the Gemini API
 genai.configure(api_key=GEMINI_API_KEY)
 # Initialize the model
-gemini_model = genai.GenerativeModel('gemini-2.5-pro-exp-03-25')
-gemini_pro_vision = genai.GenerativeModel('gemini-2.5-pro-exp-03-25')
+gemini_model = genai.GenerativeModel('gemini-2.0-flash')
+gemini_pro_vision = genai.GenerativeModel('gemini-2.0-flash')
 
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "super-secret-key")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
@@ -2525,7 +2525,7 @@ def extract_text_from_pdf(pdf_bytes):
             
             # Send to Gemini 1.5 for processing
             # Initialize a Gemini-1.5 model
-            model = genai.GenerativeModel('gemini-2.5-pro-exp-03-25')
+            model = genai.GenerativeModel('gemini-2.0-flash')
             
             # Read the PDF file
             pdf_data = filepath.read_bytes()
@@ -2602,7 +2602,7 @@ def segregate_questions_by_number(extracted_text, is_question_paper=True):
         prompt += extracted_text
         
         # Initialize Gemini model
-        model = genai.GenerativeModel('gemini-2.5-pro-exp-03-25')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         
         # Call Gemini with the prompt
         response = model.generate_content(
