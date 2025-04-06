@@ -21,6 +21,7 @@ import re
 import base64
 from flask_cors import CORS
 from PIL import Image, ImageDraw
+from gridfs import GridFS
 
 # Add a custom JSON encoder to handle ObjectId and datetime
 class MongoJSONEncoder(json.JSONEncoder):
@@ -29,6 +30,10 @@ class MongoJSONEncoder(json.JSONEncoder):
             return str(obj)
         if isinstance(obj, datetime):
             return obj.isoformat()
+        if isinstance(obj, Binary):
+            return "binary_data"
+        if isinstance(obj, bytes):
+            return "bytes_data"
         return super().default(obj)
 
 # Helper function to convert MongoDB objects to JSON serializable objects
@@ -129,6 +134,9 @@ except Exception as e:
 db = client["edubridge_db"]
 users_collection = db["users"]
 classrooms_collection = db["classrooms"]
+
+# Initialize GridFS for file storage
+fs = GridFS(db)
 
 # Quiz utility functions
 # -------------------------------------------------------------------------------------
@@ -3377,26 +3385,22 @@ def process_classroom_quizzes_pdfs(classroom_id):
 @app.route("/api/classrooms/<classroom_id>/process-pdfs", methods=["POST"])
 @jwt_required()
 def process_classroom_pdfs_endpoint(classroom_id):
-    """Endpoint to trigger processing of all PDFs in a classroom's quizzes"""
-    user_id = get_jwt_identity()
-    
-    # Validate teacher access
-    classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "teacher")
-    if error:
-        return jsonify({"msg": error}), 401
-    
-    # Process PDFs
+    """Process all PDF quizzes in a classroom to extract and segregate text"""
     try:
+        # Check teacher access
+        classroom, user, error = get_classroom_and_validate_access(classroom_id, get_jwt_identity(), "teacher")
+        if error:
+            return error
+            
+        # Process all quizzes in classroom
         result = process_classroom_quizzes_pdfs(classroom_id)
         
+        # Handle different response formats
         if isinstance(result, dict):
-            # New format with detailed information
             if result.get("success", False):
                 return jsonify({
-                    "msg": result.get("message", "PDF processing completed"),
-                    "processed": result.get("processed", 0),
-                    "already_processed": result.get("already_processed", 0),
-                    "errors": result.get("errors", 0)
+                    "msg": "PDF processing completed successfully",
+                    "details": result
                 }), 200
             else:
                 return jsonify({"msg": result.get("message", "Error processing PDFs")}), 500
@@ -3410,9 +3414,6 @@ def process_classroom_pdfs_endpoint(classroom_id):
     except Exception as e:
         traceback.print_exc()
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
-
-    # Return as a list for compatibility with existing code
-    return [img]
 
 @jwt_required()
 def get_submission_extracted_text(classroom_id, quiz_id, student_id):
@@ -5001,10 +5002,10 @@ def get_enrolled_students():
                         for quiz in classroom.get("quizzes", []):
                             # Make a copy of the quiz without binary content
                             clean_quiz = {
-                                "id": quiz.get("id"),
+                                "id": str(quiz.get("id")) if isinstance(quiz.get("id"), ObjectId) else quiz.get("id"),
                                 "title": quiz.get("title", "Untitled Quiz"),
                                 "description": quiz.get("description", ""),
-                                "startTime": quiz.get("startTime"),
+                                "startTime": quiz.get("startTime").isoformat() if isinstance(quiz.get("startTime"), datetime) else quiz.get("startTime"),
                                 "duration": quiz.get("duration"),
                                 "published": quiz.get("published", False),
                                 "quizType": quiz.get("quizType", "question"),
@@ -5015,9 +5016,9 @@ def get_enrolled_students():
                             for submission in quiz.get("submissions", []):
                                 # Make a copy of the submission without binary content
                                 clean_submission = {
-                                    "student_id": submission.get("student_id"),
-                                    "startTime": submission.get("startTime"),
-                                    "endTime": submission.get("endTime"),
+                                    "student_id": str(submission.get("student_id")) if isinstance(submission.get("student_id"), ObjectId) else submission.get("student_id"),
+                                    "startTime": submission.get("startTime").isoformat() if isinstance(submission.get("startTime"), datetime) else submission.get("startTime"),
+                                    "endTime": submission.get("endTime").isoformat() if isinstance(submission.get("endTime"), datetime) else submission.get("endTime"),
                                     "score": submission.get("score"),
                                     "maxScore": submission.get("maxScore"),
                                     "percentage": submission.get("percentage", 0),
@@ -5044,6 +5045,7 @@ def get_enrolled_students():
                                 student_counts[student_id_str]["count"] += 1
                             else:
                                 # Collect all available student data
+                                created_at = student.get("createdAt", datetime.utcnow())
                                 student_data = {
                                     "id": student_id_str,
                                     "name": student.get("fullName", "Unknown"),
@@ -5053,7 +5055,7 @@ def get_enrolled_students():
                                     "phone": student.get("phone", "No phone provided"),
                                     "title": student.get("title", "Student"),
                                     "bio": student.get("bio", "No bio provided"),
-                                    "joinedAt": student.get("createdAt", datetime.utcnow())
+                                    "joinedAt": created_at.isoformat() if isinstance(created_at, datetime) else created_at
                                 }
                                 
                                 student_counts[student_id_str] = {
@@ -5086,12 +5088,14 @@ def get_enrolled_students():
                     total_quizzes = sum(len(c.get("quizzes", [])) for c in result)
                     print(f"Included {total_quizzes} quizzes in the response")
                 
-                return jsonify({
+                response_data = {
                     "classrooms": result,
                     "students": all_students,
                     "totalClassrooms": len(result),
                     "totalStudents": len(all_students)
-                }), 200
+                }
+                
+                return jsonify(response_data), 200
             else:
                 print("User is not a teacher or not found, using sample data")
         except Exception as e:
