@@ -1,0 +1,110 @@
+{% extends "student_base.html" %}
+
+{% block title %}EduBridge - To-do{% endblock %}
+
+{% block styles %}
+  <style>
+    .content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .todo-header {
+      margin-bottom: 20px;
+    }
+    
+    .todo-container {
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+    }
+    
+    .todo-list {
+      list-style-type: none;
+      padding: 0;
+    }
+    
+    .todo-item {
+      display: flex;
+      align-items: center;
+      padding: 15px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    .todo-item:last-child {
+      border-bottom: none;
+    }
+    
+    .todo-checkbox {
+      margin-right: 15px;
+    }
+    
+    .todo-details {
+      flex: 1;
+    }
+    
+    .todo-title {
+      font-weight: 500;
+      margin-bottom: 5px;
+    }
+    
+    .todo-course {
+      font-size: 0.9em;
+      color: #666;
+    }
+    
+    .todo-due {
+      font-size: 0.9em;
+      color: #f44336;
+    }
+    
+    .todo-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: #757575;
+    }
+    
+    .todo-empty i {
+      font-size: 48px;
+      margin-bottom: 10px;
+      opacity: 0.5;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="content">
+    <div class="todo-header">
+      <h1>To-do List</h1>
+      <p>Track your upcoming assignments and tasks</p>
+    </div>
+    
+    <div class="todo-container">
+      <div class="todo-empty">
+        <i class="fas fa-clipboard-check"></i>
+        <p>You're all caught up! No pending tasks.</p>
+      </div>
+      
+      <!-- This will be populated with actual todos when implemented -->
+      <ul class="todo-list" style="display: none;">
+        <li class="todo-item">
+          <input type="checkbox" class="todo-checkbox">
+          <div class="todo-details">
+            <div class="todo-title">Complete Quiz 3: Data Structures</div>
+            <div class="todo-course">CS101: Introduction to Computer Science</div>
+            <div class="todo-due">Due tomorrow at 11:59 PM</div>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+  
+  <script>
+    // Mark todo nav as active
+    document.addEventListener('DOMContentLoaded', function() {
+      document.getElementById('nav-todo').classList.add('active');
+    });
+  </script>
+{% endblock %} 

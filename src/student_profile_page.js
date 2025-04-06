@@ -1593,7 +1593,7 @@ function displayRecentQuizzes(data) {
     // Add click handler to navigate to quiz details/results (if needed)
     quizCard.addEventListener('click', () => {
       if (quiz._id) {
-        window.location.href = `quiz-results?quiz=${quiz._id}&classroom=${quiz.classroomId}`;
+        window.location.href = `quiz-results?quizId=${quiz._id}&classId=${quiz.classroomId}`;
       }
     });
     

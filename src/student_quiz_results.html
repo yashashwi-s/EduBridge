@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="student_classroom.css">
   <link rel="stylesheet" href="quiz-common.css">
+  <link rel="stylesheet" href="student_quiz_results.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
   <div class="navbar">
@@ -20,8 +22,7 @@
       <div class="profile-wrapper">
         <img src="images/image.png" alt="Profile" class="profile-icon">
         <div class="profile-dropdown">
-          <a href="/profile"><i class="fas fa-user-circle"></i> My Profile</a>
-          <a href="/settings"><i class="fas fa-cog"></i> Settings</a>
+          <a href="/profile"><i class="fas fa-user-circle"></i> Show Profile</a>
           <a href="/login"><i class="fas fa-sign-out-alt"></i> Log Out</a>
         </div>
       </div>
@@ -30,616 +31,136 @@
   
   <div class="sidebar">
     <ul>
-      <li><a href="/dashboard"><i class="fas fa-home"></i><span class="text">Dashboard</span></a></li>
-      <li><a href="/calendar"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a></li>
-      <li><a href="/courses" class="active"><i class="fas fa-book"></i><span class="text">My Courses</span></a></li>
-      <li><a href="/profile"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a></li>
-      <li><a href="/settings"><i class="fas fa-cog"></i><span class="text">Settings</span></a></li>
+      <li><a href="/dashboard" id="nav-dashboard"><i class="fas fa-home"></i><span class="text">Dashboard</span></a></li>
+      <li><a href="/calendar" id="nav-calendar"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a></li>
+      <li><a href="/todo" id="nav-todo"><i class="fas fa-check-circle"></i><span class="text">To-do</span></a></li>
+      <li><a href="/profile" id="nav-profile"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a></li>
+      <li><a href="/settings" id="nav-settings"><i class="fas fa-cog"></i><span class="text">Settings</span></a></li>
     </ul>
   </div>
+
+  <!-- Script to set active nav item -->
+  <script>
+    // Get current page path and set active nav item
+    const currentPath = window.location.pathname;
+    
+    // For quiz results, highlight dashboard since it's part of classroom flow
+    document.getElementById('nav-dashboard').classList.add('active');
+  </script>
   
   <div class="content">
     <div id="error-container"></div>
     
     <div id="loading-container" class="loading-container">
       <div class="spinner"></div>
-      <p>Loading your results...</p>
+      <p>Loading quiz results...</p>
     </div>
     
     <div id="results-container" class="quiz-container results-container" style="display: none;">
       <div class="quiz-header">
-        <h1 class="quiz-title" id="quiz-title">Quiz Results</h1>
-        <p class="quiz-description" id="quiz-description">Your quiz results are shown below.</p>
+        <div class="quiz-header-left">
+          <h1 class="quiz-title" id="quiz-title">Quiz Results</h1>
+          <p class="quiz-description" id="quiz-description">Your results for this quiz</p>
+        </div>
+        <div class="quiz-header-actions">
+          <button id="back-to-classroom" class="btn btn-outline">
+            <i class="fas fa-arrow-left"></i> Back to Classroom
+          </button>
+        </div>
       </div>
       
-      <!-- PDF Quiz Results Section -->
-      <div id="pdf-results-section" style="display: none;">
-        <div class="results-summary pdf-results">
-          <div class="score-display">
-            <div class="score-circle" id="pdf-score-circle">
-              <div class="score-value" id="pdf-score-value">Pending</div>
-            </div>
-            <div class="score-label" id="pdf-score-label">Your Score</div>
+      <div class="student-results-summary">
+        <div class="result-card">
+          <div class="result-header">
+            <h3>Your Score</h3>
           </div>
-          
-          <div class="results-meta">
-            <div class="meta-item">
-              <i class="fas fa-file-pdf"></i>
-              <span class="meta-label">Submission:</span>
-              <span class="meta-value" id="pdf-submission-name">answer.pdf</span>
-            </div>
-            <div class="meta-item">
-              <i class="fas fa-clock"></i>
-              <span class="meta-label">Submitted:</span>
-              <span class="meta-value" id="pdf-submission-time">---</span>
-            </div>
-            <div class="meta-item">
-              <i class="fas fa-check-circle"></i>
-              <span class="meta-label">Status:</span>
-              <span class="meta-value" id="pdf-grading-status">Waiting for grading</span>
-            </div>
-          </div>
-        </div>
-        
-        <div class="pdf-submission-card">
-          <h3>Your Submission</h3>
-          <div class="submission-details">
-            <div class="file-info">
-              <i class="fas fa-file-pdf"></i>
-              <span id="pdf-file-name">answer.pdf</span>
-            </div>
-            <a id="download-submission" class="btn btn-outline" target="_blank">
-              <i class="fas fa-download"></i> Download Your Submission
-            </a>
-          </div>
-          
-          <div id="graded-section" style="display: none;">
-            <div class="feedback-section">
-              <h3>Teacher's Feedback</h3>
-              <div class="feedback-container" id="feedback-container">
-                No feedback provided.
+          <div class="result-body">
+            <div class="score-display">
+              <div class="score-circle">
+                <div class="score-percentage" id="score-percentage">0%</div>
+              </div>
+              <div class="score-details">
+                <div class="score-text">
+                  <span id="score-value">0</span>/<span id="max-score">0</span> points
+                </div>
+                <div class="submission-time" id="submission-time">
+                  Submitted on: <span id="submitted-date">-</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
+        
+        <div class="result-card grading-status" id="grading-status">
+          <div class="result-header">
+            <h3>Grading Status</h3>
+          </div>
+          <div class="result-body">
+            <div class="status-icon">
+              <i class="fas fa-clipboard-check"></i>
+            </div>
+            <div class="status-text" id="status-text">Your submission has been graded</div>
+          </div>
+        </div>
       </div>
       
-      <!-- Question-based Quiz Results Section -->
-      <div id="question-results-section">
-        <div class="results-summary">
-          <div class="score-display">
-            <div class="score-circle" id="score-circle">
-              <div class="score-value" id="score-value">0%</div>
+      <div class="quiz-materials">
+        <h3>Quiz Materials</h3>
+        <div class="materials-cards">
+          <div class="material-card">
+            <div class="material-icon">
+              <i class="fas fa-file-pdf"></i>
             </div>
-            <div class="score-label">Your Score</div>
+            <div class="material-name">Question Paper</div>
+            <a id="question-paper-link" class="btn btn-outline btn-sm" target="_blank">
+              <i class="fas fa-external-link-alt"></i> View
+            </a>
           </div>
           
-          <div class="results-meta">
-            <div class="meta-item">
-              <i class="fas fa-check-circle"></i>
-              <span class="meta-label">Correct:</span>
-              <span class="meta-value" id="correct-count">0</span>
+          <div class="material-card" id="answer-submission-card">
+            <div class="material-icon">
+              <i class="fas fa-file-upload"></i>
             </div>
-            <div class="meta-item">
-              <i class="fas fa-times-circle"></i>
-              <span class="meta-label">Incorrect:</span>
-              <span class="meta-value" id="incorrect-count">0</span>
-            </div>
-            <div class="meta-item">
-              <i class="fas fa-minus-circle"></i>
-              <span class="meta-label">Unanswered:</span>
-              <span class="meta-value" id="unanswered-count">0</span>
-            </div>
-            <div class="meta-item">
-              <i class="fas fa-clock"></i>
-              <span class="meta-label">Time Taken:</span>
-              <span class="meta-value" id="time-taken">0 minutes</span>
-            </div>
+            <div class="material-name">Your Submission</div>
+            <a id="submission-link" class="btn btn-outline btn-sm" target="_blank">
+              <i class="fas fa-external-link-alt"></i> View
+            </a>
           </div>
-        </div>
-        
-        <h2 class="section-title">Detailed Results</h2>
-        <div id="questions-container" class="questions-container">
-          <!-- Questions will be rendered here -->
         </div>
       </div>
       
-      <div class="quiz-navigation">
-        <button class="btn btn-primary" id="back-to-class">
-          <i class="fas fa-arrow-left"></i> Back to Classroom
-        </button>
+      <div class="teacher-feedback" id="feedback-section" style="display: none;">
+        <h3>Teacher Feedback</h3>
+        <div class="feedback-content" id="feedback-content">
+          No feedback provided yet.
+        </div>
+      </div>
+      
+      <div class="grading-details" id="grading-details-section" style="display: none;">
+        <h3>Grading Details</h3>
+        <div class="grading-table-wrapper">
+          <table class="grading-table">
+            <thead>
+              <tr>
+                <th>Question</th>
+                <th>Your Answer</th>
+                <th>Score</th>
+              </tr>
+            </thead>
+            <tbody id="grading-details-body">
+              <!-- Grading details will be populated here -->
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
   
-  <script src="quiz-common.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      // Initialize page
-      if (!EduQuiz.initQuizPage()) return;
-      
-      // Set up event listeners
-      document.getElementById('back-to-class').addEventListener('click', function() {
-        // Get the classroom ID
-        const classroomId = EduQuiz.getClassroomId();
-        console.log('Redirecting back to classroom with ID:', classroomId);
-        
-        // Use the most reliable approach: direct navigation with parameters
-        window.location.href = `/dashboard`;
-      });
-      
-      // Fetch quiz results
-      EduQuiz.fetchQuizResults(displayResults);
-    });
-    
-    function displayResults(results) {
-      // Set quiz title and description
-      document.getElementById('quiz-title').textContent = `${results.quizTitle} - Results`;
-      document.getElementById('quiz-description').textContent = results.quizDescription || '';
-      
-      // Check quiz type and display appropriate section
-      if (results.quizType === 'pdf') {
-        displayPdfResults(results);
-      } else {
-        displayQuestionResults(results);
-      }
-      
-      // Show results container
-      EduQuiz.showLoading(false);
-    }
-    
-    function displayPdfResults(results) {
-      // Show PDF section, hide questions section
-      document.getElementById('pdf-results-section').style.display = 'block';
-      document.getElementById('question-results-section').style.display = 'none';
-      
-      // Set basic submission info
-      document.getElementById('pdf-submission-time').textContent = new Date(results.submissionDate).toLocaleString();
-      
-      // Set file name and download link if available
-      if (results.submission && results.submission.filename) {
-        const filename = results.submission.filename;
-        document.getElementById('pdf-submission-name').textContent = filename;
-        document.getElementById('pdf-file-name').textContent = filename;
-        
-        // Set download link
-        const classroomId = EduQuiz.getClassroomId();
-        const quizId = EduQuiz.getQuizId();
-        
-        // Get user ID from localStorage or JWT token
-        let userId = localStorage.getItem('user_id');
-        
-        // If user_id isn't available in localStorage, try to get it from the JWT token
-        if (!userId) {
-          const token = localStorage.getItem('access_token');
-          if (token) {
-            try {
-              // Decode JWT token to get user ID
-              const tokenParts = token.split('.');
-              if (tokenParts.length === 3) {
-                const payload = JSON.parse(atob(tokenParts[1]));
-                userId = payload.sub; // sub claim contains the user ID
-              }
-            } catch (e) {
-              console.error('Error decoding JWT token:', e);
-            }
-          }
-        }
-        
-        if (userId) {
-          console.log('Using user ID for download:', userId);
-          const token = localStorage.getItem('access_token');
-          // Use the answer-pdf endpoint instead of pdf endpoint
-          const downloadUrl = `/api/classrooms/${classroomId}/quizzes/${quizId}/submissions/${userId}/answer-pdf?token=${token}`;
-          document.getElementById('download-submission').href = downloadUrl;
-        } else {
-          console.error('User ID not available for PDF download');
-          // Show error message or disable download button
-          const downloadBtn = document.getElementById('download-submission');
-          downloadBtn.classList.add('disabled');
-          downloadBtn.removeAttribute('href');
-          downloadBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            alert('Unable to download. Please try logging out and logging back in.');
-          });
-        }
-      }
-      
-      // Check if the quiz has been graded
-      const isGraded = results.isGraded || false;
-      
-      if (isGraded) {
-        // Show score
-        const score = results.score || 0;
-        const maxScore = results.maxScore || 100;
-        const percentage = Math.round((score / maxScore) * 100);
-        
-        document.getElementById('pdf-score-value').textContent = `${percentage}%`;
-        document.getElementById('pdf-grading-status').textContent = 'Graded';
-        document.getElementById('pdf-grading-status').classList.add('graded');
-        
-        // Set score circle color based on score
-        const scoreCircle = document.getElementById('pdf-score-circle');
-        if (percentage >= 80) {
-          scoreCircle.classList.add('high-score');
-        } else if (percentage >= 60) {
-          scoreCircle.classList.add('medium-score');
-        } else {
-          scoreCircle.classList.add('low-score');
-        }
-        
-        // Show feedback section if available
-        if (results.feedback) {
-          document.getElementById('graded-section').style.display = 'block';
-          document.getElementById('feedback-container').textContent = results.feedback;
-        }
-      } else {
-        // Show pending status
-        document.getElementById('pdf-score-value').textContent = 'Pending';
-        document.getElementById('pdf-score-label').textContent = 'Waiting for grading';
-        document.getElementById('pdf-grading-status').textContent = 'Not graded yet';
-        document.getElementById('pdf-score-circle').classList.add('pending-score');
-      }
-    }
-    
-    function displayQuestionResults(results) {
-      // Show questions section, hide PDF section
-      document.getElementById('pdf-results-section').style.display = 'none';
-      document.getElementById('question-results-section').style.display = 'block';
-      
-      // Calculate and display score
-      const score = results.percentage || 0;
-      document.getElementById('score-value').textContent = `${score}%`;
-      
-      // Set score circle color based on score
-      const scoreCircle = document.getElementById('score-circle');
-      if (score >= 80) {
-        scoreCircle.classList.add('high-score');
-      } else if (score >= 60) {
-        scoreCircle.classList.add('medium-score');
-      } else {
-        scoreCircle.classList.add('low-score');
-      }
-      
-      // Display meta information
-      document.getElementById('correct-count').textContent = results.correctCount || 0;
-      document.getElementById('incorrect-count').textContent = (results.totalQuestions - results.correctCount) || 0;
-      document.getElementById('unanswered-count').textContent = results.unansweredCount || 0;
-      document.getElementById('time-taken').textContent = formatDuration(results.timeSpent * 60000); // Convert minutes to ms
-      
-      // Render questions and answers
-      if (results.questions) {
-        renderQuestions(results.questions);
-      }
-    }
-    
-    function renderQuestions(questions) {
-      const container = document.getElementById('questions-container');
-      container.innerHTML = '';
-      
-      questions.forEach((question, index) => {
-        const questionElement = document.createElement('div');
-        questionElement.className = 'question-result';
-        
-        // Question header
-        const questionHeader = document.createElement('div');
-        questionHeader.className = 'question-result-header';
-        questionHeader.innerHTML = `
-          <div class="question-number">Question ${index + 1}</div>
-          <div class="question-status">
-            ${question.isCorrect ? '<i class="fas fa-check-circle"></i> Correct' : '<i class="fas fa-times-circle"></i> Incorrect'}
-          </div>
-        `;
-        
-        // Question text
-        const questionText = document.createElement('div');
-        questionText.className = 'question-text';
-        questionText.textContent = question.text;
-        
-        // Options
-        const optionsContainer = document.createElement('div');
-        optionsContainer.className = 'answer-options';
-        
-        question.options.forEach(option => {
-          const isSelected = option.id === question.selectedOptionId;
-          const isCorrectOption = option.id === question.correctOptionId;
-          
-          const optionElement = document.createElement('div');
-          optionElement.className = `option-result ${isSelected ? 'selected' : ''} ${isCorrectOption ? 'correct-option' : ''}`;
-          
-          optionElement.innerHTML = `
-            <span class="option-text">${option.text}</span>
-            ${isSelected && isCorrectOption ? '<i class="fas fa-check"></i>' : ''}
-            ${isSelected && !isCorrectOption ? '<i class="fas fa-times"></i>' : ''}
-            ${!isSelected && isCorrectOption ? '<i class="fas fa-check"></i>' : ''}
-          `;
-          
-          optionsContainer.appendChild(optionElement);
-        });
-        
-        // Explanation if available
-        if (question.explanation) {
-          const explanation = document.createElement('div');
-          explanation.className = 'question-explanation';
-          explanation.innerHTML = `
-            <div class="explanation-title"><i class="fas fa-info-circle"></i> Explanation</div>
-            <div class="explanation-text">${question.explanation}</div>
-          `;
-          questionElement.appendChild(explanation);
-        }
-        
-        // Assemble question
-        questionElement.appendChild(questionHeader);
-        questionElement.appendChild(questionText);
-        questionElement.appendChild(optionsContainer);
-        
-        container.appendChild(questionElement);
-      });
-    }
-    
-    function formatDuration(milliseconds) {
-      const minutes = Math.floor(milliseconds / 60000);
-      const seconds = Math.floor((milliseconds % 60000) / 1000);
-      
-      if (minutes === 0) {
-        return `${seconds} seconds`;
-      } else if (minutes === 1) {
-        return `1 minute ${seconds > 0 ? `and ${seconds} seconds` : ''}`;
-      } else {
-        return `${minutes} minutes ${seconds > 0 ? `and ${seconds} seconds` : ''}`;
-      }
-    }
-  </script>
-  
-  <style>
-    .results-summary {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin-bottom: 2rem;
-      background-color: white;
-      padding: 2rem;
-      border-radius: 8px;
-      box-shadow: var(--shadow-sm);
-    }
-    
-    .score-display {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin-bottom: 1.5rem;
-    }
-    
-    .score-circle {
-      width: 150px;
-      height: 150px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background-color: var(--grey-100);
-      margin-bottom: 1rem;
-      border: 8px solid var(--grey-300);
-    }
-    
-    .score-circle.high-score {
-      border-color: var(--success);
-    }
-    
-    .score-circle.medium-score {
-      border-color: var(--warning);
-    }
-    
-    .score-circle.low-score {
-      border-color: var(--error);
-    }
-    
-    .score-value {
-      font-size: 2.5rem;
-      font-weight: 700;
-      color: var(--grey-900);
-    }
-    
-    .score-label {
-      font-size: 1.2rem;
-      color: var(--grey-700);
-    }
-    
-    .results-meta {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1rem;
-      width: 100%;
-      max-width: 600px;
-    }
-    
-    .meta-item {
-      display: flex;
-      align-items: center;
-      padding: 0.75rem;
-      background-color: var(--grey-50);
-      border-radius: 8px;
-    }
-    
-    .meta-item i {
-      margin-right: 0.5rem;
-      font-size: 1.2rem;
-    }
-    
-    .meta-item .fa-check-circle {
-      color: var(--success);
-    }
-    
-    .meta-item .fa-times-circle {
-      color: var(--error);
-    }
-    
-    .meta-item .fa-minus-circle {
-      color: var(--grey-500);
-    }
-    
-    .meta-item .fa-clock {
-      color: var(--primary);
-    }
-    
-    .meta-label {
-      font-weight: 500;
-      margin-right: 0.5rem;
-      color: var(--grey-800);
-    }
-    
-    .meta-value {
-      font-weight: 700;
-      color: var(--grey-900);
-    }
-    
-    .section-title {
-      margin: 2rem 0 1rem;
-      color: var(--grey-900);
-      font-size: 1.5rem;
-    }
-    
-    .questions-container {
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-      margin-bottom: 2rem;
-    }
-    
-    .question-result {
-      background-color: white;
-      border-radius: 8px;
-      padding: 1.5rem;
-      box-shadow: var(--shadow-sm);
-      border-left: 4px solid var(--grey-300);
-    }
-    
-    .question-result.correct {
-      border-left-color: var(--success);
-    }
-    
-    .question-result.incorrect {
-      border-left-color: var(--error);
-    }
-    
-    .question-result-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1rem;
-      padding-bottom: 0.75rem;
-      border-bottom: 1px solid var(--grey-200);
-    }
-    
-    .question-number {
-      font-weight: 600;
-      color: var(--grey-800);
-    }
-    
-    .question-status {
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    
-    .question-status i {
-      font-size: 1rem;
-    }
-    
-    .correct .question-status {
-      color: var(--success);
-    }
-    
-    .incorrect .question-status {
-      color: var(--error);
-    }
-    
-    .answer-options {
-      margin-top: 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-    
-    .option-result {
-      position: relative;
-      padding: 0.75rem 1rem;
-      border-radius: 6px;
-      border: 1px solid var(--grey-200);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background-color: var(--grey-50);
-    }
-    
-    .option-result.selected {
-      background-color: var(--grey-100);
-      border-color: var(--grey-400);
-    }
-    
-    .option-result.correct-option {
-      background-color: rgba(var(--success-rgb), 0.1);
-      border-color: var(--success);
-    }
-    
-    .option-result.selected:not(.correct-option) {
-      background-color: rgba(var(--error-rgb), 0.1);
-      border-color: var(--error);
-    }
-    
-    .option-result i {
-      font-size: 1rem;
-    }
-    
-    .option-result .fa-check {
-      color: var(--success);
-    }
-    
-    .option-result .fa-times {
-      color: var(--error);
-    }
-    
-    .question-explanation {
-      margin-top: 1.5rem;
-      padding: 1rem;
-      background-color: rgba(var(--primary-rgb), 0.05);
-      border-radius: 6px;
-      border-left: 3px solid var(--primary);
-    }
-    
-    .explanation-title {
-      font-weight: 600;
-      color: var(--primary);
-      margin-bottom: 0.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    
-    .explanation-text {
-      color: var(--grey-800);
-      font-size: 0.95rem;
-      line-height: 1.5;
-    }
-    
-    @media (min-width: 768px) {
-      .results-summary {
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: center;
-        padding: 2.5rem;
-      }
-      
-      .score-display {
-        margin-bottom: 0;
-        margin-right: 2rem;
-      }
-      
-      .results-meta {
-        margin-left: auto;
-      }
-    }
-  </style>
+  <!-- Chatbot Floating Icon -->
+  <div class="chatbot-icon" id="chatbotIcon">
+    <i class="fas fa-comment-dots"></i>
+  </div>
+
+  <script src="student_quiz_results.js"></script>
 </body>
 </html> 

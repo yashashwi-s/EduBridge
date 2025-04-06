@@ -590,11 +590,15 @@ def courses():
 
 @app.route("/calendar")
 def calendar():
-    return render_template('calendar.html')
+    return send_file('src/calendar.html')
+
+@app.route("/todo")
+def todo():
+    return send_file('src/todo.html')
 
 @app.route("/settings")
 def settings():
-    return render_template('settings.html')
+    return send_file('src/settings.html')
 
 @app.route("/student_classroom")
 def student_classroom():
@@ -2016,6 +2020,121 @@ def get_quiz_results(classroom_id, quiz_id):
         print(f"Traceback: {error_traceback}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 
+@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/results/student", methods=["GET"])
+@jwt_required()
+def get_student_quiz_results(classroom_id, quiz_id):
+    """Get results for a specific student for a quiz"""
+    user_id = get_jwt_identity()
+    
+    classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id)
+    if error:
+        return error
+    
+    try:
+        # Find the quiz
+        quiz = find_quiz_by_id(classroom, quiz_id)
+        if not quiz:
+            return jsonify({"msg": "Quiz not found"}), 404
+            
+        # Find the student's submission
+        user_id_str = str(user_id)
+        user_obj_id = None
+        
+        # Try to convert user_id to ObjectId if it's a valid format
+        try:
+            user_obj_id = ObjectId(user_id)
+        except:
+            pass  # If conversion fails, we'll just use the string version
+            
+        # Debug info
+        print(f"Looking for student submission with user_id: {user_id}, user_id_str: {user_id_str}")
+        if user_obj_id:
+            print(f"Also checking with ObjectId: {user_obj_id}")
+        
+        # Iterate through submissions with more flexible comparison
+        student_submission = None
+        for submission in quiz.get("submissions", []):
+            sub_student_id = submission.get("student_id")
+            sub_student_id_str = str(sub_student_id) if sub_student_id else None
+            
+            print(f"Comparing submission student_id: {sub_student_id}, str: {sub_student_id_str}")
+            
+            # Try different comparison methods to find a match
+            if (sub_student_id_str == user_id_str or 
+                (user_obj_id and sub_student_id == user_obj_id) or
+                (user_obj_id and str(user_obj_id) == sub_student_id_str)):
+                student_submission = submission
+                print(f"Found matching submission for student")
+                break
+                
+        if not student_submission:
+            print(f"No submission found for student with user_id: {user_id}")
+            # List available submissions for debugging
+            submission_ids = [str(s.get("student_id")) for s in quiz.get("submissions", [])]
+            print(f"Available submission student_ids: {submission_ids}")
+            return jsonify({"msg": "No submission found for this student"}), 404
+        
+        # Create a modified copy for the student view
+        student_view = {
+            "quizId": quiz_id,
+            "quizTitle": quiz.get("title", "Quiz"),
+            "quizDescription": quiz.get("description", ""),
+            "quizType": quiz.get("quizType", "question"),
+            "submittedAt": student_submission.get("submittedAt"),
+            "score": student_submission.get("score", 0),
+            "maxScore": student_submission.get("maxScore", 0),
+            "percentage": round((student_submission.get("score", 0) / student_submission.get("maxScore", 1)) * 100, 1),
+            "isGraded": student_submission.get("isGraded", False),
+            "answers": student_submission.get("answers", {})
+        }
+        
+        # Add question details if it's a question-based quiz
+        if quiz.get("quizType", "question") == "question":
+            questions = []
+            for question in quiz.get("questions", []):
+                q_id = str(question["id"])
+                q_copy = question.copy()
+                
+                # Add student's answer to the question
+                if q_id in student_submission.get("answers", {}):
+                    q_copy["studentAnswer"] = student_submission["answers"][q_id].get("answer")
+                    q_copy["isCorrect"] = student_submission["answers"][q_id].get("isCorrect", False)
+                    q_copy["score"] = student_submission["answers"][q_id].get("score", 0)
+                    q_copy["feedback"] = student_submission["answers"][q_id].get("feedback", "")
+                
+                questions.append(q_copy)
+            
+            student_view["questions"] = questions
+        
+        # For PDF quizzes
+        elif quiz.get("quizType") == "pdf":
+            # Include submission status and file info
+            if "answerFile" in student_submission:
+                student_view["answerFile"] = {
+                    "filename": student_submission["answerFile"].get("filename", "answer.pdf"),
+                    "size": student_submission["answerFile"].get("size", 0)
+                }
+            
+            # Add grading information if available
+            if "questionGradingResults" in student_submission:
+                student_view["gradingDetails"] = student_submission["questionGradingResults"]
+
+            # Add extracted text info if available
+            if "extractedText" in student_submission:
+                student_view["extractedTextUrl"] = f"/api/classrooms/{classroom_id}/quizzes/{quiz_id}/submissions/{user_id}/extracted-text"
+            
+            # Add feedback if available
+            if "feedback" in student_submission:
+                student_view["feedback"] = student_submission["feedback"]
+        
+        return jsonify(mongo_to_json_serializable(student_view)), 200
+        
+    except Exception as e:
+        error_traceback = traceback.format_exc()
+        print(f"Error getting student quiz results: {str(e)}")
+        print(f"Traceback: {error_traceback}")
+        return jsonify({"msg": f"Server error: {str(e)}"}), 500
+
 @app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/pdf/<file_type>", methods=["GET"])
 @jwt_required()
 def get_quiz_pdf(classroom_id, quiz_id, file_type):
@@ -2356,6 +2475,22 @@ def debug_quiz_status(classroom_id, quiz_id):
     except Exception as e:
         error_traceback = traceback.format_exc()
         print(f"Error debugging quiz status: {str(e)}")
+        print(f"Traceback: {error_traceback}")
+        return jsonify({"msg": f"Server error: {str(e)}"}), 500
+
+@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/my-submission-pdf", methods=["GET"])
+@jwt_required()
+def get_my_submission_pdf(classroom_id, quiz_id):
+    """Get the current student's submitted answer PDF file"""
+    user_id = get_jwt_identity()
+    print(f"User accessing their own submission: {user_id}")
+    
+    try:
+        # Call the existing function with the user's own ID
+        return get_student_answer_pdf(classroom_id, quiz_id, user_id)
+    except Exception as e:
+        error_traceback = traceback.format_exc()
+        print(f"Error retrieving student's own answer PDF: {str(e)}")
         print(f"Traceback: {error_traceback}")
         return jsonify({"msg": f"Server error: {str(e)}"}), 500
 

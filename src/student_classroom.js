@@ -1969,25 +1969,8 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function viewQuizResults(quizId) {
-    // Fetch quiz results from server
-    fetch(`/api/classrooms/${classroomId}/quizzes/${quizId}/results/student`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-      }
-    })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('Failed to fetch quiz results');
-        }
-        return response.json();
-      })
-      .then(results => {
-        displayQuizResults(results);
-      })
-      .catch(error => {
-        console.error('Error fetching quiz results:', error);
-        showNotification('Failed to fetch quiz results', 'error');
-      });
+    // Redirect to the quiz results page instead of showing a modal
+    window.location.href = `/quiz-results?classId=${classroomId}&quizId=${quizId}`;
   }
 
   function displayQuizResults(results) {
@@ -2024,10 +2007,6 @@ document.addEventListener('DOMContentLoaded', function () {
       
       detailedResults.insertAdjacentHTML('beforeend', questionHtml);
     });
-    
-    // Open the results modal
-    const modal = document.getElementById('quiz-results-modal');
-    openModal(modal);
   }
 
   function generateResultOptions(question) {
