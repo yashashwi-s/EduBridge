@@ -127,8 +127,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
 const urlParams = new URLSearchParams(window.location.search);
 const classroomId = urlParams.get('classroomId');
-if (!classroomId) {
+if (!classroomId || classroomId === 'null') {
     alert('Classroom ID not provided in URL');
+    // Redirect to a more appropriate page, such as the teacher dashboard
+    window.location.href = '/teacher_after_login.html';
+}
+
+// Validate that classroomId is a valid MongoDB ObjectId (24-character hex string)
+if (!isValidObjectId(classroomId)) {
+    alert('Invalid Classroom ID format');
+    // Redirect to a more appropriate page
+    window.location.href = '/teacher_after_login.html';
 }
 
 let teacherNameGlobal = "";
@@ -1735,6 +1744,27 @@ function initializeQuizzes() {
         });
     }
     
+    // Setup quiz modal close button
+    const closeModalBtn = document.querySelector('.close-modal');
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeQuizModal);
+    }
+    
+    // Setup cancel button
+    const cancelBtn = document.querySelector('.cancel-quiz-btn');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeQuizModal);
+    }
+    
+    // Setup quiz form submission
+    const quizForm = document.getElementById('quiz-form');
+    if (quizForm) {
+        quizForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveQuiz();
+        });
+    }
+    
     // Setup quiz modal functionality
     // ... rest of the function remains the same
 }
@@ -1970,6 +2000,13 @@ function saveQuiz() {
         return;
     }
     
+    // Validate classroomId
+    if (!classroomId || !isValidObjectId(classroomId)) {
+        console.error('Invalid classroom ID for saving quiz:', classroomId);
+        showNotification('Invalid classroom ID. Cannot save quiz.', 'error');
+        return;
+    }
+    
     // Validate inputs
     if (!title || !startDate || !startTime || !duration) {
         showNotification('Please fill in all required fields', 'error');
@@ -2166,6 +2203,13 @@ function loadQuizzes() {
         setTimeout(() => {
             window.location.href = '/login';
         }, 2000);
+        return;
+    }
+    
+    // Validate classroomId
+    if (!classroomId || !isValidObjectId(classroomId)) {
+        console.error('Invalid classroom ID for loading quizzes:', classroomId);
+        showNotification('Invalid classroom ID. Cannot load quizzes.', 'error');
         return;
     }
     
@@ -3802,4 +3846,12 @@ function setupSectionTabSwitching() {
       }
     });
   });
+}
+
+function isValidObjectId(id) {
+    if (!id || id === 'null' || id === 'undefined') {
+        return false;
+    }
+    const objectIdPattern = /^[0-9a-fA-F]{24}$/;
+    return objectIdPattern.test(id);
 }
