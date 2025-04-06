@@ -7,7 +7,6 @@
   <link rel="stylesheet" href="student_classroom.css">
   
   <!-- Additional script libraries -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script>
     window.MathJax = {
@@ -210,35 +209,9 @@
           </div>
         </div>
         <div class="tab-content" id="performance">
-          <div class="performance-summary">
-            <h3>My Performance</h3>
-            <div class="performance-container">
-              <div class="performance-card">
-                <div class="performance-metric">
-                  <h4>Overall Grade</h4>
-                  <div class="metric-value" id="overall-grade">Loading...</div>
-                </div>
-              </div>
-              <div class="performance-card">
-                <div class="performance-metric">
-                  <h4>Assignments</h4>
-                  <div class="metric-value" id="assignments-grade">Loading...</div>
-                </div>
-              </div>
-              <div class="performance-card">
-                <div class="performance-metric">
-                  <h4>Quizzes & Exams</h4>
-                  <div class="metric-value" id="quizzes-grade">Loading...</div>
-                </div>
-              </div>
-            </div>
-            <div class="performance-details">
-              <h4>Detailed Performance</h4>
-              <div class="performance-chart-container">
-                <canvas id="performanceChart"></canvas>
-                <div id="loading-chart">Loading performance data...</div>
-              </div>
-            </div>
+          <div id="performance-loading" class="loading-container">
+            <div class="loading-spinner"></div>
+            <p>Loading your performance data...</p>
           </div>
         </div>
         <div class="tab-content" id="resources">

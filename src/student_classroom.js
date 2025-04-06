@@ -98,8 +98,6 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelector('.classroom-header h1').textContent = data.className || "Course Name";
         document.querySelector('.classroom-header p').textContent = `${data.section || "Section"} - ${data.subject || "Subject"}`;
         
-        
-        
         // Set classroom background image from the database
         if (data.headerImage) {
           // Try to use the image URL from the database
@@ -169,24 +167,61 @@ document.addEventListener('DOMContentLoaded', function () {
         // Sort announcements by default (newest first)
         sortAnnouncementsByDate('newest');
 
-        // Load assignments if available
-        if (data.assignments && data.assignments.length > 0) {
-          loadAssignments(data.assignments);
+        try {
+          // Load assignments if available
+          if (data.assignments && data.assignments.length > 0) {
+            loadAssignments(data.assignments);
+          }
+        } catch (error) {
+          console.error('Error loading assignments:', error);
+          // Don't show notification to avoid overwhelming the user
         }
 
-        // Load quizzes if available
-        if (data.quizzes && data.quizzes.length > 0) {
-          loadQuizzes(data.quizzes);
+        try {
+          // Load quizzes if available
+          if (data.quizzes && data.quizzes.length > 0) {
+            loadQuizzes(data.quizzes);
+          }
+        } catch (error) {
+          console.error('Error loading quizzes:', error);
+          document.querySelector('.quiz-list').innerHTML = `
+            <div class="no-quizzes error">
+              <i class="fas fa-exclamation-triangle"></i>
+              <p>There was an error loading quizzes.</p>
+              <button class="retry-btn" onclick="initializeStudentQuizzes()">Try Again</button>
+            </div>
+          `;
         }
 
-        // Load student performance if available
-        if (data.performance) {
-          loadPerformanceData(data.performance);
+        try {
+          // Load student performance data
+          loadStudentPerformanceData();
+        } catch (error) {
+          console.error('Error loading performance data:', error);
+          document.getElementById('performance').innerHTML = `
+            <div class="performance-summary">
+              <h3>My Performance</h3>
+              <div class="error-message">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Unable to load performance data. Please try again later.</p>
+              </div>
+            </div>
+          `;
         }
 
-        // Load resources if available
-        if (data.resources && data.resources.length > 0) {
-          loadResources(data.resources);
+        try {
+          // Load resources if available
+          if (data.resources && data.resources.length > 0) {
+            loadResources(data.resources);
+          }
+        } catch (error) {
+          console.error('Error loading resources:', error);
+          document.querySelector('.resources-list').innerHTML = `
+            <div class="no-resources error">
+              <i class="fas fa-exclamation-triangle"></i>
+              <p>There was an error loading resources.</p>
+            </div>
+          `;
         }
       })
       .catch(err => {
@@ -667,8 +702,8 @@ document.addEventListener('DOMContentLoaded', function () {
       const quizId = quiz.id || quiz._id;
       
       // Create Date objects from ISO strings using the helper
-      const startTime = EduQuiz.parseDate(quiz.startTime);
-      const endTime = quiz.endTime ? EduQuiz.parseDate(quiz.endTime) : null;
+      const startTime = parseDate(quiz.startTime);
+      const endTime = quiz.endTime ? parseDate(quiz.endTime) : null;
       const now = new Date();
       
       // Format dates in user-friendly format with timezone consideration
@@ -778,8 +813,8 @@ document.addEventListener('DOMContentLoaded', function () {
             <p>${quiz.description || 'No description provided.'}</p>
             <div class="quiz-details">
               <p><strong>Start Time:</strong> ${new Date(quiz.startTime).toLocaleString()}</p>
-              <p><strong>Duration:</strong> ${durationMinutes} minutes</p>
-              <p><strong>Type:</strong> ${isPdfQuiz ? 'PDF Upload' : 'Online Quiz'}</p>
+              <p><strong>Duration:</strong> ${quiz.duration ? Math.floor(quiz.duration / 60) : 0} minutes</p>
+              <p><strong>Type:</strong> ${quiz.quizType === 'pdf' ? 'PDF Upload' : 'Online Quiz'}</p>
               <p><strong>Status:</strong> ${status}</p>
             </div>
             <div class="modal-actions">
@@ -799,6 +834,24 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
   
+  // Helper function to safely parse date strings
+  function parseDate(dateString) {
+    if (!dateString) return new Date();
+    try {
+      // Try to create a date from the string
+      const date = new Date(dateString);
+      // Check if the date is valid
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date string:', dateString);
+        return new Date();
+      }
+      return date;
+    } catch (error) {
+      console.error('Error parsing date:', error);
+      return new Date();
+    }
+  }
+  
   // Helper function to create a quiz details modal if it doesn't exist
   function createQuizDetailsModal() {
     const modal = document.createElement('div');
@@ -815,65 +868,270 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Load performance data
   function loadPerformanceData(performance) {
-    // Set overall metrics
-    document.getElementById('overall-grade').textContent = performance.overallGrade || 'N/A';
-    document.getElementById('assignments-grade').textContent = performance.assignmentsGrade || 'N/A';
-    document.getElementById('quizzes-grade').textContent = performance.quizzesGrade || 'N/A';
+    // We'll replace this with a more comprehensive implementation
+    loadStudentPerformanceData();
+  }
+
+  // Load student performance data from the API
+  function loadStudentPerformanceData() {
+    console.log('Loading student performance data for classroom:', classroomId);
     
-    // Remove loading indicator
-    document.getElementById('loading-chart').style.display = 'none';
+    // Show loading state
+    document.getElementById('performance').innerHTML = `
+      <div class="performance-summary">
+        <h3>My Performance</h3>
+        <div id="performance-loading" class="loading-container">
+          <div class="loading-spinner"></div>
+          <p>Loading your performance data...</p>
+        </div>
+      </div>
+    `;
     
-    // Create performance chart if data is available
-    if (performance.assessments && performance.assessments.length > 0) {
-      const ctx = document.getElementById('performanceChart').getContext('2d');
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      console.error('No auth token found');
+      showNotification('You are not authenticated. Please log in.', 'error');
+      return;
+    }
+    
+    // First try to get classroom-specific analytics
+    console.log('Fetching classroom analytics for classroom ID:', classroomId);
+    fetch(`/api/classrooms/${classroomId}/analytics`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(resp => {
+      if (!resp.ok) {
+        throw new Error('Failed to fetch classroom analytics');
+      }
+      return resp.json();
+    })
+    .then(classroomData => {
+      console.log('Classroom analytics data:', classroomData);
       
-      // Prepare data for chart
-      const labels = performance.assessments.map(assessment => assessment.title);
-      const scores = performance.assessments.map(assessment => assessment.score);
-      const maxScores = performance.assessments.map(assessment => assessment.maxScore);
-      
-      const percentages = scores.map((score, index) => (score / maxScores[index]) * 100);
-      
-      // Create chart
-      new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Your Score (%)',
-            data: percentages,
-            backgroundColor: percentages.map(percentage => 
-              percentage < 60 ? 'rgba(234, 67, 53, 0.7)' :
-              percentage < 70 ? 'rgba(251, 188, 5, 0.7)' :
-              percentage < 80 ? 'rgba(66, 133, 244, 0.7)' :
-              'rgba(52, 168, 83, 0.7)'
-            ),
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: true,
-              max: 100,
-              title: {
-                display: true,
-                text: 'Score (%)'
-              }
-            },
-            x: {
-              title: {
-                display: true,
-                text: 'Assessment'
-              }
-            }
-          }
+      // Now get student analytics for all classrooms
+      return fetch('/api/student/analytics', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+      .then(resp => {
+        if (!resp.ok) {
+          throw new Error('Failed to fetch student analytics');
         }
+        return resp.json();
+      })
+      .then(studentData => {
+        console.log('Student analytics data:', studentData);
+        
+        // Combine the data and render the performance section
+        renderPerformanceSection(studentData, classroomData);
       });
-    } else {
-      document.getElementById('loading-chart').textContent = 'No assessment data available';
+    })
+    .catch(error => {
+      console.error('Error loading performance data:', error);
+      
+      // Try just student analytics as fallback
+      fetch('/api/student/analytics', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+      .then(resp => resp.json())
+      .then(studentData => {
+        console.log('Fallback student analytics data:', studentData);
+        renderPerformanceSection(studentData, null);
+      })
+      .catch(finalError => {
+        console.error('Final error loading performance data:', finalError);
+        document.getElementById('performance').innerHTML = `
+          <div class="performance-summary">
+            <h3>My Performance</h3>
+            <div class="error-message">
+              <i class="fas fa-exclamation-circle"></i>
+              <p>Unable to load performance data. Please try again later.</p>
+            </div>
+          </div>
+        `;
+        showNotification('Error loading performance data.', 'error');
+      });
+    });
+  }
+  
+  // Render the performance section with the collected data
+  function renderPerformanceSection(studentData, classroomData) {
+    console.log('Rendering performance section with data:', { studentData, classroomData });
+    
+    // Get specific classroom data from student analytics
+    const currentClassroomData = studentData?.classroomWise?.[classroomId];
+    
+    if (!currentClassroomData) {
+      console.warn('No data found for the current classroom');
+      document.getElementById('performance').innerHTML = `
+        <div class="performance-summary">
+          <h3>My Performance</h3>
+          <div class="no-data-message">
+            <i class="fas fa-chart-pie"></i>
+            <p>No performance data is available for this classroom yet.</p>
+            <p>Complete quizzes and assignments to see your performance statistics.</p>
+          </div>
+        </div>
+      `;
+      return;
+    }
+    
+    // Get quizzes and sort by submission time (newest first)
+    const quizzes = [...(currentClassroomData.quizzes || [])];
+    quizzes.sort((a, b) => {
+      const dateA = a.submissionTime ? new Date(a.submissionTime) : new Date(0);
+      const dateB = b.submissionTime ? new Date(b.submissionTime) : new Date(0);
+      return dateB - dateA;
+    });
+    
+    // Build the performance section HTML
+    const performanceHTML = `
+      <div class="performance-summary">
+        <h3>My Performance</h3>
+        
+        <!-- Summary Cards -->
+        <div class="performance-cards">
+          <div class="performance-card">
+            <div class="card-icon">
+              <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="card-content">
+              <h4>Average Score</h4>
+              <div class="metric-value">${currentClassroomData.averageScore || 0}%</div>
+              <div class="metric-label">Across all quizzes</div>
+            </div>
+          </div>
+          
+          <div class="performance-card">
+            <div class="card-icon">
+              <i class="fas fa-tasks"></i>
+            </div>
+            <div class="card-content">
+              <h4>Completion Rate</h4>
+              <div class="metric-value">${currentClassroomData.attempted || 0}/${currentClassroomData.totalQuizzes || 0}</div>
+              <div class="metric-label">Quizzes completed</div>
+            </div>
+          </div>
+          
+          <div class="performance-card">
+            <div class="card-icon">
+              <i class="fas fa-trophy"></i>
+            </div>
+            <div class="card-content">
+              <h4>Highest Score</h4>
+              <div class="metric-value">${currentClassroomData.highestScore || 0}%</div>
+              <div class="metric-label">Your best performance</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Quiz Performance List -->
+        <div class="quiz-performance">
+          <h4>Quiz Performance History</h4>
+          
+          ${quizzes.length > 0 ? `
+            <div class="quiz-list-container">
+              ${quizzes.map(quiz => `
+                <div class="quiz-performance-item" data-quiz-id="${quiz.quizId}">
+                  <div class="quiz-performance-header">
+                    <h5>${quiz.title || 'Untitled Quiz'}</h5>
+                    <div class="quiz-score ${getScoreClass(quiz.percentage)}">${quiz.percentage}%</div>
+                  </div>
+                  
+                  <div class="quiz-performance-meta">
+                    <div class="meta-item">
+                      <i class="fas fa-calendar-alt"></i>
+                      <span>${formatDate(quiz.submissionTime)}</span>
+                    </div>
+                    ${quiz.rank ? `
+                      <div class="meta-item">
+                        <i class="fas fa-users"></i>
+                        <span>Rank: ${quiz.rank}/${quiz.totalParticipants || '?'}</span>
+                      </div>
+                    ` : ''}
+                  </div>
+                  
+                  <div class="quiz-performance-bar">
+                    <div class="progress-bar">
+                      <div class="progress-fill ${getScoreClass(quiz.percentage)}" style="width: ${quiz.percentage}%"></div>
+                    </div>
+                  </div>
+                  
+                  <div class="quiz-performance-actions">
+                    <button class="view-result-btn" data-quiz-id="${quiz.quizId}">
+                      <i class="fas fa-eye"></i> View Results
+                    </button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          ` : `
+            <div class="no-quizzes-message">
+              <i class="fas fa-info-circle"></i>
+              <p>You haven't completed any quizzes in this classroom yet.</p>
+            </div>
+          `}
+        </div>
+        
+        <!-- Simple Text Score Progression -->
+        <div class="performance-text-section">
+          <h4>Recent Quiz Scores</h4>
+          <div class="simple-score-list">
+            ${quizzes.length > 0 ? 
+              quizzes.slice(0, 5).map(quiz => `
+                <div class="simple-score-item">
+                  <div class="score-bar-container">
+                    <div class="score-bar ${getScoreClass(quiz.percentage)}" style="width: ${quiz.percentage}%"></div>
+                  </div>
+                  <div class="score-info">
+                    <div class="score-title">${quiz.title || 'Untitled Quiz'}</div>
+                    <div class="score-value">${quiz.percentage}%</div>
+                  </div>
+                </div>
+              `).join('')
+              : '<p class="no-data-text">No quiz data available to show score progression.</p>'
+            }
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Update the DOM
+    document.getElementById('performance').innerHTML = performanceHTML;
+    
+    // Add event listeners to view result buttons
+    document.querySelectorAll('.view-result-btn').forEach(button => {
+      button.addEventListener('click', function() {
+        const quizId = this.getAttribute('data-quiz-id');
+        console.log('Viewing results for quiz:', quizId);
+        
+        // Navigate to quiz results page
+        window.location.href = `/quiz-results?classroomId=${classroomId}&quizId=${quizId}`;
+      });
+    });
+  }
+  
+  // Helper function to get CSS class based on score percentage
+  function getScoreClass(percentage) {
+    if (percentage >= 90) return 'excellent';
+    if (percentage >= 75) return 'good';
+    if (percentage >= 60) return 'fair';
+    return 'needs-improvement';
+  }
+  
+  // Helper function to format date
+  function formatDate(dateString) {
+    if (!dateString) return 'Unknown date';
+    
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric'
+      });
+    } catch (e) {
+      console.error('Error formatting date:', e);
+      return dateString;
     }
   }
 
