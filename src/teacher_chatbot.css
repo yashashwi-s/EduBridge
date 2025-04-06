@@ -1,0 +1,322 @@
+/* Chatbot Styling for Teacher Pages - Namespaced to avoid conflicts */
+.edu-chatbot-container {
+  --edu-chatbot-gradient: linear-gradient(90deg, #4776e6, #8e54e9, #ff4081);
+  --edu-chatbot-primary: #8e54e9;
+  --edu-chatbot-light: #e8f0fe;
+  --edu-chatbot-secondary: #5f6368;
+  --edu-chatbot-text: #3c4043;
+  --edu-chatbot-bg: #f5f5f5;
+  --edu-chatbot-card: #ffffff;
+  --edu-chatbot-border: #e0e0e0;
+  --edu-chatbot-hover: #f1f3f4;
+  --edu-chatbot-shadow-sm: 0 1px 2px rgba(60, 64, 67, 0.3),
+    0 1px 3px 1px rgba(60, 64, 67, 0.15);
+  --edu-chatbot-shadow-md: 0 1px 3px rgba(60, 64, 67, 0.3),
+    0 4px 8px 3px rgba(60, 64, 67, 0.15);
+  --edu-chatbot-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes eduChatbotGradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Chatbot Floating Icon */
+.chatbot-icon {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  color: white;
+  border-radius: 50%;
+  width: 55px;
+  height: 55px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+  transition: background 0.3s ease;
+  background: var(
+    --edu-chatbot-gradient,
+    linear-gradient(90deg, #4776e6, #8e54e9, #ff4081)
+  );
+  background-size: 200% 200%;
+  animation: eduChatbotGradientShift 5s ease infinite;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* Chat Widget Container */
+.chat-widget {
+  position: fixed;
+  bottom: 90px;
+  right: 20px;
+  width: 40%; /* initial width */
+  height: 70%; /* increased height */
+  border: 1px solid var(--edu-chatbot-border, #e0e0e0);
+  border-radius: 12px;
+  z-index: 1000;
+  box-shadow: var(
+    --edu-chatbot-shadow-md,
+    0 1px 3px rgba(60, 64, 67, 0.3),
+    0 4px 8px 3px rgba(60, 64, 67, 0.15)
+  );
+  display: flex;
+  flex-direction: column;
+  background: white;
+}
+
+.chat-widget .chat-header {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: white;
+  padding: 12px 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  border-radius: 12px 12px 0 0;
+  z-index: 2;
+  background: var(
+    --edu-chatbot-gradient,
+    linear-gradient(90deg, #4776e6, #8e54e9, #ff4081)
+  );
+  background-size: 200% 200%;
+  animation: eduChatbotGradientShift 5s ease infinite;
+}
+
+.chat-widget .chat-body {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  background: #f9f9f9;
+  overflow: hidden;
+  height: calc(100% - 52px); /* Subtract header height */
+}
+
+/* Conversation area styling */
+.chat-widget .conversation-container {
+  height: 65%; /* Fixed height for output area */
+  overflow: hidden;
+  position: relative;
+}
+
+.chat-widget #chatConversation {
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  padding: 15px;
+  background: #fff;
+  font-size: 0.95em;
+  line-height: 1.5;
+}
+
+.chat-widget .input-container {
+  height: 35%; /* Fixed height for input area */
+  background: var(--edu-chatbot-bg, #f5f5f5);
+  border-top: 1px solid var(--edu-chatbot-border, #e0e0e0);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-widget .message {
+  margin-bottom: 12px;
+  max-width: 85%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  position: relative;
+}
+
+.chat-widget .user-message {
+  background: var(--edu-chatbot-primary, #8e54e9);
+  color: white;
+  margin-left: auto;
+  border-radius: 12px 12px 0 12px;
+}
+
+.chat-widget .bot-message {
+  background-color: #f1f1f1;
+  color: var(--edu-chatbot-text, #3c4043);
+  margin-right: auto;
+  border-radius: 12px 12px 12px 0;
+  width: 85%; /* Fixed width to ensure consistent sizing */
+}
+
+/* Fix for lists and other elements in bot messages */
+.chat-widget .bot-message ul,
+.chat-widget .bot-message ol {
+  padding-left: 20px;
+  margin: 5px 0;
+}
+
+.chat-widget .bot-message li {
+  margin-bottom: 3px;
+}
+
+.chat-widget .greeting {
+  text-align: center;
+  margin: 15px auto;
+  color: var(--edu-chatbot-secondary, #5f6368);
+  font-style: italic;
+  max-width: 90%;
+}
+
+.chat-widget #chatInput {
+  flex: 1;
+  width: 100%;
+  padding: 10px 15px;
+  resize: none;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.95em;
+  margin-bottom: 10px;
+  overflow-y: auto;
+  font-family: inherit;
+}
+
+.chat-widget .bottom-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chat-widget .chat-function-btn {
+  border-radius: 12px;
+  padding: 4px 8px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  background: none;
+  border: none;
+}
+
+.chat-widget .chat-function-btn:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.chat-widget .function-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.chat-widget .function-controls .chat-function-btn {
+  background: white;
+  color: var(--edu-chatbot-text, #3c4043);
+  border: 1px solid var(--edu-chatbot-border, #e0e0e0);
+}
+
+.chat-widget .function-controls .chat-function-btn.active {
+  background: var(
+    --edu-chatbot-gradient,
+    linear-gradient(90deg, #4776e6, #8e54e9, #ff4081)
+  );
+  background-size: 200% 200%;
+  animation: eduChatbotGradientShift 5s ease infinite;
+  color: white;
+  font-weight: 500;
+}
+
+.chat-widget #sendButton {
+  width: 40px;
+  height: 36px;
+  background: var(
+    --edu-chatbot-gradient,
+    linear-gradient(90deg, #4776e6, #8e54e9, #ff4081)
+  );
+  background-size: 200% 200%;
+  animation: eduChatbotGradientShift 5s ease infinite;
+  border: none;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s ease;
+  font-size: 1.2em;
+}
+
+/* Custom resize cursor detection */
+.chat-widget .resize-handle {
+  position: absolute;
+  z-index: 10;
+}
+
+.chat-widget .resize-handle.right {
+  top: 0;
+  right: 0;
+  width: 5px;
+  height: 100%;
+  cursor: e-resize;
+}
+
+.chat-widget .resize-handle.bottom {
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 5px;
+  cursor: s-resize;
+}
+
+.chat-widget .resize-handle.corner {
+  bottom: 0;
+  right: 0;
+  width: 15px;
+  height: 15px;
+  cursor: se-resize;
+}
+
+/* Scrollbar styling */
+.chat-widget #chatConversation::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chat-widget #chatConversation::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.chat-widget #chatConversation::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.chat-widget #chatConversation::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Loading spinner styles */
+.chat-widget .loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top-color: var(--edu-chatbot-primary, #8e54e9);
+  animation: eduChatbotSpin 1s ease-in-out infinite;
+  margin-right: 10px;
+}
+
+@keyframes eduChatbotSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.chat-widget .bot-message.loading {
+  display: flex;
+  align-items: center;
+}
+
+/* Typewriter effect container */
+.chat-widget .typewriter-text {
+  display: inline-block;
+}
