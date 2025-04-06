@@ -4845,6 +4845,106 @@ def get_classroom_analytics(classroom_id):
         traceback.print_exc()
         return jsonify({"msg": f"Error generating classroom analytics: {str(e)}"}), 500
 
+@app.route("/api/classrooms/<classroom_id>/quizzes/<quiz_id>/submissions/<student_id>/question-grade", methods=["PUT"])
+@jwt_required()
+def update_question_grade(classroom_id, quiz_id, student_id):
+    """Update the grade for a specific question in a student's submission"""
+    user_id = get_jwt_identity()
+    
+    # Ensure the user is a teacher
+    classroom, user, error = get_classroom_and_validate_access(classroom_id, user_id, "teacher")
+    if error:
+        return error
+    
+    try:
+        # Find the quiz
+        quiz = find_quiz_by_id(classroom, quiz_id)
+        if not quiz:
+            return jsonify({"msg": "Quiz not found"}), 404
+        
+        # Find the student's submission
+        student_obj_id = ObjectId(student_id)
+        submission = None
+        submission_index = -1
+        
+        for i, sub in enumerate(quiz.get("submissions", [])):
+            if sub["student_id"] == student_obj_id:
+                submission = sub
+                submission_index = i
+                break
+                
+        if not submission:
+            return jsonify({"msg": "Student submission not found"}), 404
+        
+        # Get data from request
+        data = request.get_json()
+        if not data or "questionNumber" not in data or "score" not in data:
+            return jsonify({"msg": "Question number and score are required"}), 400
+        
+        question_number = data["questionNumber"]
+        score = float(data["score"])
+        feedback = data.get("feedback", "")
+        
+        # Find the question in the grading results
+        if "questionGradingResults" not in submission:
+            return jsonify({"msg": "No question grading results found"}), 404
+        
+        # Find the question in the grading results
+        question_found = False
+        for i, result in enumerate(submission["questionGradingResults"]):
+            if result["questionNumber"] == question_number:
+                # Validate score
+                max_score = result["maxScore"]
+                if score < 0 or score > max_score:
+                    return jsonify({"msg": f"Score must be between 0 and {max_score}"}), 400
+                
+                # Update the score
+                old_score = result["score"]
+                submission["questionGradingResults"][i]["score"] = score
+                submission["questionGradingResults"][i]["feedback"] = feedback
+                submission["questionGradingResults"][i]["manuallyGraded"] = True
+                
+                # Update the total score
+                score_diff = score - old_score
+                submission["score"] = submission.get("score", 0) + score_diff
+                
+                # Calculate new percentage
+                if submission.get("maxScore", 0) > 0:
+                    submission["percentage"] = round((submission["score"] / submission["maxScore"]) * 100, 1)
+                
+                question_found = True
+                break
+        
+        if not question_found:
+            return jsonify({"msg": f"Question number {question_number} not found in grading results"}), 404
+        
+        # Update the submission in the quiz
+        quiz["submissions"][submission_index] = submission
+        
+        # Update the quiz in the database
+        result = classrooms_collection.update_one(
+            {"_id": ObjectId(classroom_id)},
+            {"$set": {f"quizzes.$[quiz].submissions": quiz["submissions"]}},
+            array_filters=[{"quiz.id": ObjectId(quiz_id)}]
+        )
+        
+        if result.modified_count:
+            return jsonify({
+                "msg": "Question grade updated successfully",
+                "question": question_number,
+                "newScore": score,
+                "totalScore": submission["score"],
+                "percentage": submission["percentage"]
+            }), 200
+        
+        return jsonify({"msg": "No changes made"}), 200
+        
+    except Exception as e:
+        error_traceback = traceback.format_exc()
+        print(f"Error updating question grade: {str(e)}")
+        print(f"Traceback: {error_traceback}")
+        return jsonify({"msg": f"Server error: {str(e)}"}), 500
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     host = os.environ.get("HOST", "0.0.0.0")

@@ -202,6 +202,103 @@
     <i class="fas fa-comment-dots"></i>
   </div>
 
+  <!-- Question-wise Grading Modal -->
+  <div id="question-grading-modal" class="modal">
+    <div class="modal-content large-modal">
+      <div class="modal-header">
+        <h3>Question-wise Grading</h3>
+        <button class="close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="question-grading-loading" class="loading-container">
+          <div class="spinner"></div>
+          <p>Loading question details...</p>
+        </div>
+        
+        <div id="question-grading-container" style="display: none;">
+          <div class="student-info-banner">
+            <div class="student-info" id="question-grading-student-info">
+              <span class="student-name" id="question-grading-student-name">Student Name</span>
+            </div>
+            <div class="quiz-info">
+              <span id="quiz-total-score">Score: 0/0</span>
+              <span id="quiz-percentage">0%</span>
+            </div>
+          </div>
+          
+          <div class="qg-sections">
+            <div class="qg-pdf-section">
+              <h4>Quiz Materials</h4>
+              <div class="pdf-buttons">
+                <a id="qg-question-paper-link" class="btn btn-sm btn-outline" target="_blank">
+                  <i class="fas fa-file-pdf"></i> Question Paper
+                </a>
+                <a id="qg-answer-key-link" class="btn btn-sm btn-outline" target="_blank">
+                  <i class="fas fa-key"></i> Answer Key
+                </a>
+                <a id="qg-student-answers-link" class="btn btn-sm btn-outline" target="_blank">
+                  <i class="fas fa-file-alt"></i> Student Submission
+                </a>
+              </div>
+            </div>
+            
+            <div class="qg-table-section">
+              <h4>Question-wise Scores</h4>
+              <div class="qg-table-wrapper">
+                <table class="qg-table">
+                  <thead>
+                    <tr>
+                      <th>Question</th>
+                      <th>Score</th>
+                      <th>Max Score</th>
+                      <th>Percentage</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="question-grades-table-body">
+                    <!-- Question grades will be populated here -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Edit Question Grade Modal -->
+  <div id="edit-question-grade-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Edit Question <span id="edit-question-number"></span> Grade</h3>
+        <button class="close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="edit-question-grade-form">
+          <div class="form-group">
+            <label for="question-score">Score</label>
+            <div class="score-input-group">
+              <input type="number" id="question-score" min="0" step="0.1" required>
+              <span class="score-separator">/</span>
+              <span id="question-max-score">20</span>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="question-feedback">Feedback (Optional)</label>
+            <textarea id="question-feedback" rows="4" placeholder="Enter feedback for this question"></textarea>
+          </div>
+          
+          <div class="form-actions">
+            <button type="button" class="btn btn-outline cancel-btn">Cancel</button>
+            <button type="submit" class="btn btn-primary save-btn">Save Grade</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- Chat Widget (initially hidden) -->
   <div class="chat-widget" id="chatWidget" style="display: none;">
     <!-- Resize handles -->

@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', function() {
   let quizData = null;
   let submissionsData = [];
   let filteredSubmissions = [];
+  let currentStudentId = null;
+  let questionGradingData = null;
 
   // Check if we have the required parameters
   if (!classroomId || !quizId) {
@@ -31,9 +33,27 @@ document.addEventListener('DOMContentLoaded', function() {
     // Modal close buttons
     document.querySelectorAll('.close-modal, .cancel-btn').forEach(btn => {
       btn.addEventListener('click', function() {
-        const modal = document.getElementById('grade-submission-modal');
-        closeModal(modal);
+        const gradeModal = document.getElementById('grade-submission-modal');
+        const questionGradingModal = document.getElementById('question-grading-modal');
+        const editQuestionGradeModal = document.getElementById('edit-question-grade-modal');
+        
+        closeModal(gradeModal);
+        closeModal(questionGradingModal);
+        closeModal(editQuestionGradeModal);
       });
+    });
+
+    // Specific cancel button for edit question grade modal
+    document.querySelector('#edit-question-grade-modal .cancel-btn').addEventListener('click', function(e) {
+      e.preventDefault();
+      console.log("Cancel button clicked in edit question grade modal");
+      closeModal(document.getElementById('edit-question-grade-modal'));
+    });
+
+    // Specific close button for edit question grade modal
+    document.querySelector('#edit-question-grade-modal .close-modal').addEventListener('click', function() {
+      console.log("Close button clicked in edit question grade modal");
+      closeModal(document.getElementById('edit-question-grade-modal'));
     });
 
     // Student search
@@ -53,6 +73,13 @@ document.addEventListener('DOMContentLoaded', function() {
     gradeForm.addEventListener('submit', function(e) {
       e.preventDefault();
       submitGrade();
+    });
+    
+    // Edit question grade form
+    const editQuestionGradeForm = document.getElementById('edit-question-grade-form');
+    editQuestionGradeForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      submitQuestionGrade();
     });
 
     // Setup mobile sidebar functionality
@@ -234,6 +261,24 @@ document.addEventListener('DOMContentLoaded', function() {
         showGradeModal(submission.student_id);
       });
       
+      // Create question-wise grading button
+      const questionGradingButton = document.createElement('button');
+      questionGradingButton.className = 'btn btn-sm btn-outline';
+      questionGradingButton.innerHTML = '<i class="fas fa-list-ol"></i>';
+      questionGradingButton.title = 'Question-wise grading';
+      questionGradingButton.dataset.studentId = submission.student_id;
+      
+      // Add debug logging directly on button click event
+      questionGradingButton.onclick = function() {
+        console.log("Question grading button clicked directly via onclick!");
+        console.log("Student ID:", this.dataset.studentId);
+      };
+      
+      questionGradingButton.addEventListener('click', function() {
+        console.log("Question grading button click event fired!");
+        showQuestionGradingModal(submission.student_id);
+      });
+      
       // Create the row
       row.innerHTML = `
         <td>${submission.studentName}</td>
@@ -250,7 +295,19 @@ document.addEventListener('DOMContentLoaded', function() {
       // Add grade button cell
       const gradeCell = document.createElement('td');
       gradeCell.className = 'centered';
-      gradeCell.appendChild(gradeButton);
+      
+      // Always add both buttons, but show question grading only for auto-graded submissions
+      const actionGroup = document.createElement('div');
+      actionGroup.className = 'action-group';
+      actionGroup.appendChild(gradeButton);
+      
+      // Add question grading button if auto-graded or always (for debugging)
+      if (submission.autoGraded || true) { // Always show for debugging
+        console.log("Adding question grading button for student:", submission.studentName);
+        actionGroup.appendChild(questionGradingButton);
+      }
+      
+      gradeCell.appendChild(actionGroup);
       row.appendChild(gradeCell);
       
       tableBody.appendChild(row);
@@ -441,8 +498,15 @@ document.addEventListener('DOMContentLoaded', function() {
    * Close a modal dialog
    */
   function closeModal(modal) {
+    if (!modal) return;
+    
     modal.classList.remove('active');
-    modal.querySelector('.modal-content').style.opacity = '0';
+    const modalContent = modal.querySelector('.modal-content');
+    if (modalContent) {
+      modalContent.style.opacity = '0';
+      modalContent.style.transform = 'translateY(-20px)';
+    }
+    
     setTimeout(() => {
       modal.style.display = 'none';
     }, 300);
@@ -544,5 +608,317 @@ document.addEventListener('DOMContentLoaded', function() {
         notification.remove();
       }, 300);
     }, 5000);
+  }
+
+  /**
+   * Show the question-wise grading modal for a student
+   */
+  function showQuestionGradingModal(studentId) {
+    console.log("Question-wise grading button clicked for student ID:", studentId);
+    
+    // Find the student's submission to show their marks
+    const submission = submissionsData.find(sub => sub.student_id === studentId);
+    if (submission) {
+      const markInfo = {
+        score: submission.score || 0,
+        maxScore: submission.maxScore || 0,
+        percentage: submission.percentage || 0,
+        isGraded: submission.isGraded || false
+      };
+      
+      console.log("Student marks:", markInfo);
+    } else {
+      console.log("No submission data found for this student");
+    }
+    
+    currentStudentId = studentId;
+    const modal = document.getElementById('question-grading-modal');
+    
+    // Show loading state
+    document.getElementById('question-grading-loading').style.display = 'flex';
+    document.getElementById('question-grading-container').style.display = 'none';
+    
+    // Show the modal with animation
+    modal.style.display = 'block';
+    setTimeout(() => {
+      modal.classList.add('active');
+      modal.querySelector('.modal-content').style.opacity = '1';
+      modal.querySelector('.modal-content').style.transform = 'translateY(0)';
+    }, 10);
+    
+    // Load question-wise grading data
+    loadQuestionGradingData(studentId);
+  }
+  
+  /**
+   * Load question-wise grading data for a student
+   */
+  function loadQuestionGradingData(studentId) {
+    console.log(`Fetching question-wise grading data for student ${studentId}`);
+    
+    const apiUrl = `/api/classrooms/${classroomId}/quizzes/${quizId}/submissions/${studentId}/grading`;
+    console.log("API URL:", apiUrl);
+    
+    fetch(apiUrl, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+      }
+    })
+    .then(response => {
+      console.log("API response status:", response.status);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch grading details: ${response.status} ${response.statusText}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log("Received grading data:", data);
+      
+      // Store the grading data
+      questionGradingData = data;
+      
+      // Display the grading details
+      displayQuestionGrading(data, studentId);
+    })
+    .catch(error => {
+      console.error('Error loading question grading:', error);
+      document.getElementById('question-grading-loading').style.display = 'none';
+      
+      const container = document.getElementById('question-grading-container');
+      container.innerHTML = `
+        <div class="error-message">
+          <p>Failed to load question grading details: ${error.message}</p>
+        </div>
+      `;
+      container.style.display = 'block';
+      
+      // Show notification for error
+      showNotification(`Failed to load question details: ${error.message}`, 'error');
+    });
+  }
+  
+  /**
+   * Display question-wise grading details
+   */
+  function displayQuestionGrading(data, studentId) {
+    // Update student info
+    document.getElementById('question-grading-student-name').textContent = data.studentInfo.name || 'Student';
+    
+    // Update quiz score
+    document.getElementById('quiz-total-score').textContent = `Score: ${data.score}/${data.maxScore}`;
+    document.getElementById('quiz-percentage').textContent = `${data.percentage}%`;
+    
+    // Set up PDF links
+    const token = localStorage.getItem('access_token');
+    
+    const questionPaperLink = document.getElementById('qg-question-paper-link');
+    questionPaperLink.href = `/api/classrooms/${classroomId}/quizzes/${quizId}/pdf/questionPaper?token=${token}`;
+    
+    const answerKeyLink = document.getElementById('qg-answer-key-link');
+    answerKeyLink.href = `/api/classrooms/${classroomId}/quizzes/${quizId}/pdf/answerKey?token=${token}`;
+    
+    const studentAnswersLink = document.getElementById('qg-student-answers-link');
+    studentAnswersLink.href = `/api/classrooms/${classroomId}/quizzes/${quizId}/submissions/${studentId}/answer-pdf?token=${token}`;
+    
+    // Render question grades table
+    renderQuestionGradesTable(data.questionGradingResults);
+    
+    // Hide loading and show container
+    document.getElementById('question-grading-loading').style.display = 'none';
+    document.getElementById('question-grading-container').style.display = 'block';
+  }
+  
+  /**
+   * Render the question grades table
+   */
+  function renderQuestionGradesTable(questionResults) {
+    const tableBody = document.getElementById('question-grades-table-body');
+    tableBody.innerHTML = '';
+    
+    // Sort questions by number
+    questionResults.sort((a, b) => {
+      return a.questionNumber.localeCompare(b.questionNumber, undefined, {numeric: true});
+    });
+    
+    questionResults.forEach(result => {
+      const row = document.createElement('tr');
+      
+      // Calculate percentage
+      const percentage = result.maxScore > 0 ? Math.round((result.score / result.maxScore) * 100) : 0;
+      
+      // Determine percentage class
+      let percentageClass = '';
+      if (percentage >= 80) {
+        percentageClass = 'high-score';
+      } else if (percentage >= 50) {
+        percentageClass = 'medium-score';
+      } else {
+        percentageClass = 'low-score';
+      }
+      
+      // Create status indicator
+      const statusSpan = document.createElement('span');
+      statusSpan.className = 'question-status';
+      
+      if (result.manuallyGraded) {
+        statusSpan.textContent = 'Manually Graded';
+        statusSpan.classList.add('status-manually-graded');
+      } else {
+        statusSpan.textContent = 'Auto Graded';
+        statusSpan.classList.add('status-auto-graded');
+      }
+      
+      // Create edit button
+      const editButton = document.createElement('button');
+      editButton.className = 'edit-question-btn';
+      editButton.innerHTML = '<i class="fas fa-edit"></i> Edit';
+      editButton.dataset.questionNumber = result.questionNumber;
+      editButton.dataset.score = result.score;
+      editButton.dataset.maxScore = result.maxScore;
+      editButton.dataset.feedback = result.feedback || '';
+      
+      // Add debug logging directly on button click event
+      editButton.onclick = function() {
+        console.log("Edit question button clicked directly via onclick!");
+        console.log("Question number:", this.dataset.questionNumber);
+      };
+      
+      editButton.addEventListener('click', function() {
+        console.log("Edit question button click event fired!");
+        showEditQuestionGradeModal(result);
+      });
+      
+      // Add cells to row
+      row.innerHTML = `
+        <td>Question ${result.questionNumber}</td>
+        <td>${result.score}</td>
+        <td>${result.maxScore}</td>
+        <td><span class="score-percentage ${percentageClass}">${percentage}%</span></td>
+      `;
+      
+      // Add actions cell
+      const actionsCell = document.createElement('td');
+      actionsCell.appendChild(statusSpan);
+      actionsCell.appendChild(document.createElement('br'));
+      actionsCell.appendChild(editButton);
+      row.appendChild(actionsCell);
+      
+      tableBody.appendChild(row);
+    });
+  }
+  
+  /**
+   * Show the edit question grade modal
+   */
+  function showEditQuestionGradeModal(questionData) {
+    console.log("showEditQuestionGradeModal called with data:", questionData);
+    
+    const modal = document.getElementById('edit-question-grade-modal');
+    console.log("Found modal element:", modal);
+    
+    // Set question data
+    document.getElementById('edit-question-number').textContent = questionData.questionNumber;
+    document.getElementById('question-score').value = questionData.score;
+    document.getElementById('question-max-score').textContent = questionData.maxScore;
+    document.getElementById('question-feedback').value = questionData.feedback || '';
+    
+    // Set max attribute on input
+    document.getElementById('question-score').max = questionData.maxScore;
+    
+    // Store current question data
+    modal.dataset.questionNumber = questionData.questionNumber;
+    modal.dataset.maxScore = questionData.maxScore;
+    
+    // Show the modal with animation
+    modal.style.display = 'block';
+    console.log("Set modal display to block");
+    
+    setTimeout(() => {
+      modal.classList.add('active');
+      modal.querySelector('.modal-content').style.opacity = '1';
+      modal.querySelector('.modal-content').style.transform = 'translateY(0)';
+      console.log("Added active class and animation styles");
+    }, 10);
+  }
+  
+  /**
+   * Submit an updated question grade
+   */
+  function submitQuestionGrade() {
+    console.log("submitQuestionGrade called");
+    
+    const modal = document.getElementById('edit-question-grade-modal');
+    const questionNumber = modal.dataset.questionNumber;
+    const maxScore = parseFloat(modal.dataset.maxScore);
+    const score = parseFloat(document.getElementById('question-score').value);
+    const feedback = document.getElementById('question-feedback').value;
+    
+    console.log("Updating grade for question:", questionNumber);
+    console.log("New score:", score, "Max score:", maxScore);
+    console.log("Feedback:", feedback);
+    
+    // Validate score
+    if (isNaN(score) || score < 0 || score > maxScore) {
+      showNotification(`Score must be between 0 and ${maxScore}`, 'error');
+      return;
+    }
+    
+    // Prepare data
+    const gradeData = {
+      questionNumber: questionNumber,
+      score: score,
+      feedback: feedback
+    };
+    
+    // Disable form while submitting
+    const form = document.getElementById('edit-question-grade-form');
+    const saveButton = form.querySelector('.save-btn');
+    saveButton.disabled = true;
+    saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    
+    const apiUrl = `/api/classrooms/${classroomId}/quizzes/${quizId}/submissions/${currentStudentId}/question-grade`;
+    console.log("Sending request to:", apiUrl);
+    console.log("Request data:", gradeData);
+    
+    // Submit update
+    fetch(apiUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+      },
+      body: JSON.stringify(gradeData)
+    })
+    .then(response => {
+      console.log("Response status:", response.status);
+      if (!response.ok) {
+        throw new Error(`Failed to update question grade: ${response.status} ${response.statusText}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      console.log("Question grade updated successfully:", data);
+      
+      // Show success notification
+      showNotification('Question grade updated successfully', 'success');
+      
+      // Close modal
+      closeModal(modal);
+      
+      // Reload question grading data to show updated scores
+      loadQuestionGradingData(currentStudentId);
+      
+      // Reload quiz results to update overall scores
+      loadQuizResults();
+    })
+    .catch(error => {
+      console.error('Error updating question grade:', error);
+      showNotification(`Failed to update question grade: ${error.message}`, 'error');
+    })
+    .finally(() => {
+      // Re-enable form
+      saveButton.disabled = false;
+      saveButton.innerHTML = 'Save Grade';
+    });
   }
 }); 
