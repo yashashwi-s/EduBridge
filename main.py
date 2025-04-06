@@ -539,7 +539,7 @@ def create_quiz_results_response(quiz, scored_answers, score, max_score):
         "percentage": round((score / max_score) * 100, 1) if max_score > 0 else 0,
         "autoGradedPercentage": auto_percentage,
         "correctCount": sum(1 for q in questions_with_answers if q.get("isCorrect", False)),
-        "totalQuestions": len(quiz["questions"]),
+        "totalQuestions": len(quiz.get("questions", [])),
         "questions": questions_with_answers,
         "summary": summary
     }
@@ -619,6 +619,10 @@ def enrolled_students_page():
 @app.route("/teacher_calendar")
 def teacher_calendar():
     return send_file('src/teacher_calendar.html')
+
+@app.route("/teacher_quiz_results")
+def teacher_quiz_results():
+    return send_file('src/teacher_quiz_results.html')
 
 @app.route("/Settings")
 def teacher_settings():
@@ -1949,8 +1953,12 @@ def get_quiz_results(classroom_id, quiz_id):
             "totalPossible": max_score,
             "autoGradedScore": sum(submission["score"] for submission in submissions if submission.get("isGraded", False)),
             "autoGradedMaxScore": sum(submission["maxScore"] for submission in submissions if submission.get("isGraded", False)),
-            "manualGradingNeeded": any(q.get("type") == "subjective" for q in quiz["questions"]),
+            "manualGradingNeeded": any(q.get("type") == "subjective" for q in quiz.get("questions", [])),
         }
+        
+        # Convert submissions and other data to JSON serializable format
+        serializable_submissions = mongo_to_json_serializable(submissions)
+        serializable_summary = mongo_to_json_serializable(summary)
         
         return jsonify({
             "score": total_score,
@@ -1958,9 +1966,13 @@ def get_quiz_results(classroom_id, quiz_id):
             "percentage": round((total_score / max_score) * 100, 1) if max_score > 0 else 0,
             "autoGradedPercentage": round((summary["autoGradedScore"] / summary["autoGradedMaxScore"]) * 100, 1) if summary["autoGradedMaxScore"] > 0 else 0,
             "correctCount": sum(1 for submission in submissions if submission.get("isCorrect", False)),
-            "totalQuestions": len(quiz["questions"]),
-            "questions": submissions,
-            "summary": summary
+            "totalQuestions": len(quiz.get("questions", [])),
+            "questions": serializable_submissions,
+            "summary": serializable_summary,
+            "quizTitle": quiz.get("title", "Quiz"),
+            "quizDescription": quiz.get("description", ""),
+            "quizType": quiz.get("quizType", "question"),
+            "submissions": serializable_submissions
         }), 200
         
     except Exception as e:
@@ -3881,7 +3893,10 @@ def get_submission_grading_details(classroom_id, quiz_id, student_id):
             
             response_data["questionStats"] = question_stats
         
-        return jsonify(response_data), 200
+        # Convert response data to JSON serializable format
+        serializable_response = mongo_to_json_serializable(response_data)
+        
+        return jsonify(serializable_response), 200
         
     except Exception as e:
         error_traceback = traceback.format_exc()
@@ -3972,19 +3987,19 @@ def get_student_quizzes(classroom_id):
             
             processed_quizzes.append(student_quiz)
         
-        # Sort quizzes by status and start time
+        # Sort quizzes by start time (newest first)
         def quiz_sort_key(quiz):
-            status_priority = {
-                "available": 0,
-                "upcoming": 1,
-                "submitted": 2,
-                "missed": 3
-            }
-            return (status_priority.get(quiz["studentStatus"], 4), quiz["startTime"])
-            
-        processed_quizzes.sort(key=quiz_sort_key)
+            try:
+                return quiz.get("startTime", datetime.min)
+            except:
+                return datetime.min
+                
+        processed_quizzes.sort(key=quiz_sort_key, reverse=True)
         
-        return jsonify(mongo_to_json_serializable(processed_quizzes)), 200
+        # Convert to JSON serializable format
+        serializable_quizzes = mongo_to_json_serializable(processed_quizzes)
+        
+        return jsonify(serializable_quizzes), 200
         
     except Exception as e:
         error_traceback = traceback.format_exc()
@@ -4439,7 +4454,10 @@ def get_student_analytics():
             reverse=True
         )
         
-        return jsonify(analytics), 200
+        # Convert analytics data to JSON serializable format
+        serializable_analytics = mongo_to_json_serializable(analytics)
+        
+        return jsonify(serializable_analytics), 200
         
     except Exception as e:
         print(f"Error generating analytics: {str(e)}")
@@ -4631,7 +4649,10 @@ def get_classroom_analytics(classroom_id):
         analytics["participationTrend"].sort(key=lambda x: x["date"])
         analytics["scoreTrend"].sort(key=lambda x: x["date"])
         
-        return jsonify(analytics), 200
+        # Convert analytics data to JSON serializable format
+        serializable_analytics = mongo_to_json_serializable(analytics)
+        
+        return jsonify(serializable_analytics), 200
         
     except Exception as e:
         print(f"Error generating classroom analytics: {str(e)}")

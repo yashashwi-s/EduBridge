@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduBridge - Quiz Results</title>
+  <link href="https://fonts.googleapis.com/css?family=Google+Sans:400,500,700|Roboto:300,400,500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="teacher_classroom.css">
+  <link rel="stylesheet" href="quiz-common.css">
+  <link rel="stylesheet" href="teacher_quiz_results.css">
+</head>
+<body>
+  <div class="navbar">
+    <div class="nav-left">
+      <button id="hamburger" class="hamburger" aria-label="Menu"><i class="fas fa-bars"></i></button>
+      <div class="logo"><i class="fas fa-graduation-cap"></i> EduBridge</div>
+    </div>
+    <div class="nav-right">
+      <div class="profile-wrapper">
+        <img src="images/image.png" alt="Profile" class="profile-icon">
+        <div class="profile-dropdown">
+          <a href="/teacher_profile"><i class="fas fa-user-circle"></i> My Profile</a>
+          <a href="/Settings"><i class="fas fa-cog"></i> Settings</a>
+          <a href="/login"><i class="fas fa-sign-out-alt"></i> Log Out</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="sidebar">
+    <ul>
+      <li><a href="/teacher_dashboard" id="nav-dashboard"><i class="fas fa-home"></i><span class="text">Home</span></a></li>
+      <li><a href="/teacher_calendar" id="nav-calendar"><i class="fas fa-calendar-alt"></i><span class="text">Calendar</span></a></li>
+      <li><a href="/enrolled" id="nav-enrolled"><i class="fas fa-user-graduate"></i><span class="text">Enrolled</span></a></li>
+      <li><a href="/teacher_profile" id="nav-profile"><i class="fas fa-user-circle"></i><span class="text">Profile</span></a></li>
+      <li><a href="/Settings" id="nav-settings"><i class="fas fa-cog"></i><span class="text">Settings</span></a></li>
+    </ul>
+  </div>
+
+  <!-- Script to set active nav item -->
+  <script>
+    // Make dashboard link active since classroom is part of dashboard
+    document.getElementById('nav-dashboard').classList.add('active');
+  </script>
+  
+  <div class="content">
+    <div id="error-container"></div>
+    
+    <div id="loading-container" class="loading-container">
+      <div class="spinner"></div>
+      <p>Loading quiz results...</p>
+    </div>
+    
+    <div id="results-container" class="quiz-container results-container" style="display: none;">
+      <div class="quiz-header">
+        <div class="quiz-header-left">
+          <h1 class="quiz-title" id="quiz-title">Quiz Results</h1>
+          <p class="quiz-description" id="quiz-description">View student results for this quiz.</p>
+        </div>
+        <div class="quiz-header-actions">
+          <button id="back-to-classroom" class="btn btn-outline">
+            <i class="fas fa-arrow-left"></i> Back to Classroom
+          </button>
+        </div>
+      </div>
+      
+      <div class="results-summary">
+        <div class="summary-stats">
+          <div class="stat-card">
+            <div class="stat-value" id="stat-submissions">0</div>
+            <div class="stat-label">Submissions</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-average">0%</div>
+            <div class="stat-label">Average Score</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-highest">0%</div>
+            <div class="stat-label">Highest Score</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="stat-lowest">0%</div>
+            <div class="stat-label">Lowest Score</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="quiz-details-section">
+        <div class="pdf-actions" id="pdf-actions" style="display: none;">
+          <h3>Quiz Materials</h3>
+          <div class="pdf-buttons">
+            <a id="question-paper-link" class="btn btn-outline" target="_blank">
+              <i class="fas fa-file-pdf"></i> Question Paper
+            </a>
+            <a id="answer-key-link" class="btn btn-outline" target="_blank">
+              <i class="fas fa-key"></i> Answer Key
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="results-table-container">
+        <h3>Student Submissions</h3>
+        <div class="table-toolbar">
+          <div class="search-container">
+            <input type="text" id="search-students" placeholder="Search students..." class="search-input">
+            <i class="fas fa-search search-icon"></i>
+          </div>
+          <div class="filter-container">
+            <select id="status-filter" class="filter-select">
+              <option value="all">All Submissions</option>
+              <option value="graded">Graded</option>
+              <option value="not-graded">Not Graded</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrapper">
+          <table class="results-table">
+            <thead>
+              <tr>
+                <th>Student Name</th>
+                <th>Score</th>
+                <th>Submission Time</th>
+                <th class="centered">View</th>
+                <th class="centered">Grade</th>
+              </tr>
+            </thead>
+            <tbody id="results-table-body">
+              <!-- Results will be populated here -->
+            </tbody>
+          </table>
+        </div>
+        <div class="no-submissions" id="no-submissions" style="display: none;">
+          <div class="empty-state">
+            <i class="fas fa-clipboard-list empty-icon"></i>
+            <p>No submissions yet for this quiz.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grade Submission Modal -->
+  <div id="grade-submission-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Grade Submission</h3>
+        <button class="close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="grade-loading" class="loading-container">
+          <div class="spinner"></div>
+          <p>Loading submission...</p>
+        </div>
+        
+        <div id="grade-form-container" style="display: none;">
+          <div class="submission-preview">
+            <h4>Student Submission</h4>
+            <div class="student-info" id="student-info">
+              <span class="student-name" id="submission-student-name">Student Name</span>
+            </div>
+            <div class="pdf-info">
+              <i class="fas fa-file-pdf"></i>
+              <span id="submission-filename">answer.pdf</span>
+              <a id="view-submission-pdf" class="btn btn-sm btn-outline" target="_blank">
+                <i class="fas fa-external-link-alt"></i> Open PDF
+              </a>
+              <a id="download-submission-pdf" class="btn btn-sm btn-outline" target="_blank" download>
+                <i class="fas fa-download"></i> Download
+              </a>
+            </div>
+          </div>
+          
+          <form id="grade-submission-form">
+            <div class="form-group">
+              <label for="submission-score">Score</label>
+              <input type="number" id="submission-score" min="0" max="100" step="0.1" required placeholder="Enter score (0-100)">
+              <span class="form-info">Out of 100 points</span>
+            </div>
+            
+            <div class="form-group">
+              <label for="submission-feedback">Feedback (Optional)</label>
+              <textarea id="submission-feedback" rows="4" placeholder="Enter feedback for the student"></textarea>
+            </div>
+            
+            <div class="form-actions">
+              <button type="button" class="btn btn-outline cancel-btn">Cancel</button>
+              <button type="submit" class="btn btn-primary save-btn">Save Grade</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script src="teacher_quiz_results.js"></script>
+</body>
+</html> 
