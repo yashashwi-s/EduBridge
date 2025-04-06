@@ -137,7 +137,7 @@
         </div>
         <div class="info-card" style="--i:3">
           <h3 class="card-title"><i class="fas fa-code"></i>Skills & Expertise</h3>
-          <div class="skill-tags">
+          <!-- <div class="skill-tags">
             <span class="skill-tag">Mathematics</span>
             <span class="skill-tag">Algebra</span>
             <span class="skill-tag">Geometry</span>
@@ -148,7 +148,7 @@
             <span class="skill-tag">Web Development</span>
             <span class="skill-tag">Problem-Based Learning</span>
             <span class="skill-tag">Curriculum Development</span>
-          </div>
+          </div> -->
         </div>
         <div class="info-card" style="--i:4">
           <h3 class="card-title"><i class="fas fa-award"></i>Achievements & Badges</h3>
@@ -191,37 +191,98 @@
         <span id="closeModal" class="close">&times;</span>
       </div>
       <form id="profileForm">
+        <!-- Personal Information Section -->
+        <h3 class="form-section-title">Personal Information</h3>
         <div class="form-group">
           <label for="fullName">Full Name</label>
-          <input type="text" id="fullName" name="fullName" value="Sarah Elizabeth Johnson" required>
+          <input type="text" id="fullName" name="fullName" required placeholder="Enter your full name">
         </div>
         <div class="form-group">
           <label for="email">Email Address</label>
-          <input type="email" id="email" name="email" value="sarah.johnson@edubridge.com" required>
+          <input type="email" id="email" name="email" required placeholder="email@example.com">
         </div>
         <div class="form-group">
           <label for="phone">Phone Number</label>
-          <input type="tel" id="phone" name="phone" value="(555) 123-4567" required>
+          <input type="tel" id="phone" name="phone" pattern="[0-9()-\s]+" placeholder="(XXX) XXX-XXXX">
         </div>
         <div class="form-group">
+          <label for="dob">Date of Birth</label>
+          <input type="date" id="dob" name="dob" max="9999-12-31">
+        </div>
+        <div class="form-group">
+          <label for="employeeId">Employee ID</label>
+          <input type="text" id="employeeId" name="employeeId" placeholder="TCH-XXXXXXXX">
+        </div>
+        <div class="form-group">
+          <label for="joiningDate">Joining Date</label>
+          <input type="date" id="joiningDate" name="joiningDate" max="9999-12-31">
+        </div>
+        <div class="form-group">
+          <label for="location">Location</label>
+          <input type="text" id="location" name="location" placeholder="City, State">
+        </div>
+        
+        <!-- Educational Qualifications Section -->
+        <h3 class="form-section-title">Educational Qualifications</h3>
+        <div class="form-group">
+          <label for="degree">Degree</label>
+          <input type="text" id="degree" name="degree" placeholder="Master of Science in...">
+        </div>
+        <div class="form-group">
+          <label for="university">University</label>
+          <input type="text" id="university" name="university" placeholder="University name">
+        </div>
+        <div class="form-group">
+          <label for="bachelors">Bachelor's Degree</label>
+          <input type="text" id="bachelors" name="bachelors" placeholder="B.Sc in...">
+        </div>
+        <div class="form-group">
+          <label for="certifications">Certifications</label>
+          <input type="text" id="certifications" name="certifications" placeholder="Relevant certifications">
+        </div>
+        
+        <!-- Teaching Information Section -->
+        <h3 class="form-section-title">Teaching Information</h3>
+        <div class="form-group">
           <label for="institution">Institution</label>
-          <input type="text" id="institution" name="institution" value="Washington High School" required>
+          <input type="text" id="institution" name="institution" placeholder="School or university name">
         </div>
         <div class="form-group">
           <label for="department">Department</label>
-          <input type="text" id="department" name="department" value="Mathematics & Computer Science" required>
+          <input type="text" id="department" name="department" placeholder="Your department">
         </div>
         <div class="form-group">
           <label for="title">Job Title</label>
-          <input type="text" id="title" name="title" value="Mathematics & Computer Science Teacher" required>
+          <input type="text" id="title" name="title" placeholder="Your position title">
         </div>
         <div class="form-group">
-          <label for="bio">Bio</label>
-          <textarea id="bio" name="bio">Experienced educator with a passion for making mathematics and computer science accessible and engaging for all students. With over 10 years of teaching experience at various educational levels,
-I focus on creating an inclusive classroom environment that encourages critical thinking and problem-solving skills. I believe in using technology to enhance learning experiences and prepare students for the digital future. When not teaching,
-I enjoy contributing to educational research,
-developing interactive learning tools,
-and mentoring aspiring teachers in STEM fields.</textarea>
+          <label for="schedule">Schedule</label>
+          <input type="text" id="schedule" name="schedule" placeholder="Your teaching schedule">
+        </div>
+        <div class="form-group">
+          <label for="officeHours">Office Hours</label>
+          <input type="text" id="officeHours" name="officeHours" placeholder="Your office hours">
+        </div>
+        
+        <!-- Skills Section -->
+        <h3 class="form-section-title">Skills & Expertise</h3>
+        <div class="form-group">
+          <label for="skills">Skills (comma-separated)</label>
+          <input type="text" id="skills" name="skills" placeholder="Skill 1, Skill 2, Skill 3">
+        </div>
+        
+        <!-- Bio Section -->
+        <h3 class="form-section-title">Bio</h3>
+        <div class="form-group">
+          <label for="bio">Biography</label>
+          <textarea id="bio" name="bio" rows="4" placeholder="Tell us about yourself"></textarea>
+        </div>
+        
+        <!-- Password Verification -->
+        <h3 class="form-section-title">Authentication</h3>
+        <div class="form-group">
+          <label for="currentPassword">Current Password (Required)</label>
+          <input type="password" id="currentPassword" name="currentPassword" required>
         </div>
         <div class="modal-footer">
           <button type="button" class="cancel-btn">Cancel</button>
