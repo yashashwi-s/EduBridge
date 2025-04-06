@@ -2613,32 +2613,44 @@ def segregate_questions_by_number(extracted_text, is_question_paper=True):
         # Prepare prompt for Gemini
         if is_question_paper:
             prompt = """
-            I have extracted text from a question paper. Please help me segregate the questions by their numbers.
-            Identify each question by its number (like "1.", "2.", "Question 1", etc.) and split the text accordingly.
-            
-            Return the result as a valid JSON object where:
-            - Keys are the question numbers as strings (e.g., "1", "2", "3")
-            - Values are the complete text of each question
-            
-            If parts of the text don't belong to any numbered question (like instructions or headers), 
-            include them under key "0" as "preamble".
-            
-            Here's the extracted text:
+            I have OCR-extracted text from a question paper that includes both handwritten and typed text. Please help me segregate the content into individual questions based on their numbering. The extracted text may contain numbering in various formats (e.g., "1", "2", "Question 1", "1.", "2.", etc.), and the OCR process might have introduced minor inconsistencies.
+
+            Requirements:
+
+                Identify each question using its number (regardless of whether it's handwritten or typed) and split the text accordingly.
+
+                Exclude the question number itself from the question text in the output.
+
+                Return the result as a valid JSON object where:
+
+                    Keys are the question numbers as strings (e.g., "1", "2", "3").
+
+                    Values are the complete text for each question.
+
+                Any text that does not belong to a numbered question (such as instructions, headers, or other preamble content) should be placed under the key "0" with the value "preamble".
+
+            Extracted Text:
             
             """
         else:
             prompt = """
-            I have extracted text from a student's answer or solution script. Please help me segregate the answers by question numbers.
-            Identify each answer by its corresponding question number (like "1.", "2.", "Answer 1", etc.) and split the text accordingly.
-            
-            Return the result as a valid JSON object where:
-            - Keys are the question numbers as strings (e.g., "1", "2", "3")
-            - Values are the complete text of each answer
-            
-            If parts of the text don't belong to any numbered answer (like notes or headers), 
-            include them under key "0" as "notes".
-            
-            Here's the extracted text:
+            I have extracted text from a student's answer or solution script that contains both handwritten and typed text. Please help me segregate the answers by their corresponding question numbers. The extracted text may have various numbering formats (e.g., "1", "2", "Question 1", "1.", "2.", etc.), and the handwritten parts must be handled accurately without any mistakes.
+
+            Requirements:
+
+                Identify each answer using its corresponding question number, regardless of whether the text is handwritten or typed.
+
+                Exclude the question numbering itself from the final answer text.
+
+                Return the result as a valid JSON object where:
+
+                    Keys are the question numbers as strings (e.g., "1", "2", "3").
+
+                    Values are the complete text of each answer.
+
+                Any text that does not belong to any numbered answer (such as notes, headers, or miscellaneous content) should be included under the key "0" with the value "notes".
+
+            Extracted Text:
             
             """
             
@@ -2702,15 +2714,19 @@ def map_answers_to_questions(extracted_texts, questions):
     # Use Gemini to map answers to questions
     prompt = f"""
     I have the following exam questions:
+
     {json.dumps(questions, indent=2)}
-    
-    And the following extracted text from a student's exam:
+
+    And I have the following extracted text from a student's exam:
+
     {combined_text}
-    
-    For each question, extract the student's answer. Return a JSON array where each object has:
-    1. question_id: The ID of the question
-    2. student_answer: The student's answer for this question
-    
+
+    For each question, please extract the corresponding student's answer from the extracted text. Your output should be a valid JSON array, where each element is an object with the following properties:
+
+        question_id: The unique ID of the question (as given in the exam questions list).
+
+        student_answer: The complete text of the student's answer for that question.
+
     Return ONLY valid JSON.
     """
     
