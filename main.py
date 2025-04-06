@@ -4845,6 +4845,382 @@ def get_classroom_analytics(classroom_id):
         traceback.print_exc()
         return jsonify({"msg": f"Error generating classroom analytics: {str(e)}"}), 500
 
+@app.route("/api/enrolled-students", methods=["GET"])
+@jwt_required(optional=True)
+def get_enrolled_students():
+    """Get all students enrolled in the teacher's classrooms with their details"""
+    # Get user ID from JWT token (will be None if no valid token)
+    user_id = get_jwt_identity()
+    
+    # Check if we should include quiz data
+    include_quiz_data = request.args.get('includeQuizData', 'false').lower() == 'true'
+    print(f"includeQuizData parameter received: {include_quiz_data}")
+    
+    # Log authentication status
+    if user_id:
+        print(f"User authenticated with ID: {user_id}")
+    else:
+        print("No valid authentication token provided")
+    
+    # Check request headers for debugging
+    auth_header = request.headers.get('Authorization')
+    print(f"Authorization header present: {auth_header is not None}")
+    if auth_header:
+        print(f"Authorization header starts with 'Bearer': {auth_header.startswith('Bearer ')}")
+        print(f"Authorization header length: {len(auth_header)}")
+    
+    # First try to get real data if user is authenticated
+    if user_id:
+        try:
+            user = users_collection.find_one({"_id": ObjectId(user_id)})
+            if user and user["userType"] == "teacher":
+                print(f"Fetching enrolled students for teacher: {user.get('fullName', 'Unknown')}")
+                
+                # Get all classrooms where this teacher is the owner
+                teacher_classrooms = list(classrooms_collection.find({"teacher_id": ObjectId(user_id)}))
+                print(f"Found {len(teacher_classrooms)} classrooms for this teacher")
+                
+                result = []
+                student_counts = {}
+                
+                for classroom in teacher_classrooms:
+                    classroom_data = {
+                        "id": str(classroom["_id"]),
+                        "name": classroom.get("className", "Unnamed Class"),
+                        "subject": classroom.get("subject", "General"),
+                        "section": classroom.get("section", "Main"),
+                        "students": []
+                    }
+                    
+                    # Include quiz data if requested
+                    if include_quiz_data and "quizzes" in classroom:
+                        print(f"Including quiz data for classroom {classroom_data['name']}")
+                        # Create a clean version of quizzes without binary content
+                        classroom_data["quizzes"] = []
+                        
+                        for quiz in classroom.get("quizzes", []):
+                            # Make a copy of the quiz without binary content
+                            clean_quiz = {
+                                "id": quiz.get("id"),
+                                "title": quiz.get("title", "Untitled Quiz"),
+                                "description": quiz.get("description", ""),
+                                "startTime": quiz.get("startTime"),
+                                "duration": quiz.get("duration"),
+                                "published": quiz.get("published", False),
+                                "quizType": quiz.get("quizType", "question"),
+                                "submissions": []
+                            }
+                            
+                            # Include submissions but clean up binary data
+                            for submission in quiz.get("submissions", []):
+                                # Make a copy of the submission without binary content
+                                clean_submission = {
+                                    "student_id": submission.get("student_id"),
+                                    "startTime": submission.get("startTime"),
+                                    "endTime": submission.get("endTime"),
+                                    "score": submission.get("score"),
+                                    "maxScore": submission.get("maxScore"),
+                                    "percentage": submission.get("percentage", 0),
+                                    "isGraded": submission.get("isGraded", False),
+                                    "feedback": submission.get("feedback", "")
+                                }
+                                
+                                # Add to clean quiz
+                                clean_quiz["submissions"].append(clean_submission)
+                            
+                            # Add to classroom data
+                            classroom_data["quizzes"].append(clean_quiz)
+                    
+                    # Get all enrolled students for this classroom
+                    enrolled_student_ids = classroom.get("enrolled_students", [])
+                    print(f"Classroom {classroom_data['name']} has {len(enrolled_student_ids)} enrolled students")
+                    
+                    for student_id in enrolled_student_ids:
+                        student = users_collection.find_one({"_id": student_id})
+                        if student:
+                            # Count student across all classrooms
+                            student_id_str = str(student["_id"])
+                            if student_id_str in student_counts:
+                                student_counts[student_id_str]["count"] += 1
+                            else:
+                                # Collect all available student data
+                                student_data = {
+                                    "id": student_id_str,
+                                    "name": student.get("fullName", "Unknown"),
+                                    "email": student.get("email", ""),
+                                    "institution": student.get("institution", "No institution provided"),
+                                    "department": student.get("department", "No department provided"),
+                                    "phone": student.get("phone", "No phone provided"),
+                                    "title": student.get("title", "Student"),
+                                    "bio": student.get("bio", "No bio provided"),
+                                    "joinedAt": student.get("createdAt", datetime.utcnow())
+                                }
+                                
+                                student_counts[student_id_str] = {
+                                    "count": 1,
+                                    "student": student_data
+                                }
+                            
+                            # Add student to this classroom
+                            classroom_data["students"].append({
+                                "id": student_id_str,
+                                "name": student.get("fullName", "Unknown"),
+                                "email": student.get("email", "")
+                            })
+                        else:
+                            print(f"Warning: Student with ID {student_id} not found in the database")
+                            
+                    result.append(classroom_data)
+                
+                # Get all unique students sorted by enrollment count
+                all_students = [data["student"] for _, data in sorted(
+                    student_counts.items(), 
+                    key=lambda x: x[1]["count"], 
+                    reverse=True
+                )]
+                
+                print(f"Successfully fetched data for {len(all_students)} students across {len(result)} classrooms")
+                
+                # Debug log for quiz data
+                if include_quiz_data:
+                    total_quizzes = sum(len(c.get("quizzes", [])) for c in result)
+                    print(f"Included {total_quizzes} quizzes in the response")
+                
+                return jsonify({
+                    "classrooms": result,
+                    "students": all_students,
+                    "totalClassrooms": len(result),
+                    "totalStudents": len(all_students)
+                }), 200
+            else:
+                print("User is not a teacher or not found, using sample data")
+        except Exception as e:
+            print(f"Error getting real data: {e}")
+            traceback.print_exc()
+            # Fall back to sample data if anything fails
+    
+    # Provide sample data if not authenticated or if fetching real data failed
+    print("Using sample data for enrolled students")
+    sample_classrooms = [
+        {
+            "id": "class1",
+            "name": "Mathematics 101",
+            "subject": "Mathematics",
+            "section": "A",
+            "students": [
+                {
+                    "id": "student1",
+                    "name": "John Smith",
+                    "email": "john.smith@example.com"
+                },
+                {
+                    "id": "student2",
+                    "name": "Emily Johnson",
+                    "email": "emily.j@example.com"
+                },
+                {
+                    "id": "student3",
+                    "name": "Michael Brown",
+                    "email": "michael.b@example.com"
+                }
+            ]
+        },
+        {
+            "id": "class2",
+            "name": "Physics 202",
+            "subject": "Physics",
+            "section": "B",
+            "students": [
+                {
+                    "id": "student1",
+                    "name": "John Smith",
+                    "email": "john.smith@example.com"
+                },
+                {
+                    "id": "student4",
+                    "name": "Sarah Williams",
+                    "email": "sarah.w@example.com"
+                }
+            ]
+        },
+        {
+            "id": "class3",
+            "name": "Computer Science 301",
+            "subject": "Computer Science",
+            "section": "C",
+            "students": [
+                {
+                    "id": "student2",
+                    "name": "Emily Johnson",
+                    "email": "emily.j@example.com"
+                },
+                {
+                    "id": "student3",
+                    "name": "Michael Brown",
+                    "email": "michael.b@example.com"
+                },
+                {
+                    "id": "student5",
+                    "name": "David Miller",
+                    "email": "david.m@example.com"
+                },
+                {
+                    "id": "student6",
+                    "name": "Jessica Davis",
+                    "email": "jessica.d@example.com"
+                }
+            ]
+        }
+    ]
+    
+    # Add more sample data for better UI testing
+    sample_classrooms.append({
+        "id": "class4",
+        "name": "History 101",
+        "subject": "History",
+        "section": "D",
+        "students": [
+            {
+                "id": "student7",
+                "name": "Alex Thompson",
+                "email": "alex.t@example.com"
+            },
+            {
+                "id": "student8",
+                "name": "Olivia Wilson",
+                "email": "olivia.w@example.com"
+            }
+        ]
+    })
+    
+    # Add sample quiz data if requested
+    if include_quiz_data:
+        print("Including sample quiz data in response")
+        # Add quizzes to first classroom
+        sample_classrooms[0]["quizzes"] = [
+            {
+                "id": "quiz1",
+                "title": "Algebra Basics",
+                "description": "A quiz about basic algebra concepts",
+                "startTime": "2025-03-10T10:00:00Z",
+                "duration": 60,
+                "published": True,
+                "quizType": "pdf",
+                "submissions": [
+                    {
+                        "student_id": "student1",
+                        "startTime": "2025-03-10T10:05:00Z",
+                        "endTime": "2025-03-10T10:45:00Z",
+                        "score": 85,
+                        "maxScore": 100,
+                        "percentage": 85,
+                        "isGraded": True,
+                        "feedback": "Good work!"
+                    },
+                    {
+                        "student_id": "student2",
+                        "startTime": "2025-03-10T10:10:00Z",
+                        "endTime": "2025-03-10T10:50:00Z",
+                        "score": 92,
+                        "maxScore": 100,
+                        "percentage": 92,
+                        "isGraded": True,
+                        "feedback": "Excellent work!"
+                    }
+                ]
+            },
+            {
+                "id": "quiz2",
+                "title": "Geometry Concepts",
+                "description": "A quiz about basic geometry",
+                "startTime": "2025-03-15T10:00:00Z",
+                "duration": 45,
+                "published": True,
+                "quizType": "pdf",
+                "submissions": [
+                    {
+                        "student_id": "student1",
+                        "startTime": "2025-03-15T10:05:00Z",
+                        "endTime": "2025-03-15T10:40:00Z",
+                        "score": 75,
+                        "maxScore": 100,
+                        "percentage": 75,
+                        "isGraded": True,
+                        "feedback": "Good effort, but review triangles."
+                    }
+                ]
+            }
+        ]
+        
+        # Add quizzes to second classroom
+        sample_classrooms[1]["quizzes"] = [
+            {
+                "id": "quiz3",
+                "title": "Newton's Laws",
+                "description": "Quiz on Newton's laws of motion",
+                "startTime": "2025-03-12T14:00:00Z",
+                "duration": 30,
+                "published": True,
+                "quizType": "pdf",
+                "submissions": [
+                    {
+                        "student_id": "student1",
+                        "startTime": "2025-03-12T14:05:00Z",
+                        "endTime": "2025-03-12T14:25:00Z",
+                        "score": 80,
+                        "maxScore": 100,
+                        "percentage": 80,
+                        "isGraded": True,
+                        "feedback": "Good understanding of concepts."
+                    }
+                ]
+            }
+        ]
+    
+    # Prepare student data
+    student_counts = {}
+    
+    for classroom in sample_classrooms:
+        for student in classroom["students"]:
+            student_id = student["id"]
+            if student_id in student_counts:
+                student_counts[student_id]["count"] += 1
+            else:
+                student_counts[student_id] = {
+                    "count": 1,
+                    "student": {
+                        "id": student_id,
+                        "name": student["name"],
+                        "email": student["email"],
+                        "institution": "Sample University (PLACEHOLDER)",
+                        "department": "Sample Department (PLACEHOLDER)",
+                        "phone": "123-456-7890 (PLACEHOLDER)",
+                        "title": "Student (PLACEHOLDER)",
+                        "bio": "This is sample data. Please log in to see real student information. (PLACEHOLDER)",
+                        "joinedAt": "2023-01-15T12:00:00Z"
+                    }
+                }
+    
+    # Get all unique students sorted by enrollment count
+    all_students = [data["student"] for _, data in sorted(
+        student_counts.items(), 
+        key=lambda x: x[1]["count"], 
+        reverse=True
+    )]
+    
+    # Debug log for sample quiz data
+    if include_quiz_data:
+        total_quizzes = sum(len(c.get("quizzes", [])) for c in sample_classrooms)
+        print(f"Included {total_quizzes} sample quizzes in the response")
+    
+    return jsonify({
+        "classrooms": sample_classrooms,
+        "students": all_students,
+        "totalClassrooms": len(sample_classrooms),
+        "totalStudents": len(all_students),
+        "isSampleData": True
+    }), 200
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     host = os.environ.get("HOST", "0.0.0.0")

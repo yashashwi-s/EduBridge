@@ -138,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       
       console.log('Fetching enrolled students data...');
-      const response = await fetch('/api/enrolled-students', {
+      const response = await fetch('/api/enrolled-students?includeQuizData=true', {
         method: 'GET',
         headers: headers
       });
@@ -591,21 +591,9 @@ document.addEventListener('DOMContentLoaded', () => {
             <p id="modalStudentPhone">Not provided</p>
           </div>
           <div class="info-item">
-            <label>Department:</label>
-            <p id="modalStudentDepartment">Not provided</p>
-          </div>
-          <div class="info-item">
-            <label>Title:</label>
-            <p id="modalStudentTitle">Not provided</p>
-          </div>
-          <div class="info-item">
             <label>Joined:</label>
             <p id="modalStudentJoined">Not provided</p>
           </div>
-        </div>
-        <div class="info-item bio-item">
-          <label>Bio:</label>
-          <p id="modalStudentBio">No bio provided</p>
         </div>
       `;
       
@@ -683,47 +671,126 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
     
-    // Set performance data (just placeholders for now)
-    const quizCompletionElement = document.getElementById('modalQuizCompletion');
-    const averageScoreElement = document.getElementById('modalAverageScore');
-    const participationElement = document.getElementById('modalParticipation');
+    // Calculate quiz metrics from real data - kept for debugging purposes only
+    function calculateQuizMetrics(studentId) {
+      console.log('===== CALCULATING QUIZ METRICS =====');
+      console.log(`Student ID: ${studentId}`);
+      
+      // Track total quizzes and completed quizzes across all enrolled classes
+      let totalQuizzes = 0;
+      let completedQuizzes = 0;
+      let totalScore = 0;
+      let totalSubmissions = 0;
+      
+      // Find all classrooms the student is enrolled in
+      const studentClassrooms = enrolledData.classrooms.filter(classroom => 
+        classroom.students.some(s => s.id === studentId)
+      );
+      
+      console.log(`Found ${studentClassrooms.length} classrooms for student`);
+      
+      // Get quiz data for each classroom
+      studentClassrooms.forEach(classroom => {
+        console.log(`\nProcessing classroom: ${classroom.name}`);
+        
+        if (classroom.quizzes && Array.isArray(classroom.quizzes)) {
+          console.log(`Found ${classroom.quizzes.length} quizzes in this classroom`);
+          
+          // Count total quizzes in this classroom
+          totalQuizzes += classroom.quizzes.length;
+          
+          // Check each quiz for student submissions
+          classroom.quizzes.forEach((quiz, index) => {
+            console.log(`\n  Quiz #${index+1}: ${quiz.title || 'Untitled Quiz'}`);
+            
+            if (quiz.submissions && Array.isArray(quiz.submissions)) {
+              console.log(`  Submissions: ${quiz.submissions.length}`);
+              
+              // Find this student's submission
+              const studentSubmission = quiz.submissions.find(sub => {
+                if (!sub.student_id) return false;
+                
+                // Check for MongoDB ObjectId format
+                if (typeof sub.student_id === 'object' && sub.student_id.$oid) {
+                  return sub.student_id.$oid === studentId;
+                }
+                
+                // Direct string comparison
+                return sub.student_id === studentId;
+              });
+              
+              if (studentSubmission) {
+                console.log(`  ✓ Found submission for this student`);
+                completedQuizzes++;
+                
+                // If the submission has score data, add it to the totals
+                if (studentSubmission.score !== undefined && studentSubmission.maxScore) {
+                  const percentage = studentSubmission.percentage || 
+                    (studentSubmission.score / studentSubmission.maxScore * 100);
+                  totalScore += percentage;
+                  totalSubmissions++;
+                  console.log(`      Calculated percentage: ${percentage}`);
+                }
+              }
+            }
+          });
+        }
+      });
+      
+      // Calculate metrics
+      const completionRate = totalQuizzes > 0 ? (completedQuizzes / totalQuizzes * 100) : 0;
+      const averageScore = totalSubmissions > 0 ? (totalScore / totalSubmissions) : 0;
+      
+      console.log('\nFinal calculated metrics:');
+      console.log(`  Total Quizzes: ${totalQuizzes}`);
+      console.log(`  Completed Quizzes: ${completedQuizzes}`);
+      console.log(`  Completion Rate: ${completionRate}%`);
+      console.log(`  Total Submissions with Scores: ${totalSubmissions}`);
+      console.log(`  Total Score (sum of percentages): ${totalScore}`);
+      console.log(`  Average Score: ${averageScore}%`);
+      
+      return {
+        completionRate: Math.round(completionRate),
+        averageScore: Math.round(averageScore)
+      };
+    }
     
     // Check if we have actual performance data or using placeholders
     const isSampleData = enrolledData.isSampleData === true;
-    if (isSampleData) {
-      // Mark performance data as placeholders
-      quizCompletionElement.textContent = 'No data';
-      averageScoreElement.textContent = 'No data';
-      participationElement.textContent = 'No data';
-      
-      quizCompletionElement.classList.add('placeholder-data');
-      averageScoreElement.classList.add('placeholder-data');
-      participationElement.classList.add('placeholder-data');
-      
-      // Add a note to the performance section
-      const performanceSection = quizCompletionElement.closest('.student-details-section');
-      
-      if (performanceSection) {
-        if (!performanceSection.querySelector('.placeholder-note')) {
-          const note = document.createElement('p');
-          note.className = 'placeholder-note';
-          note.innerHTML = '<i class="fas fa-info-circle"></i> Performance data will be available with real student data.';
-          performanceSection.appendChild(note);
-        }
-      }
+    
+    // Debug structure of enrolledData
+    console.log('===== ENROLLED DATA STRUCTURE =====');
+    console.log('isSampleData:', isSampleData);
+    console.log('Classrooms with quizzes:', enrolledData.classrooms.filter(c => c.quizzes && c.quizzes.length > 0).length);
+    console.log('Total classrooms:', enrolledData.classrooms.length);
+    
+    // For debugging only - no need to display since we removed the Performance Overview section
+    if (isSampleData || !enrolledData.classrooms.some(c => c.quizzes && c.quizzes.length > 0)) {
+      console.log('No quiz data available');
     } else {
-      // Use random values for demo (in a real app, we'd fetch this data from the API)
-      quizCompletionElement.textContent = `${Math.floor(Math.random() * 100)}%`;
-      averageScoreElement.textContent = `${Math.floor(70 + Math.random() * 30)}%`;
-      participationElement.textContent = `${Math.floor(60 + Math.random() * 40)}%`;
+      // Only calculate for debugging purposes but don't update DOM
+      const metrics = calculateQuizMetrics(student.id);
       
-      quizCompletionElement.classList.remove('placeholder-data');
-      averageScoreElement.classList.remove('placeholder-data');
-      participationElement.classList.remove('placeholder-data');
-      
-      // Remove any placeholder notes
-      const note = document.querySelector('.placeholder-note');
-      if (note) note.remove();
+      // Debug logging for quiz data
+      console.log('Student quiz performance:', {
+        studentId: student.id,
+        metrics: metrics,
+        classroomsWithQuizzes: enrolledData.classrooms
+          .filter(c => c.quizzes && c.quizzes.length > 0)
+          .map(c => ({
+            id: c.id,
+            name: c.name,
+            quizCount: c.quizzes.length,
+            quizzes: c.quizzes.map(q => ({
+              id: q.id && q.id.$oid ? q.id.$oid : q.id,
+              title: q.title,
+              submissionCount: q.submissions ? q.submissions.length : 0,
+              hasStudentSubmission: q.submissions ? 
+                q.submissions.some(s => s.student_id && 
+                  (s.student_id === student.id || (s.student_id.$oid && s.student_id.$oid === student.id))) : false
+            }))
+          }))
+      });
     }
     
     // Show the modal
