@@ -399,8 +399,12 @@ function processLegacyData(classrooms, quizzes) {
   analyticsData.quizProgression.sort((a, b) => a.date - b.date);
   
   // Sort recentQuizzes by date (newest first) and limit to 5
-  analyticsData.recentQuizzes.sort((a, b) => b.date - a.date);
-  analyticsData.recentQuizzes = analyticsData.recentQuizzes.slice(0, 5);
+  if (analyticsData.recentQuizzes && analyticsData.recentQuizzes.length > 0) {
+    analyticsData.recentQuizzes.sort((a, b) => b.date - a.date);
+    analyticsData.recentQuizzes = analyticsData.recentQuizzes.slice(0, 5);
+  } else {
+    analyticsData.recentQuizzes = [];
+  }
   
   console.log('Processed analytics data:', analyticsData);
   return analyticsData;
@@ -1526,7 +1530,9 @@ function displayRecentQuizzes(data) {
   }
 
   // Check if we have quiz data
-  if (!data || !data.quizzes || data.quizzes.length === 0) {
+  if (!data || (!data.quizzes && !data.recentQuizzes) || 
+      (data.quizzes && data.quizzes.length === 0 && 
+       data.recentQuizzes && data.recentQuizzes.length === 0)) {
     container.innerHTML = `
       <div class="no-data">
         <i class="fas fa-clipboard-list"></i>
@@ -1538,9 +1544,9 @@ function displayRecentQuizzes(data) {
   }
 
   // Sort quizzes by date (newest first) and get the most recent 5
-  const recentQuizzes = [...data.quizzes]
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 5);
+  const recentQuizzes = data.recentQuizzes && data.recentQuizzes.length > 0 
+    ? [...data.recentQuizzes] 
+    : (data.quizzes ? [...data.quizzes].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5) : []);
 
   // Create an element for each quiz
   recentQuizzes.forEach((quiz, index) => {
