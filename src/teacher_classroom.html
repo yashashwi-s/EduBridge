@@ -13,6 +13,8 @@
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <!-- Add after external CSS -->
   <link rel="stylesheet" href="teacher_chatbot.css">
+  <!-- Add Chart.js for performance dashboard -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <!-- Navbar -->
@@ -231,7 +233,166 @@
           </div>
         </div>
         <div class="tab-content" id="performance">
-          <p>Class average: 82%</p>
+          <div class="performance-dashboard">
+            <div class="performance-summary-cards">
+              <div class="performance-card">
+                <div class="stat-value" id="class-average">0%</div>
+                <div class="stat-label">Class Average</div>
+                <div class="stat-trend" id="class-average-trend">
+                  <i class="fas fa-arrow-up"></i><span>0%</span>
+                </div>
+              </div>
+              <div class="performance-card">
+                <div class="stat-value" id="assignments-completed">0</div>
+                <div class="stat-label">Assignments Completed</div>
+                <div class="stat-trend" id="completion-rate">
+                  <i class="fas fa-users"></i><span>0%</span>
+                </div>
+              </div>
+              <div class="performance-card">
+                <div class="stat-value" id="highest-score">0%</div>
+                <div class="stat-label">Highest Score</div>
+                <div class="stat-info" id="top-student-name">--</div>
+              </div>
+              <div class="performance-card">
+                <div class="stat-value" id="lowest-score">0%</div>
+                <div class="stat-label">Lowest Score</div>
+                <div class="stat-info" id="struggling-student-name">--</div>
+              </div>
+            </div>
+            
+            <div class="performance-charts-row">
+              <div class="performance-chart-container">
+                <h3>Performance Trend</h3>
+                <canvas id="performanceTrendChart"></canvas>
+              </div>
+              <div class="performance-chart-container">
+                <h3>Score Distribution</h3>
+                <canvas id="scoreDistributionChart"></canvas>
+              </div>
+            </div>
+            
+            <div class="performance-sections">
+              <div class="section-tabs">
+                <button class="section-tab active" data-section="student-rankings">Student Rankings</button>
+                <button class="section-tab" data-section="assignment-analysis">Assignment Analysis</button>
+                <button class="section-tab" data-section="improvement-tracking">Improvement Tracking</button>
+              </div>
+              
+              <div class="section-content active" id="student-rankings">
+                <div class="rankings-header">
+                  <h3>Student Rankings</h3>
+                  <div class="rankings-controls">
+                    <select id="ranking-criteria">
+                      <option value="average">Average Score</option>
+                      <option value="improvement">Most Improved</option>
+                      <option value="completion">Assignment Completion</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div class="student-rankings-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Rank</th>
+                        <th>Student</th>
+                        <th>Average Score</th>
+                        <th>Completed</th>
+                        <th>Trend</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="rankings-table-body">
+                      <!-- Rankings will be loaded here -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              
+              <div class="section-content" id="assignment-analysis">
+                <div class="analysis-header">
+                  <h3>Assignment Performance Analysis</h3>
+                  <div class="analysis-controls">
+                    <select id="assignment-filter">
+                      <option value="all">All Assignments</option>
+                      <option value="recent">Recent Assignments</option>
+                      <option value="low-scores">Low Scoring Assignments</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div class="assignment-analysis-container">
+                  <canvas id="assignmentAnalysisChart"></canvas>
+                  <div class="assignment-insights">
+                    <h4>Assignment Insights</h4>
+                    <div class="insight-card" id="hardest-topics">
+                      <h5>Challenging Topics</h5>
+                      <p>Topics where students scored lowest:</p>
+                      <ul id="difficult-topics-list">
+                        <!-- Topics will be loaded here -->
+                      </ul>
+                    </div>
+                    <div class="insight-card" id="strong-topics">
+                      <h5>Strong Areas</h5>
+                      <p>Topics where students excelled:</p>
+                      <ul id="strong-topics-list">
+                        <!-- Topics will be loaded here -->
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="section-content" id="improvement-tracking">
+                <div class="improvement-header">
+                  <h3>Student Improvement Tracking</h3>
+                </div>
+                
+                <div class="improvement-metrics">
+                  <div class="improvement-card">
+                    <div class="improvement-value" id="most-improved-percent">0%</div>
+                    <div class="improvement-label">Most Improved</div>
+                    <div class="improvement-student" id="most-improved-student">--</div>
+                  </div>
+                  <div class="improvement-card">
+                    <div class="improvement-value" id="class-improvement">0%</div>
+                    <div class="improvement-label">Class Improvement</div>
+                    <div class="improvement-period">Last 30 days</div>
+                  </div>
+                  <div class="improvement-card">
+                    <div class="improvement-value" id="students-improving-count">0</div>
+                    <div class="improvement-label">Students Improving</div>
+                    <div class="improvement-percent" id="students-improving-percent">0%</div>
+                  </div>
+                </div>
+                
+                <div class="improvement-chart-container">
+                  <h4>Individual Progress Over Time</h4>
+                  <div class="student-selector">
+                    <label for="student-progress-select">Select Student:</label>
+                    <select id="student-progress-select">
+                      <option value="all">All Students (Average)</option>
+                      <!-- Students will be loaded here -->
+                    </select>
+                  </div>
+                  <canvas id="studentProgressChart"></canvas>
+                </div>
+              </div>
+            </div>
+            
+            <div class="export-actions">
+              <button class="btn btn-outline" id="export-performance-pdf">
+                <i class="fas fa-file-pdf"></i> Export as PDF
+              </button>
+              <button class="btn btn-outline" id="export-performance-csv">
+                <i class="fas fa-file-csv"></i> Export as CSV
+              </button>
+              <button class="btn btn-outline" id="share-performance-report">
+                <i class="fas fa-share-alt"></i> Share Report
+              </button>
+            </div>
+          </div>
         </div>
         <div class="tab-content" id="doubts">
           <div class="doubt">

@@ -2841,3 +2841,19 @@ function processAllQuizPdfs() {
         btn.innerHTML = originalText;
     });
 }
+
+// Initialize performance dashboard when DOM content is loaded
+document.addEventListener('DOMContentLoaded', function() {
+  // After other initializations, also initialize the performance dashboard
+  if (document.getElementById('performance')) {
+    // Load Chart.js library if needed
+    if (typeof Chart === 'undefined') {
+      const chartScript = document.createElement('script');
+      chartScript.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+      chartScript.onload = initializePerformanceDashboard;
+      document.head.appendChild(chartScript);
+    } else {
+      initializePerformanceDashboard();
+    }
+  }
+});
