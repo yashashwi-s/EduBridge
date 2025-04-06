@@ -206,58 +206,102 @@ function openDayModal(dateKey) {
       const eventItem = document.createElement('div');
       eventItem.className = `event-item ${event.type}`;
       
+      // Add data attribute for classroom events for styling
+      if (event.isClassroomEvent) {
+        eventItem.setAttribute('data-classroom-event', 'true');
+      }
+      
       let classroomText = '';
       if (event.classroom) {
         classroomText = `<div class="event-classroom">${event.classroom}</div>`;
       }
       
+      // Time information display
+      let timeText = '';
+      if (event.timeFormatted) {
+        timeText = `<div class="event-time"><i class="far fa-clock"></i> ${event.timeFormatted}</div>`;
+        
+        // If it's a quiz with duration, add duration info
+        if (event.type === 'test' && event.duration) {
+          timeText += `<div class="event-duration"><i class="fas fa-hourglass-half"></i> ${event.duration} minutes</div>`;
+        }
+      }
+      
+      // Create the description element but don't add it yet (will be toggled on click for personal events)
+      let descriptionElement = '';
+      if (event.description) {
+        descriptionElement = `<div class="event-description">${event.description}</div>`;
+      }
+      
       eventItem.innerHTML = `
         <div class="event-title">${event.title}</div>
         ${classroomText}
+        ${timeText}
         <div class="event-type"><i class="fas ${event.icon}"></i> ${event.type.charAt(0).toUpperCase() + event.type.slice(1)}</div>
       `;
       
-      // Add options to edit or delete event
+      // Add the description for personal events
+      if (event.description && !event.isClassroomEvent) {
+        const descDiv = document.createElement('div');
+        descDiv.className = 'event-description';
+        descDiv.innerHTML = event.description;
+        eventItem.appendChild(descDiv);
+      }
+      
+      // Add options to edit or delete event - only for personal events
       const eventActions = document.createElement('div');
       eventActions.className = 'event-actions';
-      eventActions.innerHTML = `
-        <button class="action-btn edit"><i class="fas fa-edit"></i></button>
-        <button class="action-btn delete"><i class="fas fa-trash"></i></button>
-      `;
       
-      // Add event listeners for edit and delete actions
-      const editBtn = eventActions.querySelector('.edit');
-      const deleteBtn = eventActions.querySelector('.delete');
-      
-      editBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        alert("Edit event: " + event.title);
-        // Here you would implement opening the edit form with pre-filled data
-      });
-      
-      deleteBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (confirm("Are you sure you want to delete this event?")) {
-          // Here you would implement deleting the event from eventsData
-          const index = eventsData[dateKey].findIndex(e => e.title === event.title && e.type === event.type);
-          if (index !== -1) {
-            eventsData[dateKey].splice(index, 1);
-            // If no more events on this day, remove the day entry
-            if (eventsData[dateKey].length === 0) {
-              delete eventsData[dateKey];
+      if (event.isClassroomEvent) {
+        // For classroom events, add a "View in Classroom" button
+        eventActions.innerHTML = `
+          <button class="action-btn view-classroom"><i class="fas fa-external-link-alt"></i></button>
+        `;
+        
+        const viewClassroomBtn = eventActions.querySelector('.view-classroom');
+        viewClassroomBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          window.location.href = `/teacher_classroom?classroomId=${event.classroomId}`;
+        });
+      } else {
+        // For personal events, show edit and delete buttons
+        eventActions.innerHTML = `
+          <button class="action-btn edit"><i class="fas fa-edit"></i></button>
+          <button class="action-btn delete"><i class="fas fa-trash"></i></button>
+        `;
+        
+        // Add event listeners for edit and delete actions
+        const editBtn = eventActions.querySelector('.edit');
+        const deleteBtn = eventActions.querySelector('.delete');
+        
+        editBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          alert("Edit event: " + event.title);
+          // Here you would implement opening the edit form with pre-filled data
+        });
+        
+        deleteBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (confirm("Are you sure you want to delete this event?")) {
+            if (await deletePersonalEvent(dateKey, event.id)) {
+              // Close the modal
+              closeModalFunc();
+              showNotification("Event deleted successfully", "success");
+            } else {
+              showNotification("Failed to delete event", "error");
             }
-            // Re-render the calendar and close the modal
-            renderCalendar(currentDate);
-            closeModalFunc();
           }
-        }
-      });
+        });
+      }
       
       eventItem.appendChild(eventActions);
       
       // Make eventItem clickable to view full details
       eventItem.addEventListener('click', () => {
-        alert("Viewing full details for: " + event.title);
+        if (event.isClassroomEvent) {
+          window.location.href = `/teacher_classroom?classroomId=${event.classroomId}`;
+        }
+        // No longer needed since we now show the description directly in the event item
       });
       
       eventsList.appendChild(eventItem);
@@ -275,7 +319,7 @@ function openDayModal(dateKey) {
     quickAddBtn.className = 'submit-btn';
     quickAddBtn.style.margin = '16px auto';
     quickAddBtn.style.display = 'block';
-    quickAddBtn.innerHTML = '<i class="fas fa-plus"></i> Add Event';
+    quickAddBtn.innerHTML = '<i class="fas fa-plus"></i> Add Personal Event';
     quickAddBtn.addEventListener('click', () => {
       closeModalFunc();
       openAddEventModal(dateKey);
@@ -310,32 +354,40 @@ function openAddEventModal(dateKey) {
   addEventModal.classList.add('show');
 }
 
-function addNewEvent(event) {
+async function addNewEvent(event) {
   event.preventDefault();
   
   const formData = new FormData(eventForm);
   const eventTitle = formData.get('eventTitle');
   const eventDate = formData.get('eventDate');
-  const eventType = formData.get('eventType');
+  const eventTime = formData.get('eventTime');
   const eventDescription = formData.get('eventDescription');
   const eventClassroom = formData.get('eventClassroom');
   
-  // Map event type to icon
-  const iconMap = {
-    'announcement': 'fa-bullhorn',
-    'deadline': 'fa-clock',
-    'test': 'fa-file-alt',
-    'submission': 'fa-upload',
-    'personal': 'fa-user'
+  // Generate a unique ID
+  const eventId = 'event_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+  
+  // Create new event object - always personal type
+  const newEvent = {
+    id: eventId,
+    title: eventTitle,
+    type: "personal",
+    icon: "fa-user",
+    description: eventDescription,
+    date: eventDate,
+    time: eventTime || null
   };
   
-  // Create new event object
-  const newEvent = {
-    title: eventTitle,
-    type: eventType,
-    icon: iconMap[eventType] || 'fa-calendar',
-    description: eventDescription
-  };
+  // Add time information if provided
+  if (eventTime) {
+    // Create Date object from date and time
+    const [hours, minutes] = eventTime.split(':');
+    const dateObj = new Date(eventDate);
+    dateObj.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0);
+    
+    newEvent.time = dateObj;
+    newEvent.timeFormatted = formatTimeWithTimezone(dateObj);
+  }
   
   // Add classroom if selected
   if (eventClassroom) {
@@ -345,20 +397,42 @@ function addNewEvent(event) {
     }
   }
   
-  // Add event to eventsData
-  if (!eventsData[eventDate]) {
-    eventsData[eventDate] = [];
+  try {
+    // Get existing personal events
+    const allPersonalEvents = await fetchPersonalEvents();
+    
+    // Add the new event
+    allPersonalEvents.push(newEvent);
+    
+    // Save all events back to localStorage
+    savePersonalEventsToLocalStorage(allPersonalEvents);
+    
+    // Add event to local eventsData
+    if (!eventsData[eventDate]) {
+      eventsData[eventDate] = [];
+    }
+    eventsData[eventDate].push(newEvent);
+    
+    // Re-render the calendar to show the new event
+    renderCalendar(currentDate);
+    
+    // Close the modal
+    closeAddEventModal();
+    
+    // Show success message
+    showNotification(`Personal event "${eventTitle}" added successfully!`, "success");
+  } catch (error) {
+    console.error('Error saving event:', error);
+    showNotification('Failed to save event. Please try again.', 'error');
+    
+    // Still add to local eventsData in case of storage failure
+    if (!eventsData[eventDate]) {
+      eventsData[eventDate] = [];
+    }
+    eventsData[eventDate].push(newEvent);
+    renderCalendar(currentDate);
+    closeAddEventModal();
   }
-  eventsData[eventDate].push(newEvent);
-  
-  // Re-render the calendar to show the new event
-  renderCalendar(currentDate);
-  
-  // Close the modal
-  closeAddEventModal();
-  
-  // Show success message
-  alert(`Event "${eventTitle}" added successfully!`);
 }
 
 function closeModalFunc() {
@@ -444,9 +518,298 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Initialize calendar and populate dropdown
+// Function to fetch classroom data
+async function fetchClassroomData() {
+  try {
+    // Get JWT token from localStorage - check all possible key names
+    let token = localStorage.getItem('access_token') || 
+               localStorage.getItem('accessToken') || 
+               localStorage.getItem('token');
+    
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+    
+    // API call to get classrooms data with authentication
+    const response = await fetch('/api/classrooms', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch classroom data');
+    }
+    
+    const classrooms = await response.json();
+    return classrooms;
+  } catch (error) {
+    console.error('Error fetching classroom data:', error);
+    return [];
+  }
+}
+
+// Function to format a date in user's timezone with timezone indicator
+function formatTimeWithTimezone(date) {
+  const options = {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  };
+  
+  return date.toLocaleTimeString([], options);
+}
+
+// Function to extract events from classroom data
+function extractClassroomEvents(classrooms) {
+  const events = [];
+  
+  classrooms.forEach(classroom => {
+    // Extract announcements
+    if (classroom.announcements && classroom.announcements.length > 0) {
+      classroom.announcements.forEach(announcement => {
+        // Only add if it has a date
+        if (announcement.postTime) {
+          // Create date in local timezone
+          const date = new Date(announcement.postTime);
+          const dateKey = formatDateForInput(date);
+          
+          events.push({
+            dateKey,
+            event: {
+              title: `Announcement: ${classroom.className}`,
+              type: "announcement",
+              icon: "fa-bullhorn",
+              classroom: classroom.className,
+              id: announcement.announcement_id,
+              classroomId: classroom._id,
+              isClassroomEvent: true,
+              time: date,
+              timeFormatted: formatTimeWithTimezone(date)
+            }
+          });
+        }
+      });
+    }
+    
+    // Extract quizzes
+    if (classroom.quizzes && classroom.quizzes.length > 0) {
+      classroom.quizzes.forEach(quiz => {
+        // Only add if it has a start time and is published
+        if (quiz.startTime && quiz.published) {
+          // Create date in local timezone
+          const date = new Date(quiz.startTime);
+          const dateKey = formatDateForInput(date);
+          
+          events.push({
+            dateKey,
+            event: {
+              title: `Quiz: ${quiz.title}`,
+              type: "test",
+              icon: "fa-file-alt",
+              classroom: classroom.className,
+              id: quiz.id,
+              classroomId: classroom._id,
+              isClassroomEvent: true,
+              time: date,
+              timeFormatted: formatTimeWithTimezone(date),
+              duration: quiz.duration
+            }
+          });
+        }
+      });
+    }
+  });
+  
+  return events;
+}
+
+// Function to add classroom events to the calendar
+function addClassroomEventsToCalendar(events) {
+  events.forEach(({ dateKey, event }) => {
+    if (!eventsData[dateKey]) {
+      eventsData[dateKey] = [];
+    }
+    
+    // Check if event already exists to avoid duplicates
+    const exists = eventsData[dateKey].some(e => 
+      e.isClassroomEvent && e.id === event.id && e.classroomId === event.classroomId
+    );
+    
+    if (!exists) {
+      eventsData[dateKey].push(event);
+    }
+  });
+  
+  // Re-render the calendar to show the updated events
+  renderCalendar(currentDate);
+}
+
+// Function to show a notification message
+function showNotification(message, type = 'info') {
+  // Create notification element if it doesn't exist
+  let notification = document.querySelector('.calendar-notification');
+  if (!notification) {
+    notification = document.createElement('div');
+    notification.className = 'calendar-notification';
+    document.querySelector('.content').appendChild(notification);
+  }
+  
+  // Set message and type
+  notification.textContent = message;
+  notification.className = `calendar-notification ${type}`;
+  
+  // Show the notification
+  notification.classList.add('show');
+  
+  // Hide after 5 seconds
+  setTimeout(() => {
+    notification.classList.remove('show');
+  }, 5000);
+}
+
+// Function to fetch personal events from localStorage
+async function fetchPersonalEvents() {
+  try {
+    // Get events from localStorage
+    const storedEvents = localStorage.getItem('personal_calendar_events');
+    if (!storedEvents) {
+      return [];
+    }
+    
+    const personalEvents = JSON.parse(storedEvents);
+    console.log('Loaded personal events from localStorage:', personalEvents.length);
+    return personalEvents;
+  } catch (error) {
+    console.error('Error fetching personal events from localStorage:', error);
+    return [];
+  }
+}
+
+// Function to save personal events to localStorage
+function savePersonalEventsToLocalStorage(events) {
+  try {
+    localStorage.setItem('personal_calendar_events', JSON.stringify(events));
+    console.log('Saved personal events to localStorage');
+    return true;
+  } catch (error) {
+    console.error('Error saving personal events to localStorage:', error);
+    return false;
+  }
+}
+
+// Function to add personal events from localStorage to the calendar
+function addPersonalEventsToCalendar(events) {
+  if (!events || !Array.isArray(events)) {
+    console.log('No valid personal events to add');
+    return;
+  }
+  
+  events.forEach(event => {
+    // Create date in local timezone
+    const date = new Date(event.date);
+    const dateKey = formatDateForInput(date);
+    
+    // Create event object
+    const newEvent = {
+      id: event.id,
+      title: event.title,
+      type: "personal",
+      icon: "fa-user",
+      description: event.description
+    };
+    
+    // Add time information if available
+    if (event.time) {
+      const timeDate = new Date(`${event.date}T${event.time}`);
+      newEvent.time = timeDate;
+      newEvent.timeFormatted = formatTimeWithTimezone(timeDate);
+    }
+    
+    // Add event to eventsData
+    if (!eventsData[dateKey]) {
+      eventsData[dateKey] = [];
+    }
+    
+    // Check if event already exists to avoid duplicates
+    const exists = eventsData[dateKey].some(e => 
+      (e.id && e.id === newEvent.id) || 
+      (e.title === newEvent.title && e.type === newEvent.type && e.description === newEvent.description)
+    );
+    
+    if (!exists) {
+      eventsData[dateKey].push(newEvent);
+    }
+  });
+  
+  // Re-render the calendar
+  renderCalendar(currentDate);
+}
+
+// Function to update delete functionality to use localStorage
+async function deletePersonalEvent(dateKey, eventId) {
+  try {
+    const allPersonalEvents = await fetchPersonalEvents();
+    
+    // Filter out the event to delete
+    const updatedEvents = allPersonalEvents.filter(event => event.id !== eventId);
+    
+    // Save updated events back to localStorage
+    savePersonalEventsToLocalStorage(updatedEvents);
+    
+    // Update local events data
+    const eventIndex = eventsData[dateKey].findIndex(e => e.id === eventId);
+    if (eventIndex !== -1) {
+      eventsData[dateKey].splice(eventIndex, 1);
+      
+      // If no more events on this day, remove the day entry
+      if (eventsData[dateKey].length === 0) {
+        delete eventsData[dateKey];
+      }
+    }
+    
+    // Re-render calendar
+    renderCalendar(currentDate);
+    
+    return true;
+  } catch (error) {
+    console.error('Error deleting event:', error);
+    return false;
+  }
+}
+
+// Function to load all events (both classroom and personal)
+async function loadAllEvents() {
+  try {
+    // Load classroom events
+    const classrooms = await fetchClassroomData();
+    if (classrooms && classrooms.length > 0) {
+      const classroomEvents = extractClassroomEvents(classrooms);
+      addClassroomEventsToCalendar(classroomEvents);
+    }
+    
+    // Load personal events
+    const personalEvents = await fetchPersonalEvents();
+    if (personalEvents && personalEvents.length > 0) {
+      addPersonalEventsToCalendar(personalEvents);
+    }
+  } catch (error) {
+    console.error('Error loading events:', error);
+  }
+}
+
+// Update the DOMContentLoaded event handler to load all events
 document.addEventListener('DOMContentLoaded', () => {
   renderCalendar(currentDate);
   populateClassroomsDropdown();
   
+  // Always load events since we're using localStorage for personal events
+  loadAllEvents();
+  
+  // Refresh events every 5 minutes
+  setInterval(() => {
+    loadAllEvents();
+  }, 5 * 60 * 1000);
 }); 
