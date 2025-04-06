@@ -1603,23 +1603,53 @@ function displayRecentQuizzes(data) {
 
 // Function to generate achievements based on user performance
 function generateAchievements(data) {
-  if (!data || !data.quizzes || data.quizzes.length === 0) {
+  if (!data) {
+    return [];
+  }
+  
+  // Get quizzes from either data.quizzes or data.quizProgression
+  let quizzes = [];
+  
+  if (data.quizzes && data.quizzes.length > 0) {
+    quizzes = data.quizzes;
+  } else if (data.quizProgression && data.quizProgression.length > 0) {
+    quizzes = data.quizProgression;
+  } else if (data.recentQuizzes && data.recentQuizzes.length > 0) {
+    quizzes = data.recentQuizzes;
+  }
+  
+  if (quizzes.length === 0) {
     return [];
   }
   
   const achievements = [];
-  const quizzes = data.quizzes;
   
   // Calculate some overall stats
   const totalQuizzes = quizzes.length;
-  const perfectScores = quizzes.filter(q => 
-    q.score === q.maxScore && q.maxScore > 0
-  ).length;
+  
+  console.log('Checking for perfect scores among', totalQuizzes, 'quizzes');
+  
+  const perfectScores = quizzes.filter(q => {
+    const isPerfect = q.score === q.maxScore && q.maxScore > 0;
+    if (isPerfect) {
+      console.log('Perfect score found:', q.title, q.score, '/', q.maxScore);
+    }
+    return isPerfect;
+  }).length;
   
   // Get high score quizzes (90%+)
-  const highScoreQuizzes = quizzes.filter(q => 
-    q.maxScore && (q.score / q.maxScore * 100) >= 90
-  ).length;
+  const highScoreQuizzes = quizzes.filter(q => {
+    if (!q.maxScore || q.maxScore === 0) return false;
+    const percentage = (q.score / q.maxScore) * 100;
+    return percentage >= 90;
+  }).length;
+  
+  // Get good score quizzes (80%+)
+  const goodScoreQuizzes = quizzes.filter(q => {
+    if (!q.maxScore || q.maxScore === 0) return false;
+    const percentage = (q.score / q.maxScore) * 100;
+    return percentage >= 80;
+  }).length;
   
   // Group quizzes by classroom for subject mastery
   const byClassroom = {};
@@ -1648,6 +1678,91 @@ function generateAchievements(data) {
     });
   }
   
+  // First Quiz Achievement (Always awarded when at least 1 quiz is taken)
+  if (totalQuizzes >= 1) {
+    achievements.push({
+      title: 'First Steps',
+      description: 'You completed your first quiz! This is the beginning of your learning journey.',
+      level: 'bronze',
+      icon: 'fa-flag-checkered',
+      date: new Date().toISOString(),
+      stats: [
+        { label: 'Quizzes Completed', value: `${totalQuizzes}` }
+      ],
+      progress: 100
+    });
+  }
+  
+  // Quiz Explorer Achievement (Based on number of quizzes taken)
+  if (totalQuizzes >= 3) {
+    achievements.push({
+      title: 'Quiz Explorer',
+      description: 'You\'ve shown dedication by completing multiple quizzes across your subjects.',
+      level: totalQuizzes >= 10 ? 'gold' : totalQuizzes >= 5 ? 'silver' : 'bronze',
+      icon: 'fa-compass',
+      date: new Date().toISOString(),
+      stats: [
+        { label: 'Quizzes Completed', value: `${totalQuizzes}` }
+      ],
+      progress: Math.min(totalQuizzes / 10 * 100, 100) // 10 quizzes for 100%
+    });
+  }
+  
+  // Early Bird Achievement (If any quiz was completed within 24 hours of being assigned)
+  const earlyQuizzes = quizzes.filter(q => {
+    if (!q.startTime || !q.date) return false;
+    // Check if quiz was completed within 24 hours of starting
+    const startTime = new Date(q.startTime);
+    const completionTime = new Date(q.date);
+    const hoursDifference = (completionTime - startTime) / (1000 * 60 * 60);
+    return hoursDifference <= 24;
+  }).length;
+  
+  if (earlyQuizzes >= 1) {
+    achievements.push({
+      title: 'Early Bird',
+      description: 'You\'re quick to complete quizzes! Tackling assignments early shows excellent time management.',
+      level: earlyQuizzes >= 5 ? 'gold' : earlyQuizzes >= 3 ? 'silver' : 'bronze',
+      icon: 'fa-clock',
+      date: new Date().toISOString(),
+      stats: [
+        { label: 'Quick Completions', value: `${earlyQuizzes}` }
+      ],
+      progress: Math.min(earlyQuizzes / 5 * 100, 100)
+    });
+  }
+  
+  // Consistency Achievement (Based on taking quizzes regularly)
+  if (totalQuizzes >= 3) {
+    achievements.push({
+      title: 'Consistency Champion',
+      description: 'You\'ve shown dedication by regularly taking quizzes, which is key to long-term learning success.',
+      level: totalQuizzes >= 8 ? 'gold' : totalQuizzes >= 5 ? 'silver' : 'bronze',
+      icon: 'fa-calendar-check',
+      date: new Date().toISOString(),
+      stats: [
+        { label: 'Quizzes Completed', value: `${totalQuizzes}` }
+      ],
+      progress: Math.min(totalQuizzes / 8 * 100, 100)
+    });
+  }
+  
+  // Academic Excellence Achievement (Based on 80%+ scores)
+  if (goodScoreQuizzes >= 2) {
+    achievements.push({
+      title: 'Academic Excellence',
+      description: 'You consistently score high on your quizzes, demonstrating excellent understanding of the material.',
+      level: goodScoreQuizzes >= 7 ? 'gold' : goodScoreQuizzes >= 4 ? 'silver' : 'bronze',
+      icon: 'fa-award',
+      date: new Date().toISOString(),
+      stats: [
+        { label: 'High Scores', value: `${goodScoreQuizzes}` },
+        { label: 'Total Quizzes', value: `${totalQuizzes}` }
+      ],
+      progress: Math.min(goodScoreQuizzes / 7 * 100, 100)
+    });
+  }
+  
   // Generate Subject Mastery Achievements based on average scores in subjects
   Object.entries(byClassroom).forEach(([classroomId, classQuizzes]) => {
     if (classQuizzes.length < 2) return; // Need at least 2 quizzes
@@ -1659,7 +1774,7 @@ function generateAchievements(data) {
     const classroomName = getClassroomName(data.classrooms, classroomId) || 'Unknown Subject';
     
     if (avgScore >= 85) {
-    achievements.push({
+      achievements.push({
         title: `${classroomName} Master`,
         description: `You've demonstrated exceptional understanding in ${classroomName} with consistently high scores.`,
         level: avgScore >= 90 ? 'gold' : 'silver',
@@ -1696,7 +1811,7 @@ function generateAchievements(data) {
     
     if (longestStreak >= 3) {
       achievements.push({
-        title: 'Consistency Champion',
+        title: 'Streak Master',
         description: 'You maintained an impressive streak of completing quizzes within consecutive weeks!',
         level: longestStreak >= 7 ? 'gold' : longestStreak >= 5 ? 'silver' : 'bronze',
         icon: 'fa-fire',
@@ -1708,11 +1823,11 @@ function generateAchievements(data) {
       });
     }
   }
-  
+
   // High Performance Achievement
   if (highScoreQuizzes >= 3) {
     achievements.push({
-      title: 'Academic Excellence',
+      title: 'Star Performer',
       description: 'You consistently score 90% or higher on your quizzes, demonstrating exceptional understanding of the material.',
       level: highScoreQuizzes >= 7 ? 'gold' : 'silver',
       icon: 'fa-trophy',
@@ -1744,7 +1859,7 @@ function generateAchievements(data) {
     const improvement = lastAvg - firstAvg;
     
     if (improvement >= 10) {
-    achievements.push({
+      achievements.push({
         title: 'Rising Star',
         description: 'You\'ve shown remarkable improvement in your quiz performance over time!',
         level: improvement >= 15 ? 'gold' : 'silver',
@@ -1813,8 +1928,8 @@ function displayAchievements(data) {
             <div class="achievement-icon-wrapper">
               <div class="achievement-icon">
                 <i class="fas fa-lock achievement-lock-icon"></i>
-        </div>
-        </div>
+              </div>
+            </div>
             <div class="achievement-content">
               <div class="achievement-title">Perfect Score</div>
               <div class="achievement-description">Score 100% on a quiz to unlock this achievement</div>
@@ -1834,10 +1949,19 @@ function displayAchievements(data) {
   const summaryDiv = document.createElement('div');
   summaryDiv.className = 'achievements-summary';
   summaryDiv.innerHTML = `
-    <div class="achievement-count">
-      <span class="gold-count">${goldCount}</span> Gold, 
-      <span class="silver-count">${silverCount}</span> Silver, 
-      <span class="bronze-count">${bronzeCount}</span> Bronze
+    <div class="medal-counts">
+      <div class="medal gold">
+        <i class="fas fa-medal"></i>
+        <span>${goldCount}</span>
+      </div>
+      <div class="medal silver">
+        <i class="fas fa-medal"></i>
+        <span>${silverCount}</span>
+      </div>
+      <div class="medal bronze">
+        <i class="fas fa-medal"></i>
+        <span>${bronzeCount}</span>
+      </div>
     </div>
     <div class="total-achievements">
       ${achievements.length} Achievement${achievements.length !== 1 ? 's' : ''} Unlocked
@@ -1845,17 +1969,18 @@ function displayAchievements(data) {
   `;
   container.appendChild(summaryDiv);
   
+  // Create achievement cards container with grid layout
+  const cardsContainer = document.createElement('div');
+  cardsContainer.className = 'achievement-cards-grid';
+  container.appendChild(cardsContainer);
+  
   // Create achievement cards
   achievements.forEach((achievement, index) => {
     const card = document.createElement('div');
-    card.className = 'achievement-card';
+    card.className = `achievement-card ${achievement.level}`;
     card.style.animationDelay = `${index * 0.1}s`;
     
-    // Check if achievement is new (within last 7 days)
-    const isNew = new Date() - new Date(achievement.date) < 7 * 24 * 60 * 60 * 1000;
-    
     card.innerHTML = `
-      ${isNew ? '<div class="new-badge">NEW!</div>' : ''}
       <div class="achievement-header">
         <div class="achievement-level-badge ${achievement.level}">${achievement.level}</div>
       </div>
@@ -1877,7 +2002,7 @@ function displayAchievements(data) {
           ).join('')}
         </div>
         
-        <div class="achievement-progress">
+        <div class="achievement-progress-container">
           <div class="achievement-progress-bar" style="width: ${achievement.progress}%"></div>
         </div>
         
@@ -1888,48 +2013,229 @@ function displayAchievements(data) {
       </div>
     `;
     
-    container.appendChild(card);
+    cardsContainer.appendChild(card);
   });
   
-  // Add CSS for new badge if it doesn't exist
-  if (!document.querySelector('style#achievement-animations')) {
+  // Add improved CSS for achievements
+  if (!document.querySelector('style#achievement-styles')) {
     const style = document.createElement('style');
-    style.id = 'achievement-animations';
+    style.id = 'achievement-styles';
     style.textContent = `
-      .new-badge {
-        position: absolute;
-        top: -10px;
-        right: -10px;
-        background: linear-gradient(135deg, #F44336, #FF5722);
-        color: white;
-        padding: 5px 10px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 700;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        animation: pulse 2s infinite;
-        z-index: 2;
+      .achievements-container {
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
       }
       
       .achievements-summary {
-        grid-column: 1 / -1;
-        background: white;
+        background: linear-gradient(135deg,rgb(9, 72, 114),rgb(93, 50, 96));
+        color: white;
         padding: 16px;
         border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        margin-bottom: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        margin-bottom: 20px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        width: 100%;
       }
       
-      .gold-count { color: #FFC107; font-weight: 700; }
-      .silver-count { color: #9E9E9E; font-weight: 700; }
-      .bronze-count { color: #A77044; font-weight: 700; }
+      .medal-counts {
+        display: flex;
+        gap: 20px;
+      }
+      
+      .medal {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .medal i {
+        font-size: 24px;
+        margin-bottom: 5px;
+      }
+      
+      .medal span {
+        font-weight: 700;
+        font-size: 18px;
+      }
+      
+      .medal.gold i { color: #FFC107; }
+      .medal.silver i { color: #E0E0E0; }
+      .medal.bronze i { color: #CD7F32; }
       
       .total-achievements {
         font-weight: 600;
+        font-size: 18px;
+      }
+      
+      .achievement-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+        width: 100%;
+      }
+      
+      .achievement-card {
+        position: relative;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        padding: 20px;
+        transition: transform 0.3s, box-shadow 0.3s;
+        animation: fadeIn 0.5s ease forwards;
+        opacity: 0;
+        overflow: hidden;
+        border-top: 5px solid #9e9e9e;
+      }
+      
+      .achievement-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      }
+      
+      .achievement-card.gold {
+        border-top-color: #FFC107;
+      }
+      
+      .achievement-card.silver {
+        border-top-color: #9E9E9E;
+      }
+      
+      .achievement-card.bronze {
+        border-top-color: #A77044;
+      }
+      
+      .achievement-level-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        text-transform: uppercase;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 3px 8px;
+        border-radius: 20px;
+        background: #9e9e9e;
+        color: white;
+      }
+      
+      .achievement-level-badge.gold {
+        background: linear-gradient(135deg, #FFD700, #FFA000);
+      }
+      
+      .achievement-level-badge.silver {
+        background: linear-gradient(135deg, #E0E0E0, #9E9E9E);
+      }
+      
+      .achievement-level-badge.bronze {
+        background: linear-gradient(135deg, #CD7F32, #8D6E63);
+      }
+      
+      .achievement-icon-wrapper {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 15px;
+        background: white;
+      }
+      
+      .achievement-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: #f5f5f5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      }
+      
+      .achievement-icon i {
+        font-size: 24px;
+        color: #616161;
+      }
+      
+      .achievement-icon.gold {
+        background: linear-gradient(135deg, #FFD700, #FFA000);
+      }
+      
+      .achievement-icon.silver {
+        background: linear-gradient(135deg, #E0E0E0, #9E9E9E);
+      }
+      
+      .achievement-icon.bronze {
+        background: linear-gradient(135deg, #CD7F32, #8D6E63);
+      }
+      
+      .achievement-icon.gold i,
+      .achievement-icon.silver i,
+      .achievement-icon.bronze i {
+        color: white;
+      }
+      
+      .achievement-title {
+        font-size: 18px;
+        font-weight: 700;
+        margin-bottom: 5px;
         color: #333;
+      }
+      
+      .achievement-description {
+        color: #666;
+        font-size: 14px;
+        margin-bottom: 15px;
+        line-height: 1.4;
+      }
+      
+      .achievement-stats {
+        background: #f9f9f9;
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+      }
+      
+      .achievement-stat {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 5px;
+      }
+      
+      .stat-label {
+        color: #666;
+      }
+      
+      .stat-value {
+        font-weight: 600;
+        color: #333;
+      }
+      
+      .achievement-progress-container {
+        height: 8px;
+        background: #f0f0f0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 15px;
+      }
+      
+      .achievement-progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #4CAF50, #8BC34A);
+        border-radius: 4px;
+        transition: width 1s ease;
+      }
+      
+      .achievement-date {
+        font-size: 12px;
+        color: #999;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
       }
       
       .locked-achievements-preview {
@@ -1943,10 +2249,13 @@ function displayAchievements(data) {
         max-width: 280px;
       }
       
-      @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-        100% { transform: scale(1); }
+      .achievement-locked .achievement-icon {
+        background: #e0e0e0;
+        opacity: 0.7;
+      }
+      
+      .achievement-lock-icon {
+        color: #9e9e9e;
       }
     `;
     document.head.appendChild(style);
@@ -2210,6 +2519,22 @@ document.addEventListener('DOMContentLoaded', function() {
   const classId = getUrlParameter('classId');
   if (classId) {
     console.log('Specific class requested:', classId);
+  }
+  
+  // Setup profile dropdown functionality
+  const profileIcon = document.querySelector('.profile-icon');
+  const profileDropdown = document.querySelector('.profile-dropdown');
+  if (profileIcon && profileDropdown) {
+    profileIcon.addEventListener('click', function(event) {
+      event.stopPropagation();
+      profileDropdown.classList.toggle('show');
+    });
+    
+    document.addEventListener('click', function(event) {
+      if (!profileIcon.contains(event.target)) {
+        profileDropdown.classList.remove('show');
+      }
+    });
   }
   
   // UI interactions setup
