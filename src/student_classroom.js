@@ -175,6 +175,14 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
           console.error('Error loading assignments:', error);
           // Don't show notification to avoid overwhelming the user
+        try {
+          // Load assignments if available
+          if (data.assignments && data.assignments.length > 0) {
+            loadAssignments(data.assignments);
+          }
+        } catch (error) {
+          console.error('Error loading assignments:', error);
+          // Don't show notification to avoid overwhelming the user
         }
 
         try {
@@ -207,8 +215,51 @@ document.addEventListener('DOMContentLoaded', function () {
               </div>
             </div>
           `;
+        try {
+          // Load quizzes if available
+          if (data.quizzes && data.quizzes.length > 0) {
+            loadQuizzes(data.quizzes);
+          }
+        } catch (error) {
+          console.error('Error loading quizzes:', error);
+          document.querySelector('.quiz-list').innerHTML = `
+            <div class="no-quizzes error">
+              <i class="fas fa-exclamation-triangle"></i>
+              <p>There was an error loading quizzes.</p>
+              <button class="retry-btn" onclick="initializeStudentQuizzes()">Try Again</button>
+            </div>
+          `;
         }
 
+        try {
+          // Load student performance data
+          loadStudentPerformanceData();
+        } catch (error) {
+          console.error('Error loading performance data:', error);
+          document.getElementById('performance').innerHTML = `
+            <div class="performance-summary">
+              <h3>My Performance</h3>
+              <div class="error-message">
+                <i class="fas fa-exclamation-circle"></i>
+                <p>Unable to load performance data. Please try again later.</p>
+              </div>
+            </div>
+          `;
+        }
+
+        try {
+          // Load resources if available
+          if (data.resources && data.resources.length > 0) {
+            loadResources(data.resources);
+          }
+        } catch (error) {
+          console.error('Error loading resources:', error);
+          document.querySelector('.resources-list').innerHTML = `
+            <div class="no-resources error">
+              <i class="fas fa-exclamation-triangle"></i>
+              <p>There was an error loading resources.</p>
+            </div>
+          `;
         try {
           // Load resources if available
           if (data.resources && data.resources.length > 0) {
@@ -704,6 +755,8 @@ document.addEventListener('DOMContentLoaded', function () {
       // Create Date objects from ISO strings using the helper
       const startTime = parseDate(quiz.startTime);
       const endTime = quiz.endTime ? parseDate(quiz.endTime) : null;
+      const startTime = parseDate(quiz.startTime);
+      const endTime = quiz.endTime ? parseDate(quiz.endTime) : null;
       const now = new Date();
       
       // Format dates in user-friendly format with timezone consideration
@@ -815,6 +868,8 @@ document.addEventListener('DOMContentLoaded', function () {
               <p><strong>Start Time:</strong> ${new Date(quiz.startTime).toLocaleString()}</p>
               <p><strong>Duration:</strong> ${quiz.duration ? Math.floor(quiz.duration / 60) : 0} minutes</p>
               <p><strong>Type:</strong> ${quiz.quizType === 'pdf' ? 'PDF Upload' : 'Online Quiz'}</p>
+              <p><strong>Duration:</strong> ${quiz.duration ? Math.floor(quiz.duration / 60) : 0} minutes</p>
+              <p><strong>Type:</strong> ${quiz.quizType === 'pdf' ? 'PDF Upload' : 'Online Quiz'}</p>
               <p><strong>Status:</strong> ${status}</p>
             </div>
             <div class="modal-actions">
@@ -852,6 +907,24 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
   
+  // Helper function to safely parse date strings
+  function parseDate(dateString) {
+    if (!dateString) return new Date();
+    try {
+      // Try to create a date from the string
+      const date = new Date(dateString);
+      // Check if the date is valid
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date string:', dateString);
+        return new Date();
+      }
+      return date;
+    } catch (error) {
+      console.error('Error parsing date:', error);
+      return new Date();
+    }
+  }
+  
   // Helper function to create a quiz details modal if it doesn't exist
   function createQuizDetailsModal() {
     const modal = document.createElement('div');
@@ -868,661 +941,271 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Load performance data
   function loadPerformanceData(performance) {
-    // Remove loading indicator
-    document.getElementById('loading-chart').style.display = 'none';
+    // We'll replace this with a more comprehensive implementation
+    loadStudentPerformanceData();
+  }
+
+  // Load student performance data from the API
+  function loadStudentPerformanceData() {
+    console.log('Loading student performance data for classroom:', classroomId);
     
-    // Check if performance data exists
-    if (!performance) {
-      const performanceTab = document.getElementById('performance');
-      performanceTab.innerHTML = `
-        <div class="no-performance-data">
-          <i class="fas fa-chart-line"></i>
-          <h3>No Performance Data Available</h3>
-          <p>Complete some assignments or quizzes to see your performance.</p>
+    // Show loading state
+    document.getElementById('performance').innerHTML = `
+      <div class="performance-summary">
+        <h3>My Performance</h3>
+        <div id="performance-loading" class="loading-container">
+          <div class="loading-spinner"></div>
+          <p>Loading your performance data...</p>
+        </div>
+      </div>
+    `;
+    
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      console.error('No auth token found');
+      showNotification('You are not authenticated. Please log in.', 'error');
+      return;
+    }
+    
+    // First try to get classroom-specific analytics
+    console.log('Fetching classroom analytics for classroom ID:', classroomId);
+    fetch(`/api/classrooms/${classroomId}/analytics`, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    })
+    .then(resp => {
+      if (!resp.ok) {
+        throw new Error('Failed to fetch classroom analytics');
+      }
+      return resp.json();
+    })
+    .then(classroomData => {
+      console.log('Classroom analytics data:', classroomData);
+      
+      // Now get student analytics for all classrooms
+      return fetch('/api/student/analytics', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+      .then(resp => {
+        if (!resp.ok) {
+          throw new Error('Failed to fetch student analytics');
+        }
+        return resp.json();
+      })
+      .then(studentData => {
+        console.log('Student analytics data:', studentData);
+        
+        // Combine the data and render the performance section
+        renderPerformanceSection(studentData, classroomData);
+      });
+    })
+    .catch(error => {
+      console.error('Error loading performance data:', error);
+      
+      // Try just student analytics as fallback
+      fetch('/api/student/analytics', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+      .then(resp => resp.json())
+      .then(studentData => {
+        console.log('Fallback student analytics data:', studentData);
+        renderPerformanceSection(studentData, null);
+      })
+      .catch(finalError => {
+        console.error('Final error loading performance data:', finalError);
+        document.getElementById('performance').innerHTML = `
+          <div class="performance-summary">
+            <h3>My Performance</h3>
+            <div class="error-message">
+              <i class="fas fa-exclamation-circle"></i>
+              <p>Unable to load performance data. Please try again later.</p>
+            </div>
+          </div>
+        `;
+        showNotification('Error loading performance data.', 'error');
+      });
+    });
+  }
+  
+  // Render the performance section with the collected data
+  function renderPerformanceSection(studentData, classroomData) {
+    console.log('Rendering performance section with data:', { studentData, classroomData });
+    
+    // Get specific classroom data from student analytics
+    const currentClassroomData = studentData?.classroomWise?.[classroomId];
+    
+    if (!currentClassroomData) {
+      console.warn('No data found for the current classroom');
+      document.getElementById('performance').innerHTML = `
+        <div class="performance-summary">
+          <h3>My Performance</h3>
+          <div class="no-data-message">
+            <i class="fas fa-chart-pie"></i>
+            <p>No performance data is available for this classroom yet.</p>
+            <p>Complete quizzes and assignments to see your performance statistics.</p>
+          </div>
         </div>
       `;
       return;
     }
     
-    // Set overall metrics
-    document.getElementById('overall-grade').textContent = performance.overallGrade || 'N/A';
-    document.getElementById('assignments-grade').textContent = performance.assignmentsGrade || 'N/A';
-    document.getElementById('quizzes-grade').textContent = performance.quizzesGrade || 'N/A';
+    // Get quizzes and sort by submission time (newest first)
+    const quizzes = [...(currentClassroomData.quizzes || [])];
+    quizzes.sort((a, b) => {
+      const dateA = a.submissionTime ? new Date(a.submissionTime) : new Date(0);
+      const dateB = b.submissionTime ? new Date(b.submissionTime) : new Date(0);
+      return dateB - dateA;
+    });
     
-    // Calculate additional performance metrics
-    const metrics = calculatePerformanceMetrics(performance);
-    
-    // Render performance dashboard
-    renderPerformanceDashboard(performance, metrics);
-    
-    // Create performance charts
-    createPerformanceCharts(performance, metrics);
-  }
-  
-  // Calculate comprehensive performance metrics
-  function calculatePerformanceMetrics(performance) {
-    const metrics = {
-      totalAssessments: 0,
-      completedAssessments: 0,
-      missedAssessments: 0,
-      averageScore: 0,
-      highestScore: 0,
-      lowestScore: 100,
-      recentTrend: 'stable',
-      strengths: [],
-      weaknesses: [],
-      completionRate: 0,
-      latestPerformance: null,
-      categoryPerformance: {}
-    };
-    
-    // Process assessment data for metrics
-    if (performance.assessments && performance.assessments.length > 0) {
-      const assessments = performance.assessments;
-      metrics.totalAssessments = assessments.length;
-      
-      // Sort assessments by date
-      const sortedAssessments = [...assessments].sort((a, b) => 
-        new Date(a.date || a.dueDate || a.submissionDate) - new Date(b.date || b.dueDate || b.submissionDate)
-      );
-      
-      // Calculate scores and find completed/missed
-      let totalScorePercentage = 0;
-      let completedCount = 0;
-      
-      assessments.forEach(assessment => {
-        // Check if assessment was completed
-        const isCompleted = assessment.status === 'completed' || 
-                           assessment.status === 'graded' || 
-                           assessment.status === 'submitted' ||
-                           (assessment.score !== undefined && assessment.score !== null);
+    // Build the performance section HTML
+    const performanceHTML = `
+      <div class="performance-summary">
+        <h3>My Performance</h3>
         
-        if (isCompleted) {
-          completedCount++;
+        <!-- Summary Cards -->
+        <div class="performance-cards">
+          <div class="performance-card">
+            <div class="card-icon">
+              <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="card-content">
+              <h4>Average Score</h4>
+              <div class="metric-value">${currentClassroomData.averageScore || 0}%</div>
+              <div class="metric-label">Across all quizzes</div>
+            </div>
+          </div>
           
-          // Calculate percentage score for this assessment
-          const scorePercentage = assessment.maxScore 
-            ? (assessment.score / assessment.maxScore) * 100 
-            : assessment.percentage || 0;
+          <div class="performance-card">
+            <div class="card-icon">
+              <i class="fas fa-tasks"></i>
+            </div>
+            <div class="card-content">
+              <h4>Completion Rate</h4>
+              <div class="metric-value">${currentClassroomData.attempted || 0}/${currentClassroomData.totalQuizzes || 0}</div>
+              <div class="metric-label">Quizzes completed</div>
+            </div>
+          </div>
           
-          totalScorePercentage += scorePercentage;
+          <div class="performance-card">
+            <div class="card-icon">
+              <i class="fas fa-trophy"></i>
+            </div>
+            <div class="card-content">
+              <h4>Highest Score</h4>
+              <div class="metric-value">${currentClassroomData.highestScore || 0}%</div>
+              <div class="metric-label">Your best performance</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Quiz Performance List -->
+        <div class="quiz-performance">
+          <h4>Quiz Performance History</h4>
           
-          // Track highest and lowest scores
-          metrics.highestScore = Math.max(metrics.highestScore, scorePercentage);
-          metrics.lowestScore = Math.min(metrics.lowestScore, scorePercentage);
-          
-          // Track performance by category
-          const category = assessment.category || assessment.type || 'Other';
-          if (!metrics.categoryPerformance[category]) {
-            metrics.categoryPerformance[category] = {
-              count: 0,
-              totalScore: 0,
-              averageScore: 0
-            };
-          }
-          
-          metrics.categoryPerformance[category].count++;
-          metrics.categoryPerformance[category].totalScore += scorePercentage;
-          metrics.categoryPerformance[category].averageScore = 
-            metrics.categoryPerformance[category].totalScore / metrics.categoryPerformance[category].count;
-        } else {
-          // Count missed assessments
-          if (new Date(assessment.dueDate) < new Date()) {
-            metrics.missedAssessments++;
-          }
-        }
+          ${quizzes.length > 0 ? `
+            <div class="quiz-list-container">
+              ${quizzes.map(quiz => `
+                <div class="quiz-performance-item" data-quiz-id="${quiz.quizId}">
+                  <div class="quiz-performance-header">
+                    <h5>${quiz.title || 'Untitled Quiz'}</h5>
+                    <div class="quiz-score ${getScoreClass(quiz.percentage)}">${quiz.percentage}%</div>
+                  </div>
+                  
+                  <div class="quiz-performance-meta">
+                    <div class="meta-item">
+                      <i class="fas fa-calendar-alt"></i>
+                      <span>${formatDate(quiz.submissionTime)}</span>
+                    </div>
+                    ${quiz.rank ? `
+                      <div class="meta-item">
+                        <i class="fas fa-users"></i>
+                        <span>Rank: ${quiz.rank}/${quiz.totalParticipants || '?'}</span>
+                      </div>
+                    ` : ''}
+                  </div>
+                  
+                  <div class="quiz-performance-bar">
+                    <div class="progress-bar">
+                      <div class="progress-fill ${getScoreClass(quiz.percentage)}" style="width: ${quiz.percentage}%"></div>
+                    </div>
+                  </div>
+                  
+                  <div class="quiz-performance-actions">
+                    <button class="view-result-btn" data-quiz-id="${quiz.quizId}">
+                      <i class="fas fa-eye"></i> View Results
+                    </button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          ` : `
+            <div class="no-quizzes-message">
+              <i class="fas fa-info-circle"></i>
+              <p>You haven't completed any quizzes in this classroom yet.</p>
+            </div>
+          `}
+        </div>
+        
+        <!-- Simple Text Score Progression -->
+        <div class="performance-text-section">
+          <h4>Recent Quiz Scores</h4>
+          <div class="simple-score-list">
+            ${quizzes.length > 0 ? 
+              quizzes.slice(0, 5).map(quiz => `
+                <div class="simple-score-item">
+                  <div class="score-bar-container">
+                    <div class="score-bar ${getScoreClass(quiz.percentage)}" style="width: ${quiz.percentage}%"></div>
+                  </div>
+                  <div class="score-info">
+                    <div class="score-title">${quiz.title || 'Untitled Quiz'}</div>
+                    <div class="score-value">${quiz.percentage}%</div>
+                  </div>
+                </div>
+              `).join('')
+              : '<p class="no-data-text">No quiz data available to show score progression.</p>'
+            }
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Update the DOM
+    document.getElementById('performance').innerHTML = performanceHTML;
+    
+    // Add event listeners to view result buttons
+    document.querySelectorAll('.view-result-btn').forEach(button => {
+      button.addEventListener('click', function() {
+        const quizId = this.getAttribute('data-quiz-id');
+        console.log('Viewing results for quiz:', quizId);
+        
+        // Navigate to quiz results page
+        window.location.href = `/quiz-results?classroomId=${classroomId}&quizId=${quizId}`;
       });
-      
-      // Calculate completion rate
-      metrics.completedAssessments = completedCount;
-      metrics.completionRate = metrics.totalAssessments > 0 
-        ? (completedCount / metrics.totalAssessments) * 100 
-        : 0;
-      
-      // Calculate average score
-      metrics.averageScore = completedCount > 0 
-        ? totalScorePercentage / completedCount 
-        : 0;
-      
-      // Determine recent trend (last 3 assessments if available)
-      if (sortedAssessments.length >= 3) {
-        const recent = sortedAssessments.slice(-3).filter(a => 
-          a.status === 'completed' || a.status === 'graded' || a.status === 'submitted'
-        );
-        
-        if (recent.length >= 2) {
-          const recentScores = recent.map(a => {
-            return a.maxScore ? (a.score / a.maxScore) * 100 : a.percentage || 0;
-          });
-          
-          // Simple trend analysis
-          const firstScores = recentScores.slice(0, Math.floor(recentScores.length / 2));
-          const lastScores = recentScores.slice(Math.floor(recentScores.length / 2));
-          
-          const firstAvg = firstScores.reduce((a, b) => a + b, 0) / firstScores.length;
-          const lastAvg = lastScores.reduce((a, b) => a + b, 0) / lastScores.length;
-          
-          if (lastAvg > firstAvg + 5) {
-            metrics.recentTrend = 'improving';
-          } else if (lastAvg < firstAvg - 5) {
-            metrics.recentTrend = 'declining';
-          } else {
-            metrics.recentTrend = 'stable';
-          }
-        }
-      }
-      
-      // Find strengths and weaknesses (top and bottom categories)
-      const categories = Object.keys(metrics.categoryPerformance);
-      if (categories.length > 0) {
-        const sortedCategories = categories.sort((a, b) => 
-          metrics.categoryPerformance[b].averageScore - metrics.categoryPerformance[a].averageScore
-        );
-        
-        metrics.strengths = sortedCategories.slice(0, 2);
-        metrics.weaknesses = sortedCategories.slice(-2).reverse();
-      }
-      
-      // Get latest assessment with score
-      const completedAssessments = sortedAssessments.filter(a => 
-        (a.score !== undefined && a.score !== null) || a.status === 'graded'
-      );
-      
-      if (completedAssessments.length > 0) {
-        metrics.latestPerformance = completedAssessments[completedAssessments.length - 1];
-      }
-    }
-    
-    return metrics;
-  }
-  
-  // Render performance dashboard with metrics
-  function renderPerformanceDashboard(performance, metrics) {
-    // Get the performance tab content container
-    const performanceTab = document.getElementById('performance');
-    
-    // Create HTML structure for the dashboard
-    const dashboardHTML = `
-      <div class="performance-dashboard">
-        <div class="performance-overview">
-          <div class="overview-header">
-            <h2>My Academic Performance</h2>
-            <div class="last-updated">Last updated: ${new Date().toLocaleString()}</div>
-          </div>
-          
-          <div class="overview-cards">
-            <div class="overview-card">
-              <div class="card-icon"><i class="fas fa-graduation-cap"></i></div>
-              <div class="card-content">
-                <div class="card-title">Overall Grade</div>
-                <div class="card-value" id="overall-grade">
-                  ${getGradeIndicator(metrics.averageScore)}
-                  ${performance.overallGrade || getLetterGrade(metrics.averageScore)}
-                </div>
-              </div>
-            </div>
-            <div class="overview-card">
-              <div class="card-icon"><i class="fas fa-tasks"></i></div>
-              <div class="card-content">
-                <div class="card-title">Assignments</div>
-                <div class="card-value" id="assignments-grade">
-                  ${getGradeIndicator(getGradeValue(performance.assignmentsGrade))}
-                  ${performance.assignmentsGrade || 'N/A'}
-                </div>
-              </div>
-            </div>
-            <div class="overview-card">
-              <div class="card-icon"><i class="fas fa-question-circle"></i></div>
-              <div class="card-content">
-                <div class="card-title">Quizzes & Exams</div>
-                <div class="card-value" id="quizzes-grade">
-                  ${getGradeIndicator(getGradeValue(performance.quizzesGrade))}
-                  ${performance.quizzesGrade || 'N/A'}
-                </div>
-              </div>
-            </div>
-            <div class="overview-card">
-              <div class="card-icon"><i class="fas fa-chart-line"></i></div>
-              <div class="card-content">
-                <div class="card-title">Average Score</div>
-                <div class="card-value">${metrics.averageScore.toFixed(1)}%</div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="progress-section">
-            <div class="progress-header">
-              <h3>Your Progress</h3>
-            </div>
-            <div class="progress-metrics">
-              <div class="progress-metric">
-                <div class="metric-label">Completion Rate</div>
-                <div class="progress-bar-container">
-                  <div class="progress-bar" style="width: ${metrics.completionRate}%"></div>
-                </div>
-                <div class="metric-value">${metrics.completionRate.toFixed(0)}%</div>
-              </div>
-              
-              <div class="progress-metric">
-                <div class="metric-label">Assessments</div>
-                <div class="metric-counts">
-                  <span class="count-item"><i class="fas fa-check text-success"></i> ${metrics.completedAssessments} Completed</span>
-                  <span class="count-item"><i class="fas fa-times text-danger"></i> ${metrics.missedAssessments} Missed</span>
-                  <span class="count-item"><i class="fas fa-calendar"></i> ${metrics.totalAssessments - metrics.completedAssessments - metrics.missedAssessments} Upcoming</span>
-                </div>
-              </div>
-              
-              <div class="progress-metric">
-                <div class="metric-label">Performance Trend</div>
-                <div class="trend-indicator trend-${metrics.recentTrend}">
-                  <i class="fas fa-${metrics.recentTrend === 'improving' ? 'arrow-up' : metrics.recentTrend === 'declining' ? 'arrow-down' : 'equals'}"></i>
-                  ${metrics.recentTrend === 'improving' ? 'Improving' : metrics.recentTrend === 'declining' ? 'Needs improvement' : 'Consistent'}
-                </div>
-              </div>
-            </div>
-            
-            <!-- Grade distribution legend -->
-            <div class="grade-distribution">
-              <div class="grade-item">
-                <div class="grade-marker grade-a"></div>
-                <span>A (90-100%)</span>
-              </div>
-              <div class="grade-item">
-                <div class="grade-marker grade-b"></div>
-                <span>B (80-89%)</span>
-              </div>
-              <div class="grade-item">
-                <div class="grade-marker grade-c"></div>
-                <span>C (70-79%)</span>
-              </div>
-              <div class="grade-item">
-                <div class="grade-marker grade-d"></div>
-                <span>D (60-69%)</span>
-              </div>
-              <div class="grade-item">
-                <div class="grade-marker grade-f"></div>
-                <span>F (0-59%)</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Class Comparison Section (if data available) -->
-        ${performance.classAverages ? renderClassComparison(performance, metrics) : ''}
-        
-        <div class="performance-charts-container">
-          <div class="chart-section">
-            <h3>Performance by Assessment</h3>
-            <div class="chart-container">
-              <canvas id="performanceChart"></canvas>
-            </div>
-          </div>
-          
-          <div class="chart-section">
-            <h3>Performance by Category</h3>
-            <div class="chart-container">
-              <canvas id="categoryChart"></canvas>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Assessment Timeline -->
-        ${renderAssessmentTimeline(performance.assessments || [])}
-        
-        <div class="performance-insights">
-          <h3>Performance Insights</h3>
-          
-          <div class="insights-grid">
-            <div class="insight-card">
-              <h4><i class="fas fa-star"></i> Strengths</h4>
-              <ul class="strengths-list">
-                ${metrics.strengths.length > 0 ? 
-                  metrics.strengths.map(category => 
-                    `<li>
-                      <span class="category-name">${category}</span>
-                      <span class="category-score">${metrics.categoryPerformance[category].averageScore.toFixed(1)}%</span>
-                    </li>`
-                  ).join('') : 
-                  '<li>Not enough data to determine strengths</li>'
-                }
-              </ul>
-            </div>
-            
-            <div class="insight-card">
-              <h4><i class="fas fa-exclamation-triangle"></i> Areas for Improvement</h4>
-              <ul class="weaknesses-list">
-                ${metrics.weaknesses.length > 0 ? 
-                  metrics.weaknesses.map(category => 
-                    `<li>
-                      <span class="category-name">${category}</span>
-                      <span class="category-score">${metrics.categoryPerformance[category].averageScore.toFixed(1)}%</span>
-                    </li>`
-                  ).join('') : 
-                  '<li>Not enough data to determine areas for improvement</li>'
-                }
-              </ul>
-            </div>
-            
-            <div class="insight-card">
-              <h4><i class="fas fa-medal"></i> Personal Bests</h4>
-              <div class="personal-bests">
-                <div class="best-item">
-                  <span class="best-label">Highest Score</span>
-                  <span class="best-value">${metrics.highestScore.toFixed(1)}%</span>
-                </div>
-                ${metrics.latestPerformance ? 
-                  `<div class="best-item">
-                    <span class="best-label">Latest Assessment</span>
-                    <span class="best-value">${metrics.latestPerformance.title || 'Untitled'}: ${metrics.latestPerformance.score}/${metrics.latestPerformance.maxScore}</span>
-                  </div>` : ''
-                }
-                <div class="best-item">
-                  <span class="best-label">Current Streak</span>
-                  <span class="best-value">${calculateCompletionStreak(performance.assessments || [])} days</span>
-                </div>
-              </div>
-            </div>
-            
-            <div class="insight-card">
-              <h4><i class="fas fa-graduation-cap"></i> Overall Summary</h4>
-              <div class="summary-text">
-                ${generatePerformanceSummary(metrics)}
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Study Time Tracking Section -->
-        ${renderStudyTimeSection(performance, metrics)}
-        
-        <!-- Achievement Badges Section -->
-        ${renderAchievementBadges(metrics)}
-        
-        <div class="recent-assessments">
-          <h3>Recent Assessments</h3>
-          <div class="assessment-list">
-            ${renderRecentAssessments(performance.assessments || [])}
-          </div>
-        </div>
-        
-        <!-- Print or Export Button -->
-        <button class="print-report-btn" onclick="printPerformanceReport()">
-          <i class="fas fa-file-export"></i> Export Performance Report
-        </button>
-      </div>
-    `;
-    
-    // Replace the existing content with the new dashboard
-    performanceTab.innerHTML = dashboardHTML;
-  }
-  
-  // Helper function to get a color-coded grade indicator
-  function getGradeIndicator(score) {
-    if (!score || isNaN(score)) return '';
-    
-    let color;
-    if (score >= 90) {
-      color = '#34a853'; // A grade - green
-    } else if (score >= 80) {
-      color = '#4285f4'; // B grade - blue
-    } else if (score >= 70) {
-      color = '#f9ab00'; // C grade - yellow
-    } else if (score >= 60) {
-      color = '#fa8e48'; // D grade - orange
-    } else {
-      color = '#ea4335'; // F grade - red
-    }
-    
-    return `<span class="grade-indicator" style="background-color: ${color}"></span>`;
-  }
-  
-  // Helper function to convert a letter grade to a numeric value
-  function getGradeValue(grade) {
-    if (!grade) return 0;
-    
-    // Handle numeric grades
-    if (!isNaN(parseFloat(grade))) {
-      return parseFloat(grade);
-    }
-    
-    // Handle letter grades
-    const letterGrades = {
-      'A+': 97, 'A': 95, 'A-': 90,
-      'B+': 87, 'B': 85, 'B-': 80,
-      'C+': 77, 'C': 75, 'C-': 70,
-      'D+': 67, 'D': 65, 'D-': 60,
-      'F': 50
-    };
-    
-    return letterGrades[grade] || 0;
-  }
-  
-  // Helper function to convert a numeric score to a letter grade
-  function getLetterGrade(score) {
-    if (!score || isNaN(score)) return 'N/A';
-    
-    if (score >= 97) return 'A+';
-    if (score >= 93) return 'A';
-    if (score >= 90) return 'A-';
-    if (score >= 87) return 'B+';
-    if (score >= 83) return 'B';
-    if (score >= 80) return 'B-';
-    if (score >= 77) return 'C+';
-    if (score >= 73) return 'C';
-    if (score >= 70) return 'C-';
-    if (score >= 67) return 'D+';
-    if (score >= 63) return 'D';
-    if (score >= 60) return 'D-';
-    return 'F';
-  }
-  
-  // Render class comparison section
-  function renderClassComparison(performance, metrics) {
-    // If no class averages data, return empty string
-    if (!performance.classAverages) return '';
-    
-    return `
-      <div class="class-comparison">
-        <h3>Compare with Class Average</h3>
-        <div class="comparison-chart-container">
-          <canvas id="comparisonChart"></canvas>
-        </div>
-        <div class="comparison-legend">
-          <div class="legend-item">
-            <div class="legend-color your-score-color"></div>
-            <span>Your Score</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color class-avg-color"></div>
-            <span>Class Average</span>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-  
-  // Render assessment timeline
-  function renderAssessmentTimeline(assessments) {
-    if (!assessments || assessments.length === 0) return '';
-    
-    // Sort assessments by date
-    const sortedAssessments = [...assessments].sort((a, b) => {
-      const dateA = new Date(a.date || a.dueDate || a.submissionDate || 0);
-      const dateB = new Date(b.date || b.dueDate || b.submissionDate || 0);
-      return dateA - dateB;
     });
-    
-    // Get earliest and latest dates
-    const earliestDate = new Date(sortedAssessments[0].date || sortedAssessments[0].dueDate || sortedAssessments[0].submissionDate);
-    const latestDate = new Date(sortedAssessments[sortedAssessments.length - 1].date || 
-                               sortedAssessments[sortedAssessments.length - 1].dueDate || 
-                               sortedAssessments[sortedAssessments.length - 1].submissionDate);
-    
-    // Calculate timespan in days
-    const timespan = Math.ceil((latestDate - earliestDate) / (1000 * 60 * 60 * 24));
-    
-    // Generate timeline markers HTML
-    const markersHTML = sortedAssessments.map(assessment => {
-      const date = new Date(assessment.date || assessment.dueDate || assessment.submissionDate);
-      const daysSinceStart = Math.ceil((date - earliestDate) / (1000 * 60 * 60 * 24));
-      const position = (daysSinceStart / timespan) * 100;
-      
-      const type = assessment.type || (assessment.questions ? 'quiz' : 'assignment');
-      const status = assessment.status || 'pending';
-      
-      return `
-        <div class="timeline-marker ${type} ${status}" style="left: ${position}%;" 
-             title="${assessment.title}: ${date.toLocaleDateString()}">
-          <div class="timeline-label ${position < 50 ? 'top' : 'bottom'}">
-            ${assessment.title.length > 10 ? assessment.title.substring(0, 8) + '...' : assessment.title}
-          </div>
-        </div>
-      `;
-    });
-    
-    return `
-      <div class="assessment-timeline">
-        <h3>Assessment Timeline</h3>
-        <div class="timeline-track">
-          ${markersHTML.join('')}
-        </div>
-        <div class="timeline-dates">
-          <span style="float: left;">${earliestDate.toLocaleDateString()}</span>
-          <span style="float: right;">${latestDate.toLocaleDateString()}</span>
-        </div>
-      </div>
-    `;
   }
   
-  // Render study time tracking section
-  function renderStudyTimeSection(performance, metrics) {
-    // This section would normally use actual study time data, but we'll create a placeholder
-    // with sample data for demonstration purposes
-    
-    // Sample data - in a real implementation, this would come from the backend
-    const studyTimeData = {
-      weekly: [12, 8, 15, 10, 9, 14, 6],
-      totalHours: 74,
-      averagePerWeek: 10.5,
-      mostProductiveDay: 'Wednesday'
-    };
-    
-    return `
-      <div class="study-time-section">
-        <div class="study-time-header">
-          <h3>Study Time Tracking</h3>
-          <div class="study-time-filters">
-            <select id="study-time-period">
-              <option value="week">This Week</option>
-              <option value="month" selected>This Month</option>
-              <option value="semester">This Semester</option>
-            </select>
-          </div>
-        </div>
-        
-        <div class="study-time-chart">
-          <canvas id="studyTimeChart"></canvas>
-        </div>
-        
-        <div class="time-stats">
-          <div class="time-stat">
-            <span class="time-stat-label">Total Study Hours</span>
-            <span class="time-stat-value">${studyTimeData.totalHours}</span>
-          </div>
-          <div class="time-stat">
-            <span class="time-stat-label">Weekly Average</span>
-            <span class="time-stat-value">${studyTimeData.averagePerWeek}</span>
-          </div>
-          <div class="time-stat">
-            <span class="time-stat-label">Most Productive</span>
-            <span class="time-stat-value">${studyTimeData.mostProductiveDay}</span>
-          </div>
-        </div>
-      </div>
-    `;
+  // Helper function to get CSS class based on score percentage
+  function getScoreClass(percentage) {
+    if (percentage >= 90) return 'excellent';
+    if (percentage >= 75) return 'good';
+    if (percentage >= 60) return 'fair';
+    return 'needs-improvement';
   }
   
-  // Render achievement badges section
-  function renderAchievementBadges(metrics) {
-    // Define the badges with criteria
-    const badges = [
-      {
-        name: "Perfect Score",
-        icon: "fas fa-star",
-        description: "Achieved 100% on an assessment",
-        unlocked: metrics.highestScore >= 100
-      },
-      {
-        name: "All A's",
-        icon: "fas fa-award",
-        description: "Maintained an A average",
-        unlocked: metrics.averageScore >= 90
-      },
-      {
-        name: "Perfect Attendance",
-        icon: "fas fa-calendar-check",
-        description: "Completed all assessments on time",
-        unlocked: metrics.completionRate >= 100 && metrics.missedAssessments === 0
-      },
-      {
-        name: "Rising Star",
-        icon: "fas fa-chart-line",
-        description: "Improved consistently over time",
-        unlocked: metrics.recentTrend === 'improving'
-      },
-      {
-        name: "Quick Learner",
-        icon: "fas fa-bolt",
-        description: "Completed assessments ahead of schedule",
-        unlocked: metrics.completedAssessments >= 5
-      },
-      {
-        name: "Subject Expert",
-        icon: "fas fa-book",
-        description: "Mastered a specific subject area",
-        unlocked: metrics.strengths.length > 0 && metrics.categoryPerformance[metrics.strengths[0]].averageScore >= 95
-      }
-    ];
+  // Helper function to format date
+  function formatDate(dateString) {
+    if (!dateString) return 'Unknown date';
     
-    const badgesHTML = badges.map(badge => `
-      <div class="badge-item">
-        <div class="badge-icon ${badge.unlocked ? '' : 'locked'}">
-          <i class="${badge.icon}"></i>
-        </div>
-        <div class="badge-name">${badge.name}</div>
-        <div class="badge-description">${badge.description}</div>
-      </div>
-    `).join('');
-    
-    return `
-      <div class="achievements-section">
-        <h3>Achievement Badges</h3>
-        <div class="badges-container">
-          ${badgesHTML}
-        </div>
-      </div>
-    `;
-  }
-  
-  // Calculate completion streak (in days)
-  function calculateCompletionStreak(assessments) {
-    if (!assessments || assessments.length === 0) return 0;
-    
-    // This is a placeholder function - in a real implementation,
-    // this would track consecutive days of activity
-    
-    // For demo purposes, return a value based on completed assessments
-    const completedCount = assessments.filter(a => 
-      a.status === 'completed' || a.status === 'graded' || a.status === 'submitted'
-    ).length;
-    
-    return Math.min(completedCount * 3, 30); // Cap at 30 days for demo
-  }
-  
-  // Function to print or export the performance report
-  function printPerformanceReport() {
-    // This would typically create a formatted PDF or open the print dialog
-    window.print();
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric'
+      });
+    } catch (e) {
+      console.error('Error formatting date:', e);
+      return dateString;
+    }
   }
 
   // Load resources
