@@ -788,47 +788,82 @@ def update_profile():
     user = users_collection.find_one({"_id": ObjectId(user_id)})
     if not user:
         return jsonify({"msg": "User not found"}), 404
-        
+
     data = request.get_json()
     if not data:
         return jsonify({"msg": "No input data provided"}), 400
-    
-    # Check if current password is provided and valid
+
+    # Check current password
     current_password = data.get("current_password")
     if not current_password:
         return jsonify({"msg": "Current password is required for any profile changes"}), 400
-        
     if not check_password_hash(user["password"], current_password):
         return jsonify({"msg": "Current password is incorrect"}), 401
-    
-    # Initialize update data with only fields that were provided
+
+    # Build update data for all fields if provided
     update_data = {}
-    
-    # Handle name change
+
+    # Personal Information
     if "name" in data:
         update_data["fullName"] = data["name"]
-    
-    # Handle password change
+    if "email" in data:
+        update_data["email"] = data["email"]
+    if "phone" in data:
+        update_data["phone"] = data["phone"]
+    if "dob" in data:
+        update_data["dob"] = data["dob"]
+    if "employeeId" in data:
+        update_data["employeeId"] = data["employeeId"]
+    if "joiningDate" in data:
+        update_data["joiningDate"] = data["joiningDate"]
+    if "location" in data:
+        update_data["location"] = data["location"]
+
+    # Educational Qualifications
+    if "degree" in data:
+        update_data["degree"] = data["degree"]
+    if "university" in data:
+        update_data["university"] = data["university"]
+    if "bachelors" in data:
+        update_data["bachelors"] = data["bachelors"]
+    if "certifications" in data:
+        update_data["certifications"] = data["certifications"]
+
+    # Teaching Information
+    if "institution" in data:
+        update_data["institution"] = data["institution"]
+    if "department" in data:
+        update_data["department"] = data["department"]
+    if "title" in data:
+        update_data["title"] = data["title"]
+    if "classesTaught" in data:
+        update_data["classesTaught"] = data["classesTaught"]
+    if "schedule" in data:
+        update_data["schedule"] = data["schedule"]
+    if "officeHours" in data:
+        update_data["officeHours"] = data["officeHours"]
+
+    # Skills and Bio
+    if "skills" in data:
+        update_data["skills"] = data["skills"]
+    if "bio" in data:
+        update_data["bio"] = data["bio"]
+
+    # Optionally handle password change
     if "new_password" in data and data["new_password"]:
-        new_password = data["new_password"]
-        # You could add additional password validation here
-        update_data["password"] = generate_password_hash(new_password)
-    
-    # If no changes were provided
+        update_data["password"] = generate_password_hash(data["new_password"])
+
     if not update_data:
         return jsonify({"msg": "No changes provided"}), 400
-    
-    # Update the user in the database
+
     result = users_collection.update_one(
-        {"_id": ObjectId(user_id)}, 
+        {"_id": ObjectId(user_id)},
         {"$set": update_data}
     )
-    
+
     if result.modified_count:
         return jsonify({"msg": "Profile updated successfully"}), 200
     else:
-        # This means the user was found but nothing was changed
-        # (e.g., the new values were the same as the old ones)
         return jsonify({"msg": "No changes made to profile"}), 200
 
 
