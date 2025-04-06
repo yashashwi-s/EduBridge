@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="teacher_classroom.css">
   <link rel="stylesheet" href="quiz-common.css">
+  <link rel="stylesheet" href="teacher_chatbot.css">
   <style>
     .ai-grading-container {
       margin: 20px 0;
@@ -498,6 +499,44 @@
     </div>
   </div>
   
+  <!-- Chatbot Floating Icon -->
+  <div class="chatbot-icon" id="chatbotIcon">
+    <i class="fas fa-comment-dots"></i>
+  </div>
+
+  <!-- Chat Widget (initially hidden) -->
+  <div class="chat-widget" id="chatWidget" style="display: none;">
+    <!-- Resize handles -->
+    <div class="resize-handle right" id="resizeRight"></div>
+    <div class="resize-handle bottom" id="resizeBottom"></div>
+    <div class="resize-handle corner" id="resizeCorner"></div>
+    
+    <div class="chat-header">
+      <span>EduBridge Assistant</span>
+      <span>Powered By Gemini</span>
+    </div>
+    <div class="chat-body">
+      <div class="conversation-container">
+        <div id="chatConversation">
+          <div class="bot-message message greeting">
+            Hello! 👋 I'm your EduBridge Assistant. I can help you grade PDFs, understand AI-powered assessment, and provide feedback guidelines. What would you like assistance with today?
+          </div>
+        </div>
+      </div>
+      <div class="input-container">
+        <textarea id="chatInput" placeholder="Type your message..."></textarea>
+        <div class="bottom-controls">
+          <div class="function-controls">
+            <button id="doubtActionBtn" class="chat-function-btn active">Ask Question</button>
+            <button id="navigateActionBtn" class="chat-function-btn">Navigate</button>
+          </div>
+          <button id="sendButton" title="Send message">➤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <script src="teacher_grade_pdf.js"></script>
+  <script src="teacher_chatbot.js"></script>
 </body>
 </html> 

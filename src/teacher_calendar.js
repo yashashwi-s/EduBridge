@@ -449,11 +449,4 @@ document.addEventListener('DOMContentLoaded', () => {
   renderCalendar(currentDate);
   populateClassroomsDropdown();
   
-  // Set up chatbot icon functionality
-  const chatbotIcon = document.querySelector('.chatbot-icon');
-  if (chatbotIcon) {
-    chatbotIcon.addEventListener('click', () => {
-      alert('Chatbot functionality would open here');
-    });
-  }
 }); 

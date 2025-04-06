@@ -644,7 +644,7 @@ body {
   }
 }
 
-/* Floating Chatbot Icon */
+/* Floating Chatbot Icon
 .chatbot-icon {
   position: fixed;
   bottom: 24px;
@@ -670,7 +670,7 @@ body {
 
 .chatbot-icon i {
   font-size: 24px;
-}
+} */
 
 /* Responsive styles */
 @media (max-width: 768px) {
