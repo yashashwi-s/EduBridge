@@ -175,14 +175,6 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
           console.error('Error loading assignments:', error);
           // Don't show notification to avoid overwhelming the user
-        try {
-          // Load assignments if available
-          if (data.assignments && data.assignments.length > 0) {
-            loadAssignments(data.assignments);
-          }
-        } catch (error) {
-          console.error('Error loading assignments:', error);
-          // Don't show notification to avoid overwhelming the user
         }
 
         try {
@@ -215,51 +207,8 @@ document.addEventListener('DOMContentLoaded', function () {
               </div>
             </div>
           `;
-        try {
-          // Load quizzes if available
-          if (data.quizzes && data.quizzes.length > 0) {
-            loadQuizzes(data.quizzes);
-          }
-        } catch (error) {
-          console.error('Error loading quizzes:', error);
-          document.querySelector('.quiz-list').innerHTML = `
-            <div class="no-quizzes error">
-              <i class="fas fa-exclamation-triangle"></i>
-              <p>There was an error loading quizzes.</p>
-              <button class="retry-btn" onclick="initializeStudentQuizzes()">Try Again</button>
-            </div>
-          `;
         }
 
-        try {
-          // Load student performance data
-          loadStudentPerformanceData();
-        } catch (error) {
-          console.error('Error loading performance data:', error);
-          document.getElementById('performance').innerHTML = `
-            <div class="performance-summary">
-              <h3>My Performance</h3>
-              <div class="error-message">
-                <i class="fas fa-exclamation-circle"></i>
-                <p>Unable to load performance data. Please try again later.</p>
-              </div>
-            </div>
-          `;
-        }
-
-        try {
-          // Load resources if available
-          if (data.resources && data.resources.length > 0) {
-            loadResources(data.resources);
-          }
-        } catch (error) {
-          console.error('Error loading resources:', error);
-          document.querySelector('.resources-list').innerHTML = `
-            <div class="no-resources error">
-              <i class="fas fa-exclamation-triangle"></i>
-              <p>There was an error loading resources.</p>
-            </div>
-          `;
         try {
           // Load resources if available
           if (data.resources && data.resources.length > 0) {
@@ -755,8 +704,6 @@ document.addEventListener('DOMContentLoaded', function () {
       // Create Date objects from ISO strings using the helper
       const startTime = parseDate(quiz.startTime);
       const endTime = quiz.endTime ? parseDate(quiz.endTime) : null;
-      const startTime = parseDate(quiz.startTime);
-      const endTime = quiz.endTime ? parseDate(quiz.endTime) : null;
       const now = new Date();
       
       // Format dates in user-friendly format with timezone consideration
@@ -868,8 +815,6 @@ document.addEventListener('DOMContentLoaded', function () {
               <p><strong>Start Time:</strong> ${new Date(quiz.startTime).toLocaleString()}</p>
               <p><strong>Duration:</strong> ${quiz.duration ? Math.floor(quiz.duration / 60) : 0} minutes</p>
               <p><strong>Type:</strong> ${quiz.quizType === 'pdf' ? 'PDF Upload' : 'Online Quiz'}</p>
-              <p><strong>Duration:</strong> ${quiz.duration ? Math.floor(quiz.duration / 60) : 0} minutes</p>
-              <p><strong>Type:</strong> ${quiz.quizType === 'pdf' ? 'PDF Upload' : 'Online Quiz'}</p>
               <p><strong>Status:</strong> ${status}</p>
             </div>
             <div class="modal-actions">
@@ -887,24 +832,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
       });
     });
-  }
-  
-  // Helper function to safely parse date strings
-  function parseDate(dateString) {
-    if (!dateString) return new Date();
-    try {
-      // Try to create a date from the string
-      const date = new Date(dateString);
-      // Check if the date is valid
-      if (isNaN(date.getTime())) {
-        console.warn('Invalid date string:', dateString);
-        return new Date();
-      }
-      return date;
-    } catch (error) {
-      console.error('Error parsing date:', error);
-      return new Date();
-    }
   }
   
   // Helper function to safely parse date strings
