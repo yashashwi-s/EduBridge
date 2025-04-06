@@ -815,66 +815,661 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Load performance data
   function loadPerformanceData(performance) {
+    // Remove loading indicator
+    document.getElementById('loading-chart').style.display = 'none';
+    
+    // Check if performance data exists
+    if (!performance) {
+      const performanceTab = document.getElementById('performance');
+      performanceTab.innerHTML = `
+        <div class="no-performance-data">
+          <i class="fas fa-chart-line"></i>
+          <h3>No Performance Data Available</h3>
+          <p>Complete some assignments or quizzes to see your performance.</p>
+        </div>
+      `;
+      return;
+    }
+    
     // Set overall metrics
     document.getElementById('overall-grade').textContent = performance.overallGrade || 'N/A';
     document.getElementById('assignments-grade').textContent = performance.assignmentsGrade || 'N/A';
     document.getElementById('quizzes-grade').textContent = performance.quizzesGrade || 'N/A';
     
-    // Remove loading indicator
-    document.getElementById('loading-chart').style.display = 'none';
+    // Calculate additional performance metrics
+    const metrics = calculatePerformanceMetrics(performance);
     
-    // Create performance chart if data is available
+    // Render performance dashboard
+    renderPerformanceDashboard(performance, metrics);
+    
+    // Create performance charts
+    createPerformanceCharts(performance, metrics);
+  }
+  
+  // Calculate comprehensive performance metrics
+  function calculatePerformanceMetrics(performance) {
+    const metrics = {
+      totalAssessments: 0,
+      completedAssessments: 0,
+      missedAssessments: 0,
+      averageScore: 0,
+      highestScore: 0,
+      lowestScore: 100,
+      recentTrend: 'stable',
+      strengths: [],
+      weaknesses: [],
+      completionRate: 0,
+      latestPerformance: null,
+      categoryPerformance: {}
+    };
+    
+    // Process assessment data for metrics
     if (performance.assessments && performance.assessments.length > 0) {
-      const ctx = document.getElementById('performanceChart').getContext('2d');
+      const assessments = performance.assessments;
+      metrics.totalAssessments = assessments.length;
       
-      // Prepare data for chart
-      const labels = performance.assessments.map(assessment => assessment.title);
-      const scores = performance.assessments.map(assessment => assessment.score);
-      const maxScores = performance.assessments.map(assessment => assessment.maxScore);
+      // Sort assessments by date
+      const sortedAssessments = [...assessments].sort((a, b) => 
+        new Date(a.date || a.dueDate || a.submissionDate) - new Date(b.date || b.dueDate || b.submissionDate)
+      );
       
-      const percentages = scores.map((score, index) => (score / maxScores[index]) * 100);
+      // Calculate scores and find completed/missed
+      let totalScorePercentage = 0;
+      let completedCount = 0;
       
-      // Create chart
-      new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Your Score (%)',
-            data: percentages,
-            backgroundColor: percentages.map(percentage => 
-              percentage < 60 ? 'rgba(234, 67, 53, 0.7)' :
-              percentage < 70 ? 'rgba(251, 188, 5, 0.7)' :
-              percentage < 80 ? 'rgba(66, 133, 244, 0.7)' :
-              'rgba(52, 168, 83, 0.7)'
-            ),
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: true,
-              max: 100,
-              title: {
-                display: true,
-                text: 'Score (%)'
-              }
-            },
-            x: {
-              title: {
-                display: true,
-                text: 'Assessment'
-              }
-            }
+      assessments.forEach(assessment => {
+        // Check if assessment was completed
+        const isCompleted = assessment.status === 'completed' || 
+                           assessment.status === 'graded' || 
+                           assessment.status === 'submitted' ||
+                           (assessment.score !== undefined && assessment.score !== null);
+        
+        if (isCompleted) {
+          completedCount++;
+          
+          // Calculate percentage score for this assessment
+          const scorePercentage = assessment.maxScore 
+            ? (assessment.score / assessment.maxScore) * 100 
+            : assessment.percentage || 0;
+          
+          totalScorePercentage += scorePercentage;
+          
+          // Track highest and lowest scores
+          metrics.highestScore = Math.max(metrics.highestScore, scorePercentage);
+          metrics.lowestScore = Math.min(metrics.lowestScore, scorePercentage);
+          
+          // Track performance by category
+          const category = assessment.category || assessment.type || 'Other';
+          if (!metrics.categoryPerformance[category]) {
+            metrics.categoryPerformance[category] = {
+              count: 0,
+              totalScore: 0,
+              averageScore: 0
+            };
+          }
+          
+          metrics.categoryPerformance[category].count++;
+          metrics.categoryPerformance[category].totalScore += scorePercentage;
+          metrics.categoryPerformance[category].averageScore = 
+            metrics.categoryPerformance[category].totalScore / metrics.categoryPerformance[category].count;
+        } else {
+          // Count missed assessments
+          if (new Date(assessment.dueDate) < new Date()) {
+            metrics.missedAssessments++;
           }
         }
       });
-    } else {
-      document.getElementById('loading-chart').textContent = 'No assessment data available';
+      
+      // Calculate completion rate
+      metrics.completedAssessments = completedCount;
+      metrics.completionRate = metrics.totalAssessments > 0 
+        ? (completedCount / metrics.totalAssessments) * 100 
+        : 0;
+      
+      // Calculate average score
+      metrics.averageScore = completedCount > 0 
+        ? totalScorePercentage / completedCount 
+        : 0;
+      
+      // Determine recent trend (last 3 assessments if available)
+      if (sortedAssessments.length >= 3) {
+        const recent = sortedAssessments.slice(-3).filter(a => 
+          a.status === 'completed' || a.status === 'graded' || a.status === 'submitted'
+        );
+        
+        if (recent.length >= 2) {
+          const recentScores = recent.map(a => {
+            return a.maxScore ? (a.score / a.maxScore) * 100 : a.percentage || 0;
+          });
+          
+          // Simple trend analysis
+          const firstScores = recentScores.slice(0, Math.floor(recentScores.length / 2));
+          const lastScores = recentScores.slice(Math.floor(recentScores.length / 2));
+          
+          const firstAvg = firstScores.reduce((a, b) => a + b, 0) / firstScores.length;
+          const lastAvg = lastScores.reduce((a, b) => a + b, 0) / lastScores.length;
+          
+          if (lastAvg > firstAvg + 5) {
+            metrics.recentTrend = 'improving';
+          } else if (lastAvg < firstAvg - 5) {
+            metrics.recentTrend = 'declining';
+          } else {
+            metrics.recentTrend = 'stable';
+          }
+        }
+      }
+      
+      // Find strengths and weaknesses (top and bottom categories)
+      const categories = Object.keys(metrics.categoryPerformance);
+      if (categories.length > 0) {
+        const sortedCategories = categories.sort((a, b) => 
+          metrics.categoryPerformance[b].averageScore - metrics.categoryPerformance[a].averageScore
+        );
+        
+        metrics.strengths = sortedCategories.slice(0, 2);
+        metrics.weaknesses = sortedCategories.slice(-2).reverse();
+      }
+      
+      // Get latest assessment with score
+      const completedAssessments = sortedAssessments.filter(a => 
+        (a.score !== undefined && a.score !== null) || a.status === 'graded'
+      );
+      
+      if (completedAssessments.length > 0) {
+        metrics.latestPerformance = completedAssessments[completedAssessments.length - 1];
+      }
     }
+    
+    return metrics;
+  }
+  
+  // Render performance dashboard with metrics
+  function renderPerformanceDashboard(performance, metrics) {
+    // Get the performance tab content container
+    const performanceTab = document.getElementById('performance');
+    
+    // Create HTML structure for the dashboard
+    const dashboardHTML = `
+      <div class="performance-dashboard">
+        <div class="performance-overview">
+          <div class="overview-header">
+            <h2>My Academic Performance</h2>
+            <div class="last-updated">Last updated: ${new Date().toLocaleString()}</div>
+          </div>
+          
+          <div class="overview-cards">
+            <div class="overview-card">
+              <div class="card-icon"><i class="fas fa-graduation-cap"></i></div>
+              <div class="card-content">
+                <div class="card-title">Overall Grade</div>
+                <div class="card-value" id="overall-grade">
+                  ${getGradeIndicator(metrics.averageScore)}
+                  ${performance.overallGrade || getLetterGrade(metrics.averageScore)}
+                </div>
+              </div>
+            </div>
+            <div class="overview-card">
+              <div class="card-icon"><i class="fas fa-tasks"></i></div>
+              <div class="card-content">
+                <div class="card-title">Assignments</div>
+                <div class="card-value" id="assignments-grade">
+                  ${getGradeIndicator(getGradeValue(performance.assignmentsGrade))}
+                  ${performance.assignmentsGrade || 'N/A'}
+                </div>
+              </div>
+            </div>
+            <div class="overview-card">
+              <div class="card-icon"><i class="fas fa-question-circle"></i></div>
+              <div class="card-content">
+                <div class="card-title">Quizzes & Exams</div>
+                <div class="card-value" id="quizzes-grade">
+                  ${getGradeIndicator(getGradeValue(performance.quizzesGrade))}
+                  ${performance.quizzesGrade || 'N/A'}
+                </div>
+              </div>
+            </div>
+            <div class="overview-card">
+              <div class="card-icon"><i class="fas fa-chart-line"></i></div>
+              <div class="card-content">
+                <div class="card-title">Average Score</div>
+                <div class="card-value">${metrics.averageScore.toFixed(1)}%</div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="progress-section">
+            <div class="progress-header">
+              <h3>Your Progress</h3>
+            </div>
+            <div class="progress-metrics">
+              <div class="progress-metric">
+                <div class="metric-label">Completion Rate</div>
+                <div class="progress-bar-container">
+                  <div class="progress-bar" style="width: ${metrics.completionRate}%"></div>
+                </div>
+                <div class="metric-value">${metrics.completionRate.toFixed(0)}%</div>
+              </div>
+              
+              <div class="progress-metric">
+                <div class="metric-label">Assessments</div>
+                <div class="metric-counts">
+                  <span class="count-item"><i class="fas fa-check text-success"></i> ${metrics.completedAssessments} Completed</span>
+                  <span class="count-item"><i class="fas fa-times text-danger"></i> ${metrics.missedAssessments} Missed</span>
+                  <span class="count-item"><i class="fas fa-calendar"></i> ${metrics.totalAssessments - metrics.completedAssessments - metrics.missedAssessments} Upcoming</span>
+                </div>
+              </div>
+              
+              <div class="progress-metric">
+                <div class="metric-label">Performance Trend</div>
+                <div class="trend-indicator trend-${metrics.recentTrend}">
+                  <i class="fas fa-${metrics.recentTrend === 'improving' ? 'arrow-up' : metrics.recentTrend === 'declining' ? 'arrow-down' : 'equals'}"></i>
+                  ${metrics.recentTrend === 'improving' ? 'Improving' : metrics.recentTrend === 'declining' ? 'Needs improvement' : 'Consistent'}
+                </div>
+              </div>
+            </div>
+            
+            <!-- Grade distribution legend -->
+            <div class="grade-distribution">
+              <div class="grade-item">
+                <div class="grade-marker grade-a"></div>
+                <span>A (90-100%)</span>
+              </div>
+              <div class="grade-item">
+                <div class="grade-marker grade-b"></div>
+                <span>B (80-89%)</span>
+              </div>
+              <div class="grade-item">
+                <div class="grade-marker grade-c"></div>
+                <span>C (70-79%)</span>
+              </div>
+              <div class="grade-item">
+                <div class="grade-marker grade-d"></div>
+                <span>D (60-69%)</span>
+              </div>
+              <div class="grade-item">
+                <div class="grade-marker grade-f"></div>
+                <span>F (0-59%)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Class Comparison Section (if data available) -->
+        ${performance.classAverages ? renderClassComparison(performance, metrics) : ''}
+        
+        <div class="performance-charts-container">
+          <div class="chart-section">
+            <h3>Performance by Assessment</h3>
+            <div class="chart-container">
+              <canvas id="performanceChart"></canvas>
+            </div>
+          </div>
+          
+          <div class="chart-section">
+            <h3>Performance by Category</h3>
+            <div class="chart-container">
+              <canvas id="categoryChart"></canvas>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Assessment Timeline -->
+        ${renderAssessmentTimeline(performance.assessments || [])}
+        
+        <div class="performance-insights">
+          <h3>Performance Insights</h3>
+          
+          <div class="insights-grid">
+            <div class="insight-card">
+              <h4><i class="fas fa-star"></i> Strengths</h4>
+              <ul class="strengths-list">
+                ${metrics.strengths.length > 0 ? 
+                  metrics.strengths.map(category => 
+                    `<li>
+                      <span class="category-name">${category}</span>
+                      <span class="category-score">${metrics.categoryPerformance[category].averageScore.toFixed(1)}%</span>
+                    </li>`
+                  ).join('') : 
+                  '<li>Not enough data to determine strengths</li>'
+                }
+              </ul>
+            </div>
+            
+            <div class="insight-card">
+              <h4><i class="fas fa-exclamation-triangle"></i> Areas for Improvement</h4>
+              <ul class="weaknesses-list">
+                ${metrics.weaknesses.length > 0 ? 
+                  metrics.weaknesses.map(category => 
+                    `<li>
+                      <span class="category-name">${category}</span>
+                      <span class="category-score">${metrics.categoryPerformance[category].averageScore.toFixed(1)}%</span>
+                    </li>`
+                  ).join('') : 
+                  '<li>Not enough data to determine areas for improvement</li>'
+                }
+              </ul>
+            </div>
+            
+            <div class="insight-card">
+              <h4><i class="fas fa-medal"></i> Personal Bests</h4>
+              <div class="personal-bests">
+                <div class="best-item">
+                  <span class="best-label">Highest Score</span>
+                  <span class="best-value">${metrics.highestScore.toFixed(1)}%</span>
+                </div>
+                ${metrics.latestPerformance ? 
+                  `<div class="best-item">
+                    <span class="best-label">Latest Assessment</span>
+                    <span class="best-value">${metrics.latestPerformance.title || 'Untitled'}: ${metrics.latestPerformance.score}/${metrics.latestPerformance.maxScore}</span>
+                  </div>` : ''
+                }
+                <div class="best-item">
+                  <span class="best-label">Current Streak</span>
+                  <span class="best-value">${calculateCompletionStreak(performance.assessments || [])} days</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="insight-card">
+              <h4><i class="fas fa-graduation-cap"></i> Overall Summary</h4>
+              <div class="summary-text">
+                ${generatePerformanceSummary(metrics)}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Study Time Tracking Section -->
+        ${renderStudyTimeSection(performance, metrics)}
+        
+        <!-- Achievement Badges Section -->
+        ${renderAchievementBadges(metrics)}
+        
+        <div class="recent-assessments">
+          <h3>Recent Assessments</h3>
+          <div class="assessment-list">
+            ${renderRecentAssessments(performance.assessments || [])}
+          </div>
+        </div>
+        
+        <!-- Print or Export Button -->
+        <button class="print-report-btn" onclick="printPerformanceReport()">
+          <i class="fas fa-file-export"></i> Export Performance Report
+        </button>
+      </div>
+    `;
+    
+    // Replace the existing content with the new dashboard
+    performanceTab.innerHTML = dashboardHTML;
+  }
+  
+  // Helper function to get a color-coded grade indicator
+  function getGradeIndicator(score) {
+    if (!score || isNaN(score)) return '';
+    
+    let color;
+    if (score >= 90) {
+      color = '#34a853'; // A grade - green
+    } else if (score >= 80) {
+      color = '#4285f4'; // B grade - blue
+    } else if (score >= 70) {
+      color = '#f9ab00'; // C grade - yellow
+    } else if (score >= 60) {
+      color = '#fa8e48'; // D grade - orange
+    } else {
+      color = '#ea4335'; // F grade - red
+    }
+    
+    return `<span class="grade-indicator" style="background-color: ${color}"></span>`;
+  }
+  
+  // Helper function to convert a letter grade to a numeric value
+  function getGradeValue(grade) {
+    if (!grade) return 0;
+    
+    // Handle numeric grades
+    if (!isNaN(parseFloat(grade))) {
+      return parseFloat(grade);
+    }
+    
+    // Handle letter grades
+    const letterGrades = {
+      'A+': 97, 'A': 95, 'A-': 90,
+      'B+': 87, 'B': 85, 'B-': 80,
+      'C+': 77, 'C': 75, 'C-': 70,
+      'D+': 67, 'D': 65, 'D-': 60,
+      'F': 50
+    };
+    
+    return letterGrades[grade] || 0;
+  }
+  
+  // Helper function to convert a numeric score to a letter grade
+  function getLetterGrade(score) {
+    if (!score || isNaN(score)) return 'N/A';
+    
+    if (score >= 97) return 'A+';
+    if (score >= 93) return 'A';
+    if (score >= 90) return 'A-';
+    if (score >= 87) return 'B+';
+    if (score >= 83) return 'B';
+    if (score >= 80) return 'B-';
+    if (score >= 77) return 'C+';
+    if (score >= 73) return 'C';
+    if (score >= 70) return 'C-';
+    if (score >= 67) return 'D+';
+    if (score >= 63) return 'D';
+    if (score >= 60) return 'D-';
+    return 'F';
+  }
+  
+  // Render class comparison section
+  function renderClassComparison(performance, metrics) {
+    // If no class averages data, return empty string
+    if (!performance.classAverages) return '';
+    
+    return `
+      <div class="class-comparison">
+        <h3>Compare with Class Average</h3>
+        <div class="comparison-chart-container">
+          <canvas id="comparisonChart"></canvas>
+        </div>
+        <div class="comparison-legend">
+          <div class="legend-item">
+            <div class="legend-color your-score-color"></div>
+            <span>Your Score</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color class-avg-color"></div>
+            <span>Class Average</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Render assessment timeline
+  function renderAssessmentTimeline(assessments) {
+    if (!assessments || assessments.length === 0) return '';
+    
+    // Sort assessments by date
+    const sortedAssessments = [...assessments].sort((a, b) => {
+      const dateA = new Date(a.date || a.dueDate || a.submissionDate || 0);
+      const dateB = new Date(b.date || b.dueDate || b.submissionDate || 0);
+      return dateA - dateB;
+    });
+    
+    // Get earliest and latest dates
+    const earliestDate = new Date(sortedAssessments[0].date || sortedAssessments[0].dueDate || sortedAssessments[0].submissionDate);
+    const latestDate = new Date(sortedAssessments[sortedAssessments.length - 1].date || 
+                               sortedAssessments[sortedAssessments.length - 1].dueDate || 
+                               sortedAssessments[sortedAssessments.length - 1].submissionDate);
+    
+    // Calculate timespan in days
+    const timespan = Math.ceil((latestDate - earliestDate) / (1000 * 60 * 60 * 24));
+    
+    // Generate timeline markers HTML
+    const markersHTML = sortedAssessments.map(assessment => {
+      const date = new Date(assessment.date || assessment.dueDate || assessment.submissionDate);
+      const daysSinceStart = Math.ceil((date - earliestDate) / (1000 * 60 * 60 * 24));
+      const position = (daysSinceStart / timespan) * 100;
+      
+      const type = assessment.type || (assessment.questions ? 'quiz' : 'assignment');
+      const status = assessment.status || 'pending';
+      
+      return `
+        <div class="timeline-marker ${type} ${status}" style="left: ${position}%;" 
+             title="${assessment.title}: ${date.toLocaleDateString()}">
+          <div class="timeline-label ${position < 50 ? 'top' : 'bottom'}">
+            ${assessment.title.length > 10 ? assessment.title.substring(0, 8) + '...' : assessment.title}
+          </div>
+        </div>
+      `;
+    });
+    
+    return `
+      <div class="assessment-timeline">
+        <h3>Assessment Timeline</h3>
+        <div class="timeline-track">
+          ${markersHTML.join('')}
+        </div>
+        <div class="timeline-dates">
+          <span style="float: left;">${earliestDate.toLocaleDateString()}</span>
+          <span style="float: right;">${latestDate.toLocaleDateString()}</span>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Render study time tracking section
+  function renderStudyTimeSection(performance, metrics) {
+    // This section would normally use actual study time data, but we'll create a placeholder
+    // with sample data for demonstration purposes
+    
+    // Sample data - in a real implementation, this would come from the backend
+    const studyTimeData = {
+      weekly: [12, 8, 15, 10, 9, 14, 6],
+      totalHours: 74,
+      averagePerWeek: 10.5,
+      mostProductiveDay: 'Wednesday'
+    };
+    
+    return `
+      <div class="study-time-section">
+        <div class="study-time-header">
+          <h3>Study Time Tracking</h3>
+          <div class="study-time-filters">
+            <select id="study-time-period">
+              <option value="week">This Week</option>
+              <option value="month" selected>This Month</option>
+              <option value="semester">This Semester</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="study-time-chart">
+          <canvas id="studyTimeChart"></canvas>
+        </div>
+        
+        <div class="time-stats">
+          <div class="time-stat">
+            <span class="time-stat-label">Total Study Hours</span>
+            <span class="time-stat-value">${studyTimeData.totalHours}</span>
+          </div>
+          <div class="time-stat">
+            <span class="time-stat-label">Weekly Average</span>
+            <span class="time-stat-value">${studyTimeData.averagePerWeek}</span>
+          </div>
+          <div class="time-stat">
+            <span class="time-stat-label">Most Productive</span>
+            <span class="time-stat-value">${studyTimeData.mostProductiveDay}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Render achievement badges section
+  function renderAchievementBadges(metrics) {
+    // Define the badges with criteria
+    const badges = [
+      {
+        name: "Perfect Score",
+        icon: "fas fa-star",
+        description: "Achieved 100% on an assessment",
+        unlocked: metrics.highestScore >= 100
+      },
+      {
+        name: "All A's",
+        icon: "fas fa-award",
+        description: "Maintained an A average",
+        unlocked: metrics.averageScore >= 90
+      },
+      {
+        name: "Perfect Attendance",
+        icon: "fas fa-calendar-check",
+        description: "Completed all assessments on time",
+        unlocked: metrics.completionRate >= 100 && metrics.missedAssessments === 0
+      },
+      {
+        name: "Rising Star",
+        icon: "fas fa-chart-line",
+        description: "Improved consistently over time",
+        unlocked: metrics.recentTrend === 'improving'
+      },
+      {
+        name: "Quick Learner",
+        icon: "fas fa-bolt",
+        description: "Completed assessments ahead of schedule",
+        unlocked: metrics.completedAssessments >= 5
+      },
+      {
+        name: "Subject Expert",
+        icon: "fas fa-book",
+        description: "Mastered a specific subject area",
+        unlocked: metrics.strengths.length > 0 && metrics.categoryPerformance[metrics.strengths[0]].averageScore >= 95
+      }
+    ];
+    
+    const badgesHTML = badges.map(badge => `
+      <div class="badge-item">
+        <div class="badge-icon ${badge.unlocked ? '' : 'locked'}">
+          <i class="${badge.icon}"></i>
+        </div>
+        <div class="badge-name">${badge.name}</div>
+        <div class="badge-description">${badge.description}</div>
+      </div>
+    `).join('');
+    
+    return `
+      <div class="achievements-section">
+        <h3>Achievement Badges</h3>
+        <div class="badges-container">
+          ${badgesHTML}
+        </div>
+      </div>
+    `;
+  }
+  
+  // Calculate completion streak (in days)
+  function calculateCompletionStreak(assessments) {
+    if (!assessments || assessments.length === 0) return 0;
+    
+    // This is a placeholder function - in a real implementation,
+    // this would track consecutive days of activity
+    
+    // For demo purposes, return a value based on completed assessments
+    const completedCount = assessments.filter(a => 
+      a.status === 'completed' || a.status === 'graded' || a.status === 'submitted'
+    ).length;
+    
+    return Math.min(completedCount * 3, 30); // Cap at 30 days for demo
+  }
+  
+  // Function to print or export the performance report
+  function printPerformanceReport() {
+    // This would typically create a formatted PDF or open the print dialog
+    window.print();
   }
 
   // Load resources
@@ -2365,5 +2960,421 @@ document.addEventListener('DOMContentLoaded', function () {
       console.error('Error fetching debug data:', error);
       showNotification('Error fetching debug data', 'error');
     });
+  }
+
+  // Generate a summary of student performance
+  function generatePerformanceSummary(metrics) {
+    if (metrics.completedAssessments === 0) {
+      return 'Complete assignments and quizzes to see your performance summary.';
+    }
+    
+    let summary = '';
+    
+    // Grade level description
+    let gradeLevel = '';
+    if (metrics.averageScore >= 90) {
+      gradeLevel = 'excellent';
+    } else if (metrics.averageScore >= 80) {
+      gradeLevel = 'very good';
+    } else if (metrics.averageScore >= 70) {
+      gradeLevel = 'good';
+    } else if (metrics.averageScore >= 60) {
+      gradeLevel = 'satisfactory';
+    } else {
+      gradeLevel = 'needs improvement';
+    }
+    
+    summary += `Your overall performance is <strong>${gradeLevel}</strong> with an average score of ${metrics.averageScore.toFixed(1)}%. `;
+    
+    // Completion rate
+    if (metrics.completionRate < 70) {
+      summary += `Your completion rate is ${metrics.completionRate.toFixed(0)}%, consider completing more assignments to improve your grade. `;
+    } else if (metrics.completionRate < 100) {
+      summary += `You've completed ${metrics.completionRate.toFixed(0)}% of your assessments. `;
+    } else {
+      summary += `Great job completing 100% of your assessments! `;
+    }
+    
+    // Recent performance trend
+    if (metrics.recentTrend === 'improving') {
+      summary += `Your recent performance is showing improvement. Keep up the good work!`;
+    } else if (metrics.recentTrend === 'declining') {
+      summary += `Your recent performance has been declining. Consider seeking additional help in challenging areas.`;
+    } else {
+      summary += `Your performance has been consistent. Focus on your weaker areas to improve your overall grade.`;
+    }
+    
+    return summary;
+  }
+  
+  // Render a list of recent assessments
+  function renderRecentAssessments(assessments) {
+    if (!assessments || assessments.length === 0) {
+      return '<div class="no-assessments">No recent assessments available</div>';
+    }
+    
+    // Sort assessments by date (newest first)
+    const sortedAssessments = [...assessments].sort((a, b) => {
+      const dateA = new Date(a.date || a.dueDate || a.submissionDate || 0);
+      const dateB = new Date(b.date || b.dueDate || b.submissionDate || 0);
+      return dateB - dateA;
+    });
+    
+    // Take only the 5 most recent assessments
+    const recentAssessments = sortedAssessments.slice(0, 5);
+    
+    return recentAssessments.map(assessment => {
+      const date = new Date(assessment.date || assessment.dueDate || assessment.submissionDate);
+      const formattedDate = date.toLocaleDateString();
+      
+      const score = assessment.score !== undefined ? assessment.score : 'N/A';
+      const maxScore = assessment.maxScore !== undefined ? assessment.maxScore : 'N/A';
+      const percentage = assessment.maxScore && assessment.score !== undefined 
+        ? ((assessment.score / assessment.maxScore) * 100).toFixed(1) + '%' 
+        : 'N/A';
+      
+      const statusClass = getStatusClass(assessment.status);
+      
+      return `
+        <div class="assessment-item">
+          <div class="assessment-info">
+            <div class="assessment-title">${assessment.title || 'Untitled Assessment'}</div>
+            <div class="assessment-date">${formattedDate}</div>
+          </div>
+          <div class="assessment-score">
+            <div class="score-value">${score}/${maxScore}</div>
+            <div class="score-percentage">${percentage}</div>
+          </div>
+          <div class="assessment-status ${statusClass}">${assessment.status || 'N/A'}</div>
+        </div>
+      `;
+    }).join('');
+  }
+  
+  // Create performance charts
+  function createPerformanceCharts(performance, metrics) {
+    // Create the main performance chart if data is available
+    if (performance.assessments && performance.assessments.length > 0) {
+      // Remove loading indicator
+      document.getElementById('loading-chart').style.display = 'none';
+      
+      // Get the canvas context
+      const ctx = document.getElementById('performanceChart').getContext('2d');
+      
+      // Sort assessments by date
+      const sortedAssessments = [...performance.assessments].sort((a, b) => {
+        const dateA = new Date(a.date || a.dueDate || a.submissionDate || 0);
+        const dateB = new Date(b.date || b.dueDate || b.submissionDate || 0);
+        return dateA - dateB;
+      });
+      
+      // Prepare data for chart
+      const labels = sortedAssessments.map(assessment => {
+        // Truncate long titles
+        const title = assessment.title || 'Untitled';
+        return title.length > 15 ? title.substring(0, 12) + '...' : title;
+      });
+      
+      const scores = sortedAssessments.map(assessment => assessment.score || 0);
+      const maxScores = sortedAssessments.map(assessment => assessment.maxScore || 100);
+      
+      const percentages = scores.map((score, index) => (score / maxScores[index]) * 100);
+      
+      // Create chart
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Your Score (%)',
+            data: percentages,
+            backgroundColor: percentages.map(percentage => 
+              percentage < 60 ? 'rgba(234, 67, 53, 0.7)' :
+              percentage < 70 ? 'rgba(251, 188, 5, 0.7)' :
+              percentage < 80 ? 'rgba(66, 133, 244, 0.7)' :
+              'rgba(52, 168, 83, 0.7)'
+            ),
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+              title: {
+                display: true,
+                text: 'Score (%)'
+              }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Assessment'
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              titleFont: {
+                weight: 'bold'
+              },
+              callbacks: {
+                title: function(tooltipItems) {
+                  const index = tooltipItems[0].dataIndex;
+                  return sortedAssessments[index].title || 'Untitled';
+                },
+                label: function(context) {
+                  const index = context.dataIndex;
+                  return [
+                    `Score: ${scores[index]}/${maxScores[index]}`,
+                    `Percentage: ${percentages[index].toFixed(1)}%`
+                  ];
+                }
+              }
+            }
+          }
+        }
+      });
+      
+      // Create a chart for category performance
+      const categories = Object.keys(metrics.categoryPerformance);
+      if (categories.length > 0) {
+        const ctxCategory = document.getElementById('categoryChart').getContext('2d');
+        
+        const categoryScores = categories.map(category => 
+          metrics.categoryPerformance[category].averageScore);
+        
+        const categoryColors = categoryScores.map(score => 
+          score < 60 ? 'rgba(234, 67, 53, 0.7)' :
+          score < 70 ? 'rgba(251, 188, 5, 0.7)' :
+          score < 80 ? 'rgba(66, 133, 244, 0.7)' :
+          'rgba(52, 168, 83, 0.7)'
+        );
+        
+        new Chart(ctxCategory, {
+          type: 'polarArea',
+          data: {
+            labels: categories,
+            datasets: [{
+              data: categoryScores,
+              backgroundColor: categoryColors,
+              borderWidth: 1
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              r: {
+                min: 0,
+                max: 100,
+                ticks: {
+                  display: false
+                }
+              }
+            },
+            plugins: {
+              legend: {
+                position: 'right'
+              },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    const category = context.label;
+                    const score = context.raw.toFixed(1);
+                    const count = metrics.categoryPerformance[category].count;
+                    return [`Score: ${score}%`, `Assessments: ${count}`];
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+      
+      // Create class comparison chart if data is available
+      if (performance.classAverages) {
+        const comparisonCtx = document.getElementById('comparisonChart');
+        if (comparisonCtx) {
+          // Extract comparison data
+          const classAvgData = extractClassComparisonData(performance, sortedAssessments);
+          
+          new Chart(comparisonCtx, {
+            type: 'line',
+            data: {
+              labels: labels,
+              datasets: [
+                {
+                  label: 'Your Score',
+                  data: percentages,
+                  borderColor: '#4285f4',
+                  backgroundColor: 'rgba(66, 133, 244, 0.1)',
+                  borderWidth: 2,
+                  fill: true,
+                  tension: 0.4,
+                  pointBackgroundColor: '#4285f4',
+                  pointRadius: 4
+                },
+                {
+                  label: 'Class Average',
+                  data: classAvgData,
+                  borderColor: '#9aa0a6',
+                  backgroundColor: 'rgba(154, 160, 166, 0.1)',
+                  borderWidth: 2,
+                  borderDash: [5, 5],
+                  fill: true,
+                  tension: 0.4,
+                  pointBackgroundColor: '#9aa0a6',
+                  pointRadius: 4
+                }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: {
+                mode: 'index',
+                intersect: false
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  max: 100,
+                  title: {
+                    display: true,
+                    text: 'Score (%)'
+                  }
+                }
+              },
+              plugins: {
+                legend: {
+                  display: false
+                },
+                tooltip: {
+                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                  titleFont: {
+                    weight: 'bold'
+                  }
+                }
+              }
+            }
+          });
+        }
+      }
+      
+      // Create study time chart (with sample data)
+      const studyTimeCtx = document.getElementById('studyTimeChart');
+      if (studyTimeCtx) {
+        const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const sampleData = [12, 8, 15, 10, 9, 14, 6]; // Sample hours per day
+        
+        new Chart(studyTimeCtx, {
+          type: 'bar',
+          data: {
+            labels: weekdays,
+            datasets: [{
+              label: 'Study Hours',
+              data: sampleData,
+              backgroundColor: 'rgba(66, 133, 244, 0.7)',
+              borderColor: '#4285f4',
+              borderWidth: 1,
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: 'Hours'
+                }
+              }
+            },
+            plugins: {
+              legend: {
+                display: false
+              }
+            }
+          }
+        });
+        
+        // Add event listener to update chart based on selected time period
+        document.getElementById('study-time-period')?.addEventListener('change', function(e) {
+          // This would normally fetch new data based on the selected period
+          // For demo purposes, we'll just show different random data
+          
+          let newData;
+          switch(e.target.value) {
+            case 'week':
+              newData = [5, 7, 9, 6, 8, 4, 2];
+              break;
+            case 'semester':
+              newData = [48, 52, 63, 49, 41, 38, 31];
+              break;
+            case 'month':
+            default:
+              newData = [12, 8, 15, 10, 9, 14, 6];
+          }
+          
+          // Update chart data
+          studyTimeCtx.chart.data.datasets[0].data = newData;
+          studyTimeCtx.chart.update();
+        });
+      }
+    } else {
+      // No data available
+      document.getElementById('loading-chart').textContent = 'No assessment data available';
+    }
+  }
+  
+  // Extract class comparison data from performance data
+  function extractClassComparisonData(performance, sortedAssessments) {
+    // In a real implementation, this would match class averages to student assessments
+    // For demo, we'll create plausible class average data based on student scores
+    
+    if (!performance.classAverages) {
+      // Generate sample data if not provided
+      return sortedAssessments.map(assessment => {
+        const studentScore = assessment.score || 0;
+        const maxScore = assessment.maxScore || 100;
+        const studentPercentage = (studentScore / maxScore) * 100;
+        
+        // Generate a value that's somewhat close to the student's score but generally lower
+        let classAverage = studentPercentage - (Math.random() * 15) - 5;
+        if (Math.random() > 0.7) { // Occasionally the class average is higher
+          classAverage = studentPercentage + (Math.random() * 10);
+        }
+        
+        // Keep within bounds
+        return Math.min(Math.max(classAverage, 40), 95);
+      });
+    } else {
+      // Use provided class averages data
+      return sortedAssessments.map(assessment => {
+        const assessmentId = assessment.id || assessment._id;
+        const classAvgData = performance.classAverages.find(avg => avg.assessmentId === assessmentId);
+        
+        if (classAvgData) {
+          return classAvgData.averagePercentage;
+        }
+        
+        // Fallback to a reasonable value if specific data isn't available
+        const studentScore = assessment.score || 0;
+        const maxScore = assessment.maxScore || 100;
+        const studentPercentage = (studentScore / maxScore) * 100;
+        
+        return Math.max(studentPercentage - 10, 50);
+      });
+    }
   }
 }); 

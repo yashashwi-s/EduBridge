@@ -598,15 +598,15 @@ def courses():
 
 @app.route("/calendar")
 def calendar():
-    return send_file('src/calendar.html')
+    return render_template('calendar.html')
 
 @app.route("/todo")
 def todo():
-    return send_file('src/todo.html')
+    return render_template('todo.html')
 
 @app.route("/settings")
 def settings():
-    return send_file('src/settings.html')
+    return render_template('settings.html')
 
 @app.route("/student_classroom")
 def student_classroom():
