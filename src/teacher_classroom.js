@@ -92,6 +92,18 @@ document.addEventListener('DOMContentLoaded', function () {
             tabContents.forEach(content => content.classList.remove('active'));
             button.classList.add('active');
             document.getElementById(tabId).classList.add('active');
+            
+            // Initialize performance dashboard if switching to the performance tab
+            if (tabId === 'performance') {
+                if (typeof Chart === 'undefined') {
+                    const chartScript = document.createElement('script');
+                    chartScript.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+                    chartScript.onload = initializePerformanceDashboard;
+                    document.head.appendChild(chartScript);
+                } else {
+                    initializePerformanceDashboard();
+                }
+            }
         });
     });
     
@@ -2862,18 +2874,932 @@ function processAllQuizPdfs() {
     });
 }
 
-// Initialize performance dashboard when DOM content is loaded
-document.addEventListener('DOMContentLoaded', function() {
-  // After other initializations, also initialize the performance dashboard
-  if (document.getElementById('performance')) {
-    // Load Chart.js library if needed
-    if (typeof Chart === 'undefined') {
-      const chartScript = document.createElement('script');
-      chartScript.src = 'https://cdn.jsdelivr.net/npm/chart.js';
-      chartScript.onload = initializePerformanceDashboard;
-      document.head.appendChild(chartScript);
-    } else {
-      initializePerformanceDashboard();
+
+function initializePerformanceDashboard() {
+  console.log('Initializing performance dashboard');
+  
+  // Get classroom ID from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const classroomId = urlParams.get('classroomId');
+  
+  if (!classroomId) {
+    console.error('No classroom ID found in URL');
+    const dashboard = document.querySelector('.performance-dashboard');
+    if (dashboard) {
+      dashboard.innerHTML = '<div class="error-message"><i class="fas fa-exclamation-triangle"></i><h3>Error</h3><p>No classroom ID found in URL. Please ensure you\'re accessing this page correctly.</p></div>';
+    }
+    return;
+  }
+  
+  // Store original HTML for later restoration
+  const dashboard = document.querySelector('.performance-dashboard');
+  const originalHTML = dashboard ? dashboard.innerHTML : '';
+  
+  // Show loading state
+  if (dashboard) {
+    dashboard.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>Loading performance data...</p></div>';
+  }
+  
+  // Fetch student quiz data from API
+  fetch(`/api/classrooms/${classroomId}/quizzes`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(response => {
+    if (!response.ok) {
+      console.error('API error status:', response.status);
+      throw new Error(`Failed to fetch quiz data: ${response.status}`);
+    }
+    return response.json();
+  })
+  .then(data => {
+    console.log('Raw quiz data received from API:', data);
+    console.log('Data type:', typeof data);
+    console.log('Is Array:', Array.isArray(data));
+    console.log('Length:', data?.length || 0);
+    
+    // Verify required fields are present
+    if (Array.isArray(data) && data.length > 0) {
+      const sampleQuiz = data[0];
+      console.log('Sample quiz object fields:', Object.keys(sampleQuiz));
+      console.log('Has submissions:', sampleQuiz.hasOwnProperty('submissions'));
+      if (sampleQuiz.submissions && sampleQuiz.submissions.length > 0) {
+        console.log('Sample submission fields:', Object.keys(sampleQuiz.submissions[0]));
+      }
+    }
+    
+    if (!data || (Array.isArray(data) && data.length === 0)) {
+      console.warn('No quiz data returned from API');
+      if (dashboard) {
+        dashboard.innerHTML = '<div class="empty-state"><i class="fas fa-chart-bar"></i><h3>No Performance Data</h3><p>There are no quizzes or student submissions yet for this classroom.</p></div>';
+      }
+      return;
+    }
+    
+    // Process the raw data to calculate all needed metrics
+    const processedData = processQuizData(data);
+    console.log('Processed data:', processedData);
+    
+    // Restore original HTML structure before populating with data
+    if (dashboard && originalHTML) {
+      dashboard.innerHTML = originalHTML;
+    }
+    
+    // Render the dashboard with the processed data
+    renderPerformanceDashboard(processedData);
+    
+    // Setup section tab switching 
+    setupSectionTabSwitching();
+    
+    // Set up export buttons
+    const pdfBtn = document.getElementById('export-performance-pdf');
+    const csvBtn = document.getElementById('export-performance-csv');
+    const shareBtn = document.getElementById('share-performance-report');
+    
+    if (pdfBtn) pdfBtn.addEventListener('click', exportPerformanceToPDF);
+    if (csvBtn) csvBtn.addEventListener('click', exportPerformanceToCSV);
+    if (shareBtn) shareBtn.addEventListener('click', sharePerformanceReport);
+  })
+  .catch(error => {
+    console.error('Error fetching or processing quiz data:', error);
+    if (dashboard) {
+      dashboard.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-triangle"></i><h3>Error Loading Data</h3><p>${error.message || 'Could not load performance data'}</p></div>`;
+    }
+  });
+}
+
+function renderPerformanceDashboard(data) {
+  // Update summary cards with rounded values
+  document.getElementById('class-average').textContent = `${Math.round(data.classAverage)}%`;
+  document.getElementById('assignments-completed').textContent = data.completedAssignments || 0;
+  document.getElementById('highest-score').textContent = `${Math.round(data.highestScore)}%`;
+  document.getElementById('lowest-score').textContent = `${Math.round(data.lowestScore)}%`;
+  
+  // Update names
+  document.getElementById('top-student-name').textContent = data.topStudent || '--';
+  document.getElementById('struggling-student-name').textContent = data.strugglingStudent || '--';
+  
+  // Update trends
+  const averageTrendElement = document.getElementById('class-average-trend');
+  const averageTrend = data.averageTrend || 0;
+  
+  if (averageTrend > 0) {
+    averageTrendElement.innerHTML = `<i class="fas fa-arrow-up"></i><span>+${averageTrend}%</span>`;
+    averageTrendElement.style.color = '#34A853'; // Green for positive
+  } else if (averageTrend < 0) {
+    averageTrendElement.innerHTML = `<i class="fas fa-arrow-down"></i><span>${averageTrend}%</span>`;
+    averageTrendElement.style.color = '#EA4335'; // Red for negative
+  } else {
+    averageTrendElement.innerHTML = `<i class="fas fa-minus"></i><span>0%</span>`;
+    averageTrendElement.style.color = '#5f6368'; // Gray for no change
+  }
+  
+  // Update completion rate
+  const completionRateElement = document.getElementById('completion-rate');
+  completionRateElement.innerHTML = `<i class="fas fa-users"></i><span>${Math.round(data.completionRate || 0)}%</span>`;
+  
+  // Log data for debugging
+  console.log('Rendering performance dashboard with data:', data);
+  
+  // Render charts
+  renderPerformanceTrendChart(data);
+  renderScoreDistributionChart(data);
+  
+  // Render student rankings
+  renderStudentRankings(data.students || []);
+  
+  // Set up assignment analysis
+  if (data.assignments && data.assignments.length > 0) {
+    renderAssignmentAnalysis(data.assignments);
+    populateAssignmentInsights(data.assignments);
+  } else {
+    console.warn('No quiz data available for analysis');
+    document.getElementById('assignmentAnalysisChart').parentElement.innerHTML = 
+      '<div class="no-data-message">No quiz data available for analysis</div>';
+  }
+  
+  // Set up improvement tracking
+  if (data.improvement) {
+    renderImprovementData(data.improvement);
+    renderStudentProgressChart(data);
+  } else {
+    console.warn('No improvement data available');
+  }
+}
+
+function renderPerformanceTrendChart(data) {
+  const ctx = document.getElementById('performanceTrendChart').getContext('2d');
+  
+  // Set explicit canvas height
+  ctx.canvas.height = 250;
+  
+  // Get trend data
+  const trendData = data.performanceTrend || [];
+  const labels = trendData.map(item => item.date);
+  const averages = trendData.map(item => item.average);
+  
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Class Average',
+        data: averages,
+        borderColor: '#4285F4',
+        backgroundColor: 'rgba(66, 133, 244, 0.1)',
+        borderWidth: 2,
+        pointBackgroundColor: '#4285F4',
+        pointRadius: 4,
+        tension: 0.3,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          ticks: {
+            callback: value => `${value}%`
+          }
+        }
+      },
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top'
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return `Average: ${context.parsed.y}%`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderScoreDistributionChart(data) {
+  const ctx = document.getElementById('scoreDistributionChart').getContext('2d');
+  
+  // Set explicit canvas height
+  ctx.canvas.height = 250;
+  
+  // Add distribution view toggle if it doesn't exist
+  let distributionToggle = document.getElementById('distribution-toggle');
+  if (!distributionToggle) {
+    const chartContainer = document.querySelector('.score-distribution-chart-container');
+    if (chartContainer) {
+      const toggleDiv = document.createElement('div');
+      toggleDiv.className = 'distribution-toggle-container';
+      toggleDiv.innerHTML = `
+        <div class="toggle-label">View:</div>
+        <select id="distribution-toggle" class="form-select form-select-sm">
+          <option value="students">Student Averages</option>
+          <option value="quizzes">Individual Quizzes</option>
+        </select>
+      `;
+      chartContainer.insertBefore(toggleDiv, chartContainer.firstChild);
+      distributionToggle = document.getElementById('distribution-toggle');
     }
   }
-});
+  
+  // Function to render distribution based on selected view
+  const renderDistribution = (view) => {
+    // Reset distributions
+    const distribution = {
+      '0-20': 0,
+      '21-40': 0,
+      '41-60': 0,
+      '61-80': 0,
+      '81-100': 0
+    };
+    
+    if (view === 'students') {
+      // Use student average scores for distribution (one entry per student)
+      const students = data.students || [];
+      students.forEach(student => {
+        const avgScore = student.averageScore;
+        if (avgScore <= 20) distribution['0-20']++;
+        else if (avgScore <= 40) distribution['21-40']++;
+        else if (avgScore <= 60) distribution['41-60']++;
+        else if (avgScore <= 80) distribution['61-80']++;
+        else distribution['81-100']++;
+      });
+    } else {
+      // Use all individual submission scores
+      const allSubmissions = [];
+      
+      // Collect all individual quiz scores
+      data.assignments.forEach(quiz => {
+        // Find this quiz in the original data to get submissions
+        const quizStudents = data.students.flatMap(student => 
+          student.quizzes.filter(q => q.id === quiz.id)
+            .map(q => ({ score: q.score }))
+        );
+        
+        quizStudents.forEach(sub => {
+          allSubmissions.push(sub.score);
+        });
+      });
+      
+      // Categorize all scores
+      allSubmissions.forEach(score => {
+        if (score <= 20) distribution['0-20']++;
+        else if (score <= 40) distribution['21-40']++;
+        else if (score <= 60) distribution['41-60']++;
+        else if (score <= 80) distribution['61-80']++;
+        else distribution['81-100']++;
+      });
+    }
+    
+    // Create or update chart
+    if (window.scoreDistChart) {
+      window.scoreDistChart.data.datasets[0].data = Object.values(distribution);
+      window.scoreDistChart.update();
+    } else {
+      window.scoreDistChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['0-20%', '21-40%', '41-60%', '61-80%', '81-100%'],
+          datasets: [{
+            label: view === 'students' ? 'Number of Students' : 'Number of Submissions',
+            data: Object.values(distribution),
+            backgroundColor: [
+              'rgba(234, 67, 53, 0.7)',  // Red
+              'rgba(251, 188, 5, 0.7)',  // Yellow
+              'rgba(52, 168, 83, 0.7)',  // Green
+              'rgba(66, 133, 244, 0.7)', // Blue
+              'rgba(138, 78, 216, 0.7)'  // Purple
+            ],
+            borderColor: [
+              'rgba(234, 67, 53, 1)',
+              'rgba(251, 188, 5, 1)',
+              'rgba(52, 168, 83, 1)',
+              'rgba(66, 133, 244, 1)',
+              'rgba(138, 78, 216, 1)'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                stepSize: 1,
+                precision: 0
+              }
+            }
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const count = context.parsed.y;
+                  const label = view === 'students' ? 'student' : 'submission';
+                  return `${count} ${label}${count !== 1 ? 's' : ''}`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+  };
+  
+  // Initial render with student view
+  renderDistribution('students');
+  
+  // Add event listener to toggle if it exists
+  if (distributionToggle) {
+    // Remove existing listener first (to prevent duplicates)
+    const newToggle = distributionToggle.cloneNode(true);
+    distributionToggle.parentNode.replaceChild(newToggle, distributionToggle);
+    
+    // Add new listener
+    newToggle.addEventListener('change', function() {
+      renderDistribution(this.value);
+    });
+  }
+}
+
+function renderStudentRankings(students) {
+  const tableBody = document.getElementById('rankings-table-body');
+  tableBody.innerHTML = '';
+  
+  console.log('Rendering student rankings with data:', students);
+  
+  // If we have no students, show a message
+  if (!students || students.length === 0) {
+    tableBody.innerHTML = '<tr><td colspan="6" class="no-data">No student data available</td></tr>';
+    return;
+  }
+  
+  // Create a row for each student
+  students.forEach((student, index) => {
+    const row = document.createElement('tr');
+    
+    // Create trend icon and color based on trend value
+    let trendIcon, trendColor;
+    if (student.trend > 0) {
+      trendIcon = 'fa-arrow-up';
+      trendColor = '#34A853'; // Green
+    } else if (student.trend < 0) {
+      trendIcon = 'fa-arrow-down';
+      trendColor = '#EA4335'; // Red
+    } else {
+      trendIcon = 'fa-minus';
+      trendColor = '#5f6368'; // Gray
+    }
+    
+    row.innerHTML = `
+      <td>${index + 1}</td>
+      <td>
+        <div class="student-info">
+          <img src="${student.avatar || '/images/image.png'}" class="student-avatar" alt="${student.name}">
+          <span>${student.name}</span>
+        </div>
+      </td>
+      <td>${Math.round(student.averageScore)}%</td>
+      <td>${student.completed}/${student.total}</td>
+      <td style="color: ${trendColor}">
+        <i class="fas ${trendIcon}"></i> ${Math.abs(student.trend)}%
+      </td>
+      <td>
+        <button class="btn btn-sm btn-outline view-detail-btn" data-student-id="${student.id}">
+          View Detail
+        </button>
+      </td>
+    `;
+    
+    tableBody.appendChild(row);
+  });
+  
+  // Add event listeners to the view detail buttons
+  document.querySelectorAll('.view-detail-btn').forEach(button => {
+    button.addEventListener('click', function() {
+      const studentId = this.getAttribute('data-student-id');
+      console.log(`View details for student ${studentId}`);
+      // This would open a detailed view of the student's performance
+      showNotification('Student detail view coming soon', 'info');
+    });
+  });
+}
+
+function renderAssignmentAnalysis(assignments) {
+  // Update function name and terminology to use "quizzes" instead of "assignments"
+  const ctx = document.getElementById('assignmentAnalysisChart').getContext('2d');
+  
+  // Set explicit canvas height
+  ctx.canvas.height = 250;
+  
+  // Get assignment names and averages
+  const names = assignments.map(a => a.title);
+  const averages = assignments.map(a => a.average);
+  
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: names,
+      datasets: [{
+        label: 'Quiz Average (%)',
+        data: averages,
+        backgroundColor: 'rgba(66, 133, 244, 0.6)',
+        borderColor: 'rgba(66, 133, 244, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      indexAxis: 'y',
+      scales: {
+        x: {
+          beginAtZero: true,
+          max: 100,
+          ticks: {
+            callback: value => `${value}%`
+          }
+        }
+      }
+    }
+  });
+}
+
+function populateAssignmentInsights(assignments) {
+  // Update function to populate quiz insights instead of assignment insights
+  if (!assignments || assignments.length === 0) {
+    document.getElementById('difficult-topics-list').innerHTML = '<li>No quiz data available</li>';
+    document.getElementById('strong-topics-list').innerHTML = '<li>No quiz data available</li>';
+    return;
+  }
+  
+  // Sort by average scores
+  const sortedByDifficulty = [...assignments].sort((a, b) => a.average - b.average);
+  const sortedByStrength = [...assignments].sort((a, b) => b.average - a.average);
+  
+  // Get the 3 most difficult quizzes (or fewer if not enough data)
+  const difficultQuizzes = sortedByDifficulty.slice(0, Math.min(3, sortedByDifficulty.length));
+  const difficultList = document.getElementById('difficult-topics-list');
+  difficultList.innerHTML = '';
+  
+  difficultQuizzes.forEach(quiz => {
+    const li = document.createElement('li');
+    li.innerHTML = `<strong>${quiz.title}</strong>: ${Math.round(quiz.average)}% average`;
+    difficultList.appendChild(li);
+  });
+  
+  // Get the 3 strongest quizzes (or fewer if not enough data)
+  const strongQuizzes = sortedByStrength.slice(0, Math.min(3, sortedByStrength.length));
+  const strongList = document.getElementById('strong-topics-list');
+  strongList.innerHTML = '';
+  
+  strongQuizzes.forEach(quiz => {
+    const li = document.createElement('li');
+    li.innerHTML = `<strong>${quiz.title}</strong>: ${Math.round(quiz.average)}% average`;
+    strongList.appendChild(li);
+  });
+}
+
+function renderImprovementData(improvement) {
+  // Update improvement metrics in the UI using actual data
+  document.getElementById('most-improved-percent').textContent = `${improvement.mostImprovedPercent || 0}%`;
+  document.getElementById('most-improved-student').textContent = improvement.mostImprovedStudent || '--';
+  document.getElementById('class-improvement').textContent = `${improvement.classImprovement || 0}%`;
+  document.getElementById('students-improving-count').textContent = improvement.studentsImproving || 0;
+  document.getElementById('students-improving-percent').textContent = `${improvement.studentsImprovingPercent || 0}%`;
+  
+  console.log('Rendered improvement data:', improvement);
+}
+
+function renderStudentProgressChart(data) {
+  const ctx = document.getElementById('studentProgressChart').getContext('2d');
+  
+  // Set explicit canvas height
+  ctx.canvas.height = 250;
+  
+  // Get all students
+  const students = data.students || [];
+  
+  if (students.length === 0) {
+    console.error('No student data available for progress chart');
+    return;
+  }
+  
+  // Process labels and data
+  const labels = data.progressLabels || [];
+  const averageData = data.averageProgress || [];
+  
+  // Populate student selector dropdown
+  const studentSelect = document.getElementById('student-progress-select');
+  studentSelect.innerHTML = '<option value="all">All Students (Average)</option>';
+  
+  students.forEach(student => {
+    const option = document.createElement('option');
+    option.value = student.id;
+    option.textContent = student.name;
+    studentSelect.appendChild(option);
+  });
+  
+  // Create the initial chart with average data
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Class Average',
+        data: averageData,
+        borderColor: 'rgba(66, 133, 244, 1)',
+        backgroundColor: 'rgba(66, 133, 244, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100,
+          title: {
+            display: true,
+            text: 'Score (%)'
+          },
+          ticks: {
+            callback: value => `${value}%`
+          }
+        }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              return `Score: ${context.parsed.y}%`;
+            }
+          }
+        }
+      }
+    }
+  });
+  
+  // Add event listener to the student selector
+  studentSelect.addEventListener('change', function() {
+    const selectedId = this.value;
+    
+    // If "all" selected, show class average
+    if (selectedId === 'all') {
+      chart.data.datasets = [{
+        label: 'Class Average',
+        data: averageData,
+        borderColor: 'rgba(66, 133, 244, 1)',
+        backgroundColor: 'rgba(66, 133, 244, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4
+      }];
+      chart.update();
+      return;
+    }
+    
+    // Find selected student
+    const selectedStudent = students.find(s => s.id === selectedId);
+    if (!selectedStudent) return;
+    
+    // Map student quizzes to the correct format for the chart
+    // Create a map of quiz scores indexed by quiz title
+    const quizScoreMap = {};
+    
+    if (selectedStudent.quizzes && selectedStudent.quizzes.length) {
+      selectedStudent.quizzes.forEach(quiz => {
+        quizScoreMap[quiz.title] = quiz.score;
+      });
+    }
+    
+    // Map student scores to chart data points, matching the labels
+    const studentData = labels.map(quizTitle => {
+      return quizScoreMap[quizTitle] !== undefined ? quizScoreMap[quizTitle] : null;
+    });
+    
+    // Update chart with student data
+    chart.data.datasets = [{
+      label: selectedStudent.name,
+      data: studentData,
+      borderColor: 'rgba(234, 67, 53, 1)',
+      backgroundColor: 'rgba(234, 67, 53, 0.1)',
+      borderWidth: 2,
+      fill: true,
+      tension: 0.4
+    }];
+    
+    chart.update();
+  });
+}
+
+function exportPerformanceToPDF() {
+  showNotification('Exporting performance report as PDF...', 'info');
+  // In a real implementation, this would generate and download a PDF
+  setTimeout(() => {
+    showNotification('Performance report exported successfully!', 'success');
+  }, 1500);
+}
+
+function exportPerformanceToCSV() {
+  showNotification('Exporting performance data as CSV...', 'info');
+  // In a real implementation, this would generate and download a CSV
+  setTimeout(() => {
+    showNotification('Performance data exported successfully!', 'success');
+  }, 1500);
+}
+
+function sharePerformanceReport() {
+  showNotification('Preparing to share performance report...', 'info');
+  // In a real implementation, this would open a sharing dialog
+  setTimeout(() => {
+    showNotification('Share link copied to clipboard!', 'success');
+  }, 1500);
+}
+
+// Process raw quiz data to calculate all needed metrics
+function processQuizData(data) {
+  console.log('Processing quiz data to calculate metrics from scratch');
+  
+  // Initialize data structure for processed results
+  const processedData = {
+    classAverage: 0,
+    completedAssignments: 0,
+    highestScore: 0,
+    lowestScore: 100,
+    topStudent: '',
+    strugglingStudent: '',
+    averageTrend: 0,
+    completionRate: 0,
+    performanceTrend: [],
+    scoreDistribution: {
+      '0-20': 0,
+      '21-40': 0,
+      '41-60': 0,
+      '61-80': 0,
+      '81-100': 0
+    },
+    students: [],
+    assignments: [],
+    improvement: {
+      mostImprovedPercent: 0,
+      mostImprovedStudent: '',
+      classImprovement: 0,
+      studentsImproving: 0,
+      studentsImprovingPercent: 0
+    },
+    progressLabels: [],
+    averageProgress: []
+  };
+  
+  // If no data or no quizzes, return empty processed data
+  if (!data || !data.length) {
+    console.warn('No quiz data to process');
+    return processedData;
+  }
+  
+  // Count completed quizzes (quizzes with graded submissions)
+  processedData.completedAssignments = data.filter(quiz => 
+    quiz.submissions && quiz.submissions.some(sub => sub.isGraded === true)
+  ).length;
+  
+  // Map to track student performance
+  const studentMap = new Map();
+  
+  // Arrays to track all scores for overall class statistics
+  const allScores = [];
+  const allPercentages = [];
+  
+  // Process each quiz and its submissions
+  data.forEach(quiz => {
+    // Skip quizzes without submissions
+    if (!quiz.submissions || !quiz.submissions.length) return;
+    
+    const quizTitle = quiz.title || `Quiz ${quiz.id}`;
+    const quizId = quiz.id;
+    const quizMaxScore = 100; // Default percentage max
+    
+    // Arrays for this quiz's scores and percentages
+    const quizScores = [];
+    const quizPercentages = [];
+    
+    // Process student submissions
+    quiz.submissions.forEach(submission => {
+      // Skip ungraded submissions for performance metrics
+      if (!submission.isGraded) return;
+      
+      // Get student ID and name
+      const studentId = submission.student_id;
+      const studentName = submission.studentName || `Student ${studentId}`;
+      
+      // Calculate score and percentage
+      const score = submission.score || 0;
+      const maxScore = submission.maxScore || 100;
+      const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+      
+      // Add to quiz scores
+      quizScores.push(score);
+      quizPercentages.push(percentage);
+      
+      // Add to all scores for overall stats
+      allScores.push(score);
+      allPercentages.push(percentage);
+      
+      // Update score distribution
+      if (percentage <= 20) processedData.scoreDistribution['0-20']++;
+      else if (percentage <= 40) processedData.scoreDistribution['21-40']++;
+      else if (percentage <= 60) processedData.scoreDistribution['41-60']++;
+      else if (percentage <= 80) processedData.scoreDistribution['61-80']++;
+      else processedData.scoreDistribution['81-100']++;
+      
+      // Track highest and lowest scores
+      if (percentage > processedData.highestScore) {
+        processedData.highestScore = percentage;
+        processedData.topStudent = studentName;
+      }
+      
+      if (percentage < processedData.lowestScore || processedData.lowestScore === 100) {
+        processedData.lowestScore = percentage;
+        processedData.strugglingStudent = studentName;
+      }
+      
+      // Update student tracking
+      if (!studentMap.has(studentId)) {
+        studentMap.set(studentId, {
+          id: studentId,
+          name: studentName,
+          avatar: '/images/image.png',
+          scores: [],
+          quizzes: [],
+          completed: 0,
+          total: data.length, // Total quizzes available
+          averageScore: 0,
+          trend: 0
+        });
+      }
+      
+      const studentData = studentMap.get(studentId);
+      studentData.scores.push(percentage);
+      studentData.quizzes.push({
+        id: quizId,
+        title: quizTitle,
+        score: percentage
+      });
+      studentData.completed++;
+    });
+    
+    // Calculate quiz average (only for graded submissions)
+    const quizAverage = quizPercentages.length > 0 ? 
+      quizPercentages.reduce((sum, p) => sum + p, 0) / quizPercentages.length : 0;
+    
+    // Add to assignments array for assignment analysis
+    processedData.assignments.push({
+      id: quizId,
+      title: quizTitle,
+      average: Math.round(quizAverage),
+      maxScore: quizMaxScore
+    });
+    
+    // Add to performance trend directly - one point per quiz
+    processedData.performanceTrend.push({
+      date: quizTitle, // Using quiz title as the label
+      average: Math.round(quizAverage)
+    });
+  });
+  
+  // Calculate overall class average from all percentages
+  processedData.classAverage = allPercentages.length > 0 ? 
+    allPercentages.reduce((sum, p) => sum + p, 0) / allPercentages.length : 0;
+  
+  // Calculate completion rate (avg percentage of quizzes completed by students)
+  const studentCount = studentMap.size;
+  if (studentCount > 0 && data.length > 0) {
+    const totalCompletionRate = Array.from(studentMap.values())
+      .reduce((sum, student) => sum + (student.completed / student.total), 0);
+    processedData.completionRate = (totalCompletionRate / studentCount) * 100;
+  }
+  
+  // Process student data to calculate averages and trends
+  studentMap.forEach(student => {
+    // Calculate student's average score
+    if (student.scores.length > 0) {
+      student.averageScore = student.scores.reduce((sum, score) => sum + score, 0) / student.scores.length;
+    
+      // Calculate trend (improvement from first to last quiz)
+      if (student.scores.length >= 2) {
+        const firstScores = student.scores.slice(0, Math.ceil(student.scores.length / 2));
+        const lastScores = student.scores.slice(-Math.ceil(student.scores.length / 2));
+        
+        const firstAvg = firstScores.reduce((sum, score) => sum + score, 0) / firstScores.length;
+        const lastAvg = lastScores.reduce((sum, score) => sum + score, 0) / lastScores.length;
+        
+        student.trend = Math.round(lastAvg - firstAvg);
+      }
+    }
+    
+    // Add to processed students array
+    processedData.students.push(student);
+  });
+  
+  // Sort students by average score
+  processedData.students.sort((a, b) => b.averageScore - a.averageScore);
+  
+  // Find highest and lowest scoring students after calculating their averages
+  if (processedData.students.length > 0) {
+    // Find student with highest average score
+    const topStudent = processedData.students[0];
+    processedData.highestScore = Math.round(topStudent.averageScore);
+    processedData.topStudent = topStudent.name;
+    
+    // Find student with lowest average score
+    const strugglingStudent = processedData.students[processedData.students.length - 1];
+    processedData.lowestScore = Math.round(strugglingStudent.averageScore);
+    processedData.strugglingStudent = strugglingStudent.name;
+  }
+  
+  // Use quiz titles for progress labels (same as trend data) 
+  processedData.progressLabels = processedData.performanceTrend.map(item => item.date);
+  processedData.averageProgress = processedData.performanceTrend.map(item => item.average);
+  
+  // Calculate improvement metrics
+  if (processedData.students.length > 0) {
+    // Find most improved student
+    const mostImprovedStudent = [...processedData.students].sort((a, b) => b.trend - a.trend)[0];
+    if (mostImprovedStudent && mostImprovedStudent.trend > 0) {
+      processedData.improvement.mostImprovedPercent = mostImprovedStudent.trend;
+      processedData.improvement.mostImprovedStudent = mostImprovedStudent.name;
+    }
+    
+    // Count students with positive improvement
+    const improvingStudents = processedData.students.filter(s => s.trend > 0);
+    processedData.improvement.studentsImproving = improvingStudents.length;
+    processedData.improvement.studentsImprovingPercent = Math.round((improvingStudents.length / processedData.students.length) * 100);
+    
+    // Calculate overall class improvement
+    if (processedData.performanceTrend.length >= 2) {
+      const firstAvg = processedData.performanceTrend[0].average;
+      const lastAvg = processedData.performanceTrend[processedData.performanceTrend.length - 1].average;
+      processedData.improvement.classImprovement = Math.round(lastAvg - firstAvg);
+      processedData.averageTrend = processedData.improvement.classImprovement;
+    }
+  }
+  
+  console.log('Processed data:', processedData);
+  return processedData;
+}
+
+function setupSectionTabSwitching() {
+  console.log('Setting up section tab switching');
+  
+  // Get all section tabs
+  const sectionTabs = document.querySelectorAll('.section-tab');
+  
+  if (sectionTabs.length === 0) {
+    console.error('No section tabs found!');
+    return;
+  }
+  
+  console.log(`Found ${sectionTabs.length} section tabs`);
+  
+  // Remove any existing event listeners (to prevent duplicates)
+  sectionTabs.forEach(tab => {
+    const newTab = tab.cloneNode(true);
+    tab.parentNode.replaceChild(newTab, tab);
+  });
+  
+  // Add event listeners to each tab
+  document.querySelectorAll('.section-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      console.log(`Section tab clicked: ${tab.getAttribute('data-section')}`);
+      
+      // Remove active class from all tabs and content
+      document.querySelectorAll('.section-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.section-content').forEach(c => c.classList.remove('active'));
+      
+      // Add active class to clicked tab and corresponding content
+      tab.classList.add('active');
+      const sectionId = tab.getAttribute('data-section');
+      const contentElement = document.getElementById(sectionId);
+      
+      if (contentElement) {
+        contentElement.classList.add('active');
+      } else {
+        console.error(`Section content with ID ${sectionId} not found!`);
+      }
+    });
+  });
+}

@@ -2705,6 +2705,7 @@ button,
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  height: 350px; /* Add fixed height */
 }
 
 .performance-chart-container h3 {
@@ -2763,6 +2764,8 @@ button,
 .section-content {
   display: none;
   padding: 20px;
+  max-height: 600px; /* Add max height */
+  overflow-y: auto; /* Add scrolling for overflow content */
 }
 
 .section-content.active {
@@ -2833,6 +2836,7 @@ button,
   display: grid;
   grid-template-columns: 2fr 1fr;
   gap: 20px;
+  height: 350px; /* Add height constraint */
 }
 
 .assignment-insights {
@@ -2917,6 +2921,8 @@ button,
   border-radius: 8px;
   padding: 20px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  height: 350px; /* Add height constraint */
+  margin-top: 20px;
 }
 
 .improvement-chart-container h4 {
@@ -3009,4 +3015,16 @@ button,
     width: 24px;
     height: 24px;
   }
+}
+
+.performance-chart-container canvas {
+  max-height: 300px; /* Leave room for the title */
+}
+
+#assignmentAnalysisChart {
+  max-height: 300px;
+}
+
+#studentProgressChart {
+  max-height: 300px;
 }
