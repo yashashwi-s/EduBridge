@@ -87,6 +87,9 @@ document.addEventListener('DOMContentLoaded', function () {
     })
       .then(resp => resp.json())
       .then(data => {
+        // Log data for debugging
+        console.log('Classroom data received:', data);
+        
         teacherNameGlobal = data.teacherName || "Teacher Name";
         teacherAvatarGlobal = data.teacherAvatar || "images/image.png";
         
@@ -95,26 +98,70 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelector('.classroom-header h1').textContent = data.className || "Course Name";
         document.querySelector('.classroom-header p').textContent = `${data.section || "Section"} - ${data.subject || "Subject"}`;
         
+        
+        
         // Set classroom background image from the database
-        if (data.classImage) {
+        if (data.headerImage) {
           // Try to use the image URL from the database
           const img = new Image();
           img.onload = function() {
             // Image loaded successfully, use it
-            header.style.backgroundImage = `url('${data.classImage}')`;
+            header.style.backgroundImage = `url('${data.headerImage}')`;
           };
           img.onerror = function() {
             // Image failed to load, use subject-based fallback
             useSubjectBasedImage(data.subject, header);
           };
-          img.src = data.classImage;
+          img.src = data.headerImage;
         } else {
           // No image in database, use subject-based fallback
           useSubjectBasedImage(data.subject, header);
         }
         
+        // Update enrolled students information if present
+        if (data.enrolled_students && data.enrolled_students.length) {
+            const studentCountElement = document.querySelector('.student-count');
+            if (studentCountElement) {
+                studentCountElement.textContent = `${data.enrolled_students.length} Students`;
+            } else {
+                const studentCountDiv = document.createElement('div');
+                studentCountDiv.className = 'student-count';
+                studentCountDiv.textContent = `${data.enrolled_students.length} Students`;
+                const infoSection = document.querySelector('.classroom-info') || header;
+                infoSection.appendChild(studentCountDiv);
+            }
+        }
+        
         // Add controls for search and sort
         const feed = document.querySelector('.announcements-feed');
+        const controlsHTML = `
+          <div class="announcements-controls">
+            <div class="search-container">
+              <input type="text" id="announcement-search" placeholder="Search announcements...">
+              <button id="search-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              </button>
+            </div>
+            <div class="sort-container">
+              <label for="sort-announcements">Sort by:</label>
+              <select id="sort-announcements">
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="comments">Most commented</option>
+              </select>
+            </div>
+          </div>
+        `;
+        
+        // Add controls before the feed content if they don't already exist
+        if (!document.querySelector('.announcements-controls')) {
+          feed.insertAdjacentHTML('beforebegin', controlsHTML);
+          
+          // Set up event listeners for search and sort
+          document.getElementById('announcement-search').addEventListener('input', filterAnnouncements);
+          document.getElementById('search-btn').addEventListener('click', filterAnnouncements);
+          document.getElementById('sort-announcements').addEventListener('change', sortAnnouncements);
+        }
         
         // Store announcements in a global variable for sorting/filtering
         window.allAnnouncements = data.announcements || [];
@@ -143,7 +190,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
       })
       .catch(err => {
-        console.error(err);
+        console.error('Error loading classroom data:', err);
         showNotification('Error loading classroom data.', 'error');
       });
   }
@@ -151,7 +198,46 @@ document.addEventListener('DOMContentLoaded', function () {
   // Helper function to set background image based on subject
   function useSubjectBasedImage(subject, headerElement) {
     const subjectLower = (subject || '').toLowerCase();
-    let themeImage = 'https://gstatic.com/classroom/themes/Physics.jpg'; // Default
+    let themeImage;
+    
+    // Subject-based image selection
+    switch (subjectLower) {
+      case 'math':
+      case 'mathematics':
+        themeImage = 'https://www.gstatic.com/classroom/themes/Math.jpg';
+        break;
+      case 'physics':
+        themeImage = 'https://www.gstatic.com/classroom/themes/Physics.jpg';
+        break;
+      case 'chemistry':
+        themeImage = 'https://www.gstatic.com/classroom/themes/Chemistry.jpg';
+        break;
+      case 'biology':
+        themeImage = 'https://www.gstatic.com/classroom/themes/img_bioneural.jpg';
+        break;
+      case 'computer science':
+      case 'programming':
+      case 'coding':
+        themeImage = 'https://www.gstatic.com/classroom/themes/img_code.jpg';
+        break;
+      case 'history':
+        themeImage = 'https://www.gstatic.com/classroom/themes/History.jpg';
+        break;
+      case 'english':
+      case 'literature':
+        themeImage = 'https://www.gstatic.com/classroom/themes/Writing.jpg';
+        break;
+      case 'art':
+        themeImage = 'https://www.gstatic.com/classroom/themes/img_arts.jpg';
+        break;
+      case 'music':
+        themeImage = 'https://www.gstatic.com/classroom/themes/img_orchestra.jpg';
+        break;
+      default:
+        // Default image for other subjects
+        themeImage = 'https://www.gstatic.com/classroom/themes/img_reachout.jpg';
+    }
+    
     headerElement.style.backgroundImage = `url('${themeImage}')`;
   }
 
@@ -577,6 +663,9 @@ document.addEventListener('DOMContentLoaded', function () {
     quizzes.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
     
     quizzes.forEach(quiz => {
+      // Handle MongoDB IDs - for quiz objects from MongoDB, the id might be in _id or id
+      const quizId = quiz.id || quiz._id;
+      
       // Create Date objects from ISO strings using the helper
       const startTime = EduQuiz.parseDate(quiz.startTime);
       const endTime = quiz.endTime ? EduQuiz.parseDate(quiz.endTime) : null;
@@ -612,51 +701,116 @@ document.addEventListener('DOMContentLoaded', function () {
       // Check if it's a PDF quiz (has quizType property set to 'pdf') or legacy question-based quiz
       const isPdfQuiz = quiz.quizType === 'pdf';
       
+      // Calculate the quiz duration in a readable format
+      const durationMinutes = quiz.duration ? Math.floor(quiz.duration / 60) : 0;
+      const durationText = durationMinutes > 0 ? `${durationMinutes} minutes` : 'No time limit';
+      
       // For question count, handle both quiz types
       const questionCount = isPdfQuiz ? 'PDF Quiz' : 
                           (quiz.questions && quiz.questions.length ? `${quiz.questions.length} Questions` : 'N/A');
       
-      // const quizHtml = `
-      //   <div class="quiz-card" data-id="${quiz.id}">
-      //     <div class="quiz-card-header">
-      //       <div class="quiz-card-title">
-      //         <h3>${quiz.title}</h3>
-      //         <p>${quiz.description}</p>
-      //       </div>
-      //     </div>
-      //     <div class="quiz-card-meta">
-      //       <span class="meta-item"><i class="fas fa-calendar-check"></i> ${formattedStartTime} - ${formattedEndTime}</span>
-      //       <span class="meta-item"><i class="fas fa-clock"></i> ${quiz.duration} minutes</span>
-      //       <span class="meta-item">
-      //         ${quiz.quizType === 'pdf' ? '<i class="fas fa-file-pdf"></i>' : '<i class="fas fa-question-circle"></i>'} 
-      //         ${questionCount}
-      //       </span>
-      //       <span class="quiz-status-badge status-${quiz.studentStatus === 'submitted' ? 'completed' : quiz.studentStatus}">${status}</span>
-      //     </div>
-      //     <div class="quiz-card-actions">
-      //       ${status === 'In Progress' ? '<button class="take-quiz-btn">Take Quiz</button>' : ''}
-      //       ${status === 'Completed' ? '<button class="view-result-btn">View Results</button>' : ''}
-      //       ${status === 'Upcoming' ? '<button class="view-details-btn">View Details</button>' : ''}
-      //     </div>
-      //   </div>
-      // `;
+      const quizHtml = `
+        <div class="quiz-card ${isPdfQuiz ? 'pdf-quiz' : ''}" data-id="${quizId}">
+          <div class="quiz-card-header">
+            <div class="quiz-card-title">
+              <h3>${quiz.title}</h3>
+              <p>${quiz.description || ''}</p>
+            </div>
+          </div>
+          <div class="quiz-card-meta">
+            <span class="meta-item"><i class="fas fa-calendar-check"></i> ${formattedStartTime}</span>
+            <span class="meta-item"><i class="fas fa-clock"></i> ${durationText}</span>
+            <span class="meta-item">
+              ${isPdfQuiz ? '<i class="fas fa-file-pdf"></i>' : '<i class="fas fa-question-circle"></i>'} 
+              ${questionCount}
+            </span>
+            <span class="quiz-status-badge ${statusClass}">${status}</span>
+          </div>
+          <div class="quiz-card-actions">
+            ${status === 'In Progress' ? 
+              `<button class="take-quiz-btn" data-id="${quizId}">
+                ${isPdfQuiz ? 'Upload Answer' : 'Take Quiz'}
+              </button>` : ''}
+            ${status === 'Completed' ? 
+              `<button class="view-result-btn" data-id="${quizId}">View Results</button>` : ''}
+            ${status === 'Upcoming' ? 
+              `<button class="view-details-btn" data-id="${quizId}">View Details</button>` : ''}
+          </div>
+        </div>
+      `;
       container.insertAdjacentHTML('beforeend', quizHtml);
     });
     
     // Add event listeners to quiz buttons
     document.querySelectorAll('.take-quiz-btn').forEach(btn => {
       btn.addEventListener('click', function() {
-        const quizId = this.closest('.quiz-card').getAttribute('data-id');
-        openQuizInstructions(quizId);
+        const quizId = this.getAttribute('data-id');
+        const quiz = quizzes.find(q => (q.id === quizId || q._id === quizId));
+        
+        if (quiz && quiz.quizType === 'pdf') {
+          openUploadAnswerModal(quizId);
+        } else {
+          openQuizInstructions(quizId);
+        }
       });
     });
     
     document.querySelectorAll('.view-result-btn').forEach(btn => {
       btn.addEventListener('click', function() {
-        const quizId = this.closest('.quiz-card').getAttribute('data-id');
+        const quizId = this.getAttribute('data-id');
         viewQuizResults(quizId);
       });
     });
+    
+    document.querySelectorAll('.view-details-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const quizId = this.getAttribute('data-id');
+        const quiz = quizzes.find(q => (q.id === quizId || q._id === quizId));
+        
+        if (quiz) {
+          // Display quiz details in a modal
+          const modal = document.getElementById('quiz-details-modal') || createQuizDetailsModal();
+          const modalContent = modal.querySelector('.modal-content');
+          
+          // Generate details HTML
+          modalContent.innerHTML = `
+            <h3>${quiz.title}</h3>
+            <p>${quiz.description || 'No description provided.'}</p>
+            <div class="quiz-details">
+              <p><strong>Start Time:</strong> ${new Date(quiz.startTime).toLocaleString()}</p>
+              <p><strong>Duration:</strong> ${durationMinutes} minutes</p>
+              <p><strong>Type:</strong> ${isPdfQuiz ? 'PDF Upload' : 'Online Quiz'}</p>
+              <p><strong>Status:</strong> ${status}</p>
+            </div>
+            <div class="modal-actions">
+              <button class="close-modal-btn">Close</button>
+            </div>
+          `;
+          
+          // Add event listener to close button
+          modalContent.querySelector('.close-modal-btn').addEventListener('click', () => {
+            closeModal('quiz-details-modal');
+          });
+          
+          // Show the modal
+          openModal('quiz-details-modal');
+        }
+      });
+    });
+  }
+  
+  // Helper function to create a quiz details modal if it doesn't exist
+  function createQuizDetailsModal() {
+    const modal = document.createElement('div');
+    modal.id = 'quiz-details-modal';
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <!-- Content will be populated dynamically -->
+      </div>
+    `;
+    document.body.appendChild(modal);
+    return modal;
   }
 
   // Load performance data
